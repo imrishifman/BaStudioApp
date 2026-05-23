@@ -1,7 +1,23 @@
 import Stripe from 'stripe'
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2026-04-22.dahlia',
+// Lazy singleton — instantiated on first property access (at request time),
+// not at module evaluation time, so Vercel build doesn't need STRIPE_SECRET_KEY.
+let _stripe: Stripe | null = null
+function getInstance(): Stripe {
+  if (!_stripe) {
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+      apiVersion: '2026-04-22.dahlia',
+    })
+  }
+  return _stripe
+}
+
+export const stripe = new Proxy({} as Stripe, {
+  get(_, prop: string | symbol) {
+    const instance = getInstance()
+    const value = (instance as unknown as Record<string | symbol, unknown>)[prop]
+    return typeof value === 'function' ? (value as Function).bind(instance) : value
+  },
 })
 
 export const PRICE_IDS = {
