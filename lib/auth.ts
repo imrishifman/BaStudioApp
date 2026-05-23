@@ -52,7 +52,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
     Resend({
       apiKey: process.env.AUTH_RESEND_KEY,
-      from: 'Ba-Studio <noreply@ba-studio.com>',
+      from: process.env.RESEND_FROM ?? 'Ba-Studio <onboarding@resend.dev>',
     }),
     Google({
       clientId: process.env.AUTH_GOOGLE_ID,
