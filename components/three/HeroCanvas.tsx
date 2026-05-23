@@ -2,18 +2,33 @@
 
 import { useRef, useState, useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { Bloom, EffectComposer } from '@react-three/postprocessing'
 import { HeroObject } from './HeroObject'
 import { OrbitalLight } from './OrbitalLight'
+import { CanvasErrorBoundary } from './CanvasErrorBoundary'
 import { useScroll } from 'framer-motion'
+
+function AmbientFallback() {
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 flex items-center justify-center"
+      style={{
+        background:
+          'radial-gradient(ellipse 60% 50% at 50% 55%, rgba(167,139,250,0.10) 0%, transparent 70%)',
+      }}
+    >
+      <div
+        className="h-72 w-72 rounded-full opacity-25 blur-3xl"
+        style={{ background: 'var(--accent-violet)' }}
+      />
+    </div>
+  )
+}
 
 export function HeroCanvas() {
   const canvasRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
   // Scroll progress is carried in a ref (read inside useFrame) so scrolling
-  // never triggers a React re-render of the <Canvas> subtree. Re-rendering the
-  // EffectComposer on every scroll tick crashes postprocessing (null WebGL
-  // context → "Cannot read properties of null (reading 'alpha')").
+  // never triggers a React re-render of the <Canvas> subtree.
   const scrollProgressRef = useRef(0)
   const { scrollY } = useScroll()
   const [isMobile, setIsMobile] = useState(false)
@@ -63,26 +78,33 @@ export function HeroCanvas() {
   }
 
   return (
-    <div ref={canvasRef} className="h-full w-full">
-      <Canvas
-        dpr={[1, 1.5]}
-        gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
-        camera={{ position: [0, 0, 5], fov: 45 }}
-        style={{ background: 'transparent' }}
-      >
-        <ambientLight intensity={0.06} />
+    <div ref={canvasRef} className="relative h-full w-full">
+      <CanvasErrorBoundary fallback={<AmbientFallback />}>
+        <Canvas
+          dpr={[1, 1.5]}
+          gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+          camera={{ position: [0, 0, 5], fov: 45 }}
+          style={{ background: 'transparent' }}
+          onCreated={({ gl }) => {
+            // Prevent a lost WebGL context from hard-crashing the page;
+            // the browser can then attempt to restore it on its own.
+            gl.domElement.addEventListener(
+              'webglcontextlost',
+              (e) => e.preventDefault(),
+              false
+            )
+          }}
+        >
+          <ambientLight intensity={0.06} />
 
-        {/* Three orbital coloured lights */}
-        <OrbitalLight color="#A78BFA" intensity={8} period={14} phase={0} />
-        <OrbitalLight color="#67E8F9" intensity={7} period={18} phase={2.1} />
-        <OrbitalLight color="#FBA5C9" intensity={6} period={22} phase={4.2} />
+          {/* Three orbital coloured lights */}
+          <OrbitalLight color="#A78BFA" intensity={8} period={14} phase={0} />
+          <OrbitalLight color="#67E8F9" intensity={7} period={18} phase={2.1} />
+          <OrbitalLight color="#FBA5C9" intensity={6} period={22} phase={4.2} />
 
-        <HeroObject scrollProgressRef={scrollProgressRef} />
-
-        <EffectComposer>
-          <Bloom intensity={0.6} luminanceThreshold={0.5} mipmapBlur />
-        </EffectComposer>
-      </Canvas>
+          <HeroObject scrollProgressRef={scrollProgressRef} />
+        </Canvas>
+      </CanvasErrorBoundary>
     </div>
   )
 }
