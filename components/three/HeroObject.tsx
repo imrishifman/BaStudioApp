@@ -1,23 +1,21 @@
 'use client'
 
-import { useRef, useEffect } from 'react'
-import { useFrame, useThree } from '@react-three/fiber'
+import { useRef, useEffect, type RefObject } from 'react'
+import { useFrame } from '@react-three/fiber'
 import { Environment, MeshDistortMaterial } from '@react-three/drei'
 import * as THREE from 'three'
 
 interface HeroObjectProps {
-  scrollProgress: number
+  scrollProgressRef: RefObject<number>
 }
 
-export function HeroObject({ scrollProgress }: HeroObjectProps) {
+export function HeroObject({ scrollProgressRef }: HeroObjectProps) {
   const groupRef = useRef<THREE.Group>(null)
   const micRef = useRef<THREE.Mesh>(null)
   const ringRef = useRef<THREE.Mesh>(null)
   const backdropRef = useRef<THREE.Mesh>(null)
   const mouse = useRef({ x: 0, y: 0 })
   const targetRotation = useRef({ x: 0, y: 0 })
-
-  const { gl } = useThree()
 
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
@@ -30,6 +28,8 @@ export function HeroObject({ scrollProgress }: HeroObjectProps) {
 
   useFrame((state, delta) => {
     if (!groupRef.current) return
+
+    const scrollProgress = scrollProgressRef.current ?? 0
 
     // Idle rotation
     groupRef.current.rotation.y += delta * 0.06
