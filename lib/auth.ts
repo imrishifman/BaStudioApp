@@ -1,6 +1,5 @@
 import NextAuth from 'next-auth'
 import { PrismaAdapter } from '@auth/prisma-adapter'
-import Resend from 'next-auth/providers/resend'
 import Google from 'next-auth/providers/google'
 import Credentials from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
@@ -50,10 +49,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
       },
     }),
-    Resend({
-      apiKey: process.env.AUTH_RESEND_KEY,
-      from: process.env.RESEND_FROM ?? 'Ba-Studio <onboarding@resend.dev>',
-    }),
     Google({
       clientId: process.env.AUTH_GOOGLE_ID,
       clientSecret: process.env.AUTH_GOOGLE_SECRET,
@@ -67,11 +62,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   // Credentials provider requires JWT sessions (database sessions are not
-  // supported with credentials). Magic-link and Google work with JWT too.
+  // supported with credentials). Google works with JWT too.
   session: { strategy: 'jwt' },
   pages: {
     signIn: '/?signin=1',
-    verifyRequest: '/auth/verify',
     error: '/?autherror=1',
   },
   callbacks: {

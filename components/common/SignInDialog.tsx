@@ -20,7 +20,7 @@ interface SignInDialogProps {
   initialError?: string
 }
 
-type Mode = 'signin' | 'signup' | 'magicSent'
+type Mode = 'signin' | 'signup'
 
 const inputCls =
   'border-[var(--line-2)] bg-[var(--bg-3)] text-[var(--ink-1)] placeholder:text-[var(--ink-4)]'
@@ -33,7 +33,6 @@ export function SignInDialog({ open, onOpenChange, initialError }: SignInDialogP
   const [confirm, setConfirm] = useState('')
   const [fullName, setFullName] = useState('')
   const [loading, setLoading] = useState(false)
-  const [magicLoading, setMagicLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Seed an error passed in from the page (e.g. after a failed redirect).
@@ -101,18 +100,6 @@ export function SignInDialog({ open, onOpenChange, initialError }: SignInDialogP
     }
   }
 
-  async function handleMagicLink() {
-    if (!email) {
-      setError('Enter your email first.')
-      return
-    }
-    setError(null)
-    setMagicLoading(true)
-    await signIn('resend', { email, redirect: false })
-    setMagicLoading(false)
-    setMode('magicSent')
-  }
-
   async function handleGoogleSignIn() {
     await signIn('google', { callbackUrl: '/studio' })
   }
@@ -127,159 +114,127 @@ export function SignInDialog({ open, onOpenChange, initialError }: SignInDialogP
       >
         <DialogHeader>
           <DialogTitle className="display-sm text-[var(--ink-1)]">
-            {mode === 'magicSent'
-              ? 'Check your inbox'
-              : isSignup
-                ? 'Create your account'
-                : 'Sign in to Ba-Studio'}
+            {isSignup ? 'Create your account' : 'Sign in to Ba-Studio'}
           </DialogTitle>
           <DialogDescription className="body text-[var(--ink-2)] mt-1">
-            {mode === 'magicSent'
-              ? `We sent a magic link to ${email}`
-              : isSignup
-                ? 'Start producing podcasts the way you imagine them.'
-                : 'Welcome back. Sign in to continue.'}
+            {isSignup
+              ? 'Start producing podcasts the way you imagine them.'
+              : 'Welcome back. Sign in to continue.'}
           </DialogDescription>
         </DialogHeader>
 
-        {mode === 'magicSent' ? (
-          <div className="pt-2">
-            <PillButton
-              variant="secondary"
+        <div className="flex flex-col gap-4 pt-2">
+          <form onSubmit={handlePasswordSubmit} className="flex flex-col gap-3">
+            {isSignup && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="signin-name" className={labelCls}>
+                  Name
+                </Label>
+                <Input
+                  id="signin-name"
+                  type="text"
+                  placeholder="Your name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className={inputCls}
+                />
+              </div>
+            )}
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="signin-email" className={labelCls}>
+                Email
+              </Label>
+              <Input
+                id="signin-email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={inputCls}
+                required
+                autoFocus
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="signin-password" className={labelCls}>
+                Password
+              </Label>
+              <Input
+                id="signin-password"
+                type="password"
+                placeholder={isSignup ? 'At least 8 characters' : 'Your password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={inputCls}
+                required
+                minLength={isSignup ? 8 : undefined}
+              />
+            </div>
+
+            {isSignup && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="signin-confirm" className={labelCls}>
+                  Confirm password
+                </Label>
+                <Input
+                  id="signin-confirm"
+                  type="password"
+                  placeholder="Re-enter your password"
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  className={inputCls}
+                  required
+                />
+              </div>
+            )}
+
+            {error && (
+              <p className="body-sm text-[var(--error)]" role="alert">
+                {error}
+              </p>
+            )}
+
+            <PillButton type="submit" disabled={loading} className="w-full">
+              {loading
+                ? isSignup
+                  ? 'Creating account…'
+                  : 'Signing in…'
+                : isSignup
+                  ? 'Create account'
+                  : 'Sign in'}
+            </PillButton>
+          </form>
+
+          <div className="flex items-center gap-3">
+            <Separator className="flex-1 bg-[var(--line-1)]" />
+            <span className="body-sm text-[var(--ink-3)]">or</span>
+            <Separator className="flex-1 bg-[var(--line-1)]" />
+          </div>
+
+          <PillButton
+            variant="secondary"
+            onClick={handleGoogleSignIn}
+            className="w-full"
+          >
+            Continue with Google
+          </PillButton>
+
+          <p className="body-sm text-center text-[var(--ink-3)]">
+            {isSignup ? 'Already have an account?' : "Don't have an account?"}{' '}
+            <button
+              type="button"
               onClick={() => {
-                setMode('signin')
-                setEmail('')
+                setMode(isSignup ? 'signin' : 'signup')
                 resetFields()
               }}
-              className="w-full"
+              className="font-semibold text-[var(--accent-violet)] hover:underline"
             >
-              Use a different email
-            </PillButton>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4 pt-2">
-            <form onSubmit={handlePasswordSubmit} className="flex flex-col gap-3">
-              {isSignup && (
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="signin-name" className={labelCls}>
-                    Name
-                  </Label>
-                  <Input
-                    id="signin-name"
-                    type="text"
-                    placeholder="Your name"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className={inputCls}
-                  />
-                </div>
-              )}
-
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="signin-email" className={labelCls}>
-                  Email
-                </Label>
-                <Input
-                  id="signin-email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className={inputCls}
-                  required
-                  autoFocus
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="signin-password" className={labelCls}>
-                  Password
-                </Label>
-                <Input
-                  id="signin-password"
-                  type="password"
-                  placeholder={isSignup ? 'At least 8 characters' : 'Your password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className={inputCls}
-                  required
-                  minLength={isSignup ? 8 : undefined}
-                />
-              </div>
-
-              {isSignup && (
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="signin-confirm" className={labelCls}>
-                    Confirm password
-                  </Label>
-                  <Input
-                    id="signin-confirm"
-                    type="password"
-                    placeholder="Re-enter your password"
-                    value={confirm}
-                    onChange={(e) => setConfirm(e.target.value)}
-                    className={inputCls}
-                    required
-                  />
-                </div>
-              )}
-
-              {error && (
-                <p className="body-sm text-[var(--error)]" role="alert">
-                  {error}
-                </p>
-              )}
-
-              <PillButton type="submit" disabled={loading} className="w-full">
-                {loading
-                  ? isSignup
-                    ? 'Creating account…'
-                    : 'Signing in…'
-                  : isSignup
-                    ? 'Create account'
-                    : 'Sign in'}
-              </PillButton>
-            </form>
-
-            <div className="flex items-center gap-3">
-              <Separator className="flex-1 bg-[var(--line-1)]" />
-              <span className="body-sm text-[var(--ink-3)]">or</span>
-              <Separator className="flex-1 bg-[var(--line-1)]" />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <PillButton
-                variant="secondary"
-                onClick={handleMagicLink}
-                disabled={magicLoading}
-                className="w-full"
-              >
-                {magicLoading ? 'Sending…' : 'Email me a magic link'}
-              </PillButton>
-              <PillButton
-                variant="secondary"
-                onClick={handleGoogleSignIn}
-                className="w-full"
-              >
-                Continue with Google
-              </PillButton>
-            </div>
-
-            <p className="body-sm text-center text-[var(--ink-3)]">
-              {isSignup ? 'Already have an account?' : "Don't have an account?"}{' '}
-              <button
-                type="button"
-                onClick={() => {
-                  setMode(isSignup ? 'signin' : 'signup')
-                  resetFields()
-                }}
-                className="font-semibold text-[var(--accent-violet)] hover:underline"
-              >
-                {isSignup ? 'Sign in' : 'Create one'}
-              </button>
-            </p>
-          </div>
-        )}
+              {isSignup ? 'Sign in' : 'Create one'}
+            </button>
+          </p>
+        </div>
       </DialogContent>
     </Dialog>
   )
