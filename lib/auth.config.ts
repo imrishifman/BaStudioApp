@@ -1,0 +1,48 @@
+import type { NextAuthConfig } from 'next-auth'
+import Google from 'next-auth/providers/google'
+import type { Plan, Role } from '@prisma/client'
+
+declare module 'next-auth' {
+  interface Session {
+    user: {
+      id: string
+      email: string
+      name?: string | null
+      image?: string | null
+      plan: Plan
+      role: Role
+      onboardingComplete: boolean
+      skippedDnaSetup: boolean
+    }
+  }
+}
+
+/**
+ * Edge-safe auth config (NO Prisma, bcrypt, or other Node-only deps).
+ * The middleware (proxy.ts) builds a NextAuth instance from this so it can
+ * verify the JWT session on Vercel's edge runtime. The full config in
+ * lib/auth.ts spreads this and adds the Prisma adapter, the Credentials
+ * provider, and the DB-enriched session — all of which run only in Node.
+ */
+export const authConfig = {
+  providers: [
+    Google({
+      clientId: process.env.AUTH_GOOGLE_ID,
+      clientSecret: process.env.AUTH_GOOGLE_SECRET,
+      authorization: {
+        params: { scope: 'openid email profile' },
+      },
+    }),
+  ],
+  session: { strategy: 'jwt' },
+  pages: {
+    signIn: '/?signin=1',
+    error: '/?autherror=1',
+  },
+  callbacks: {
+    jwt({ token, user }) {
+      if (user?.email) token.email = user.email
+      return token
+    },
+  },
+} satisfies NextAuthConfig

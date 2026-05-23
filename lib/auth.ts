@@ -1,29 +1,15 @@
 import NextAuth from 'next-auth'
 import { PrismaAdapter } from '@auth/prisma-adapter'
-import Google from 'next-auth/providers/google'
 import Credentials from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
-import type { Plan, Role } from '@prisma/client'
-
-declare module 'next-auth' {
-  interface Session {
-    user: {
-      id: string
-      email: string
-      name?: string | null
-      image?: string | null
-      plan: Plan
-      role: Role
-      onboardingComplete: boolean
-      skippedDnaSetup: boolean
-    }
-  }
-}
+import { authConfig } from './auth.config'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfig,
   adapter: PrismaAdapter(prisma),
   providers: [
+    ...authConfig.providers,
     Credentials({
       name: 'Email and password',
       credentials: {
@@ -49,29 +35,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
       },
     }),
-    Google({
-      clientId: process.env.AUTH_GOOGLE_ID,
-      clientSecret: process.env.AUTH_GOOGLE_SECRET,
-      // Sign-in-only scopes — no sensitive Google review needed. The Calendar
-      // integration can be added later as a separate, opt-in connect flow.
-      authorization: {
-        params: {
-          scope: 'openid email profile',
-        },
-      },
-    }),
   ],
-  // Credentials provider requires JWT sessions (database sessions are not
-  // supported with credentials). Google works with JWT too.
-  session: { strategy: 'jwt' },
-  pages: {
-    signIn: '/?signin=1',
-    error: '/?autherror=1',
-  },
   callbacks: {
+    ...authConfig.callbacks,
     async signIn({ user }) {
       if (!user.email) return false
-      // Auto-create a User row on first OAuth/magic-link sign-in.
+      // Auto-create a User row on first OAuth sign-in.
       // Credentials sign-ins already have a row (created at signup).
       await prisma.user.upsert({
         where: { email: user.email },
@@ -83,11 +52,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         update: {},
       })
       return true
-    },
-    async jwt({ token, user }) {
-      // On initial sign-in, persist the email onto the token.
-      if (user?.email) token.email = user.email
-      return token
     },
     async session({ session, token }) {
       if (session.user && token.email) {
