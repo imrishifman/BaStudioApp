@@ -3,9 +3,8 @@ import { auth } from '@/lib/auth'
 import Anthropic from '@anthropic-ai/sdk'
 import { buildChatPrompt } from '@/lib/ai/prompts'
 
-const anthropic = new Anthropic()
-
 export async function POST(req: Request) {
+  const anthropic = new Anthropic()
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

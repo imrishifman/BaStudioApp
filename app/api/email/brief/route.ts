@@ -3,10 +3,10 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-const FROM = process.env.RESEND_FROM ?? 'noreply@bastudio.app'
-
 export async function POST(req: Request) {
+  const resend = new Resend(process.env.RESEND_API_KEY)
+  const FROM = process.env.RESEND_FROM ?? 'noreply@bastudio.app'
+
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
