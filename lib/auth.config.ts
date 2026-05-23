@@ -29,6 +29,9 @@ export const authConfig = {
     Google({
       clientId: process.env.AUTH_GOOGLE_ID,
       clientSecret: process.env.AUTH_GOOGLE_SECRET,
+      // Google verifies email ownership, so it's safe to link a Google sign-in
+      // to an existing same-email account (e.g. one created with a password).
+      allowDangerousEmailAccountLinking: true,
       authorization: {
         params: { scope: 'openid email profile' },
       },
