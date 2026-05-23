@@ -32,6 +32,8 @@ export function HeroCanvas() {
   const scrollProgressRef = useRef(0)
   const { scrollY } = useScroll()
   const [isMobile, setIsMobile] = useState(false)
+  // null = checking, true = WebGL usable, false = unavailable/lost → fallback
+  const [webglOk, setWebglOk] = useState<boolean | null>(null)
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 720px)')
@@ -39,6 +41,18 @@ export function HeroCanvas() {
     const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches)
     mq.addEventListener('change', handler)
     return () => mq.removeEventListener('change', handler)
+  }, [])
+
+  useEffect(() => {
+    // Detect WebGL support once, up front, so an unsupported environment
+    // shows the static fallback instead of attempting (and failing) to render.
+    try {
+      const probe = document.createElement('canvas')
+      const gl = probe.getContext('webgl2') || probe.getContext('webgl')
+      setWebglOk(!!gl)
+    } catch {
+      setWebglOk(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -77,6 +91,24 @@ export function HeroCanvas() {
     )
   }
 
+  // No WebGL (or it dropped) → static gradient instead of a broken/blank canvas.
+  if (webglOk === false) {
+    return (
+      <div ref={canvasRef} className="relative h-full w-full">
+        <AmbientFallback />
+      </div>
+    )
+  }
+
+  // Still probing support — render the ambient gradient as a placeholder.
+  if (webglOk === null) {
+    return (
+      <div ref={canvasRef} className="relative h-full w-full">
+        <AmbientFallback />
+      </div>
+    )
+  }
+
   return (
     <div ref={canvasRef} className="relative h-full w-full">
       <CanvasErrorBoundary fallback={<AmbientFallback />}>
@@ -86,11 +118,14 @@ export function HeroCanvas() {
           camera={{ position: [0, 0, 5], fov: 45 }}
           style={{ background: 'transparent' }}
           onCreated={({ gl }) => {
-            // Prevent a lost WebGL context from hard-crashing the page;
-            // the browser can then attempt to restore it on its own.
+            // If the GPU context drops, fall back to the static gradient
+            // instead of leaving a frozen/blank canvas — and never crash.
             gl.domElement.addEventListener(
               'webglcontextlost',
-              (e) => e.preventDefault(),
+              (e) => {
+                e.preventDefault()
+                setWebglOk(false)
+              },
               false
             )
           }}
