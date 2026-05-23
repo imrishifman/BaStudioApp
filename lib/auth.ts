@@ -57,10 +57,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Google({
       clientId: process.env.AUTH_GOOGLE_ID,
       clientSecret: process.env.AUTH_GOOGLE_SECRET,
+      // Sign-in-only scopes — no sensitive Google review needed. The Calendar
+      // integration can be added later as a separate, opt-in connect flow.
       authorization: {
         params: {
-          scope:
-            'openid email profile https://www.googleapis.com/auth/calendar',
+          scope: 'openid email profile',
         },
       },
     }),
