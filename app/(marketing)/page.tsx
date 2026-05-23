@@ -15,8 +15,12 @@ function SignInController() {
   const searchParams = useSearchParams()
   const [signInOpen, setSignInOpen] = useState(false)
 
+  // NextAuth redirects failed sign-ins to the error page (/?autherror=1).
+  // Surface that as a visible message instead of a silent bounce to home.
+  const authError = searchParams.get('autherror') === '1'
+
   useEffect(() => {
-    if (searchParams.get('signin') === '1') {
+    if (searchParams.get('signin') === '1' || searchParams.get('autherror') === '1') {
       setSignInOpen(true)
     }
   }, [searchParams])
@@ -24,14 +28,25 @@ function SignInController() {
   function handleSignInClose(open: boolean) {
     setSignInOpen(open)
     if (!open) {
-      // Remove ?signin=1 without navigate
+      // Remove sign-in params without navigating
       const url = new URL(window.location.href)
       url.searchParams.delete('signin')
+      url.searchParams.delete('autherror')
       window.history.replaceState({}, '', url.toString())
     }
   }
 
-  return <SignInDialog open={signInOpen} onOpenChange={handleSignInClose} />
+  return (
+    <SignInDialog
+      open={signInOpen}
+      onOpenChange={handleSignInClose}
+      initialError={
+        authError
+          ? "We couldn't sign you in. Please try again, or use a different method."
+          : undefined
+      }
+    />
+  )
 }
 
 export default function LandingPage() {

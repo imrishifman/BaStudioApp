@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { signIn } from 'next-auth/react'
 import {
   Dialog,
@@ -17,6 +17,7 @@ import { Separator } from '@/components/ui/separator'
 interface SignInDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  initialError?: string
 }
 
 type Mode = 'signin' | 'signup' | 'magicSent'
@@ -25,7 +26,7 @@ const inputCls =
   'border-[var(--line-2)] bg-[var(--bg-3)] text-[var(--ink-1)] placeholder:text-[var(--ink-4)]'
 const labelCls = 'body-sm text-[var(--ink-2)]'
 
-export function SignInDialog({ open, onOpenChange }: SignInDialogProps) {
+export function SignInDialog({ open, onOpenChange, initialError }: SignInDialogProps) {
   const [mode, setMode] = useState<Mode>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -34,6 +35,11 @@ export function SignInDialog({ open, onOpenChange }: SignInDialogProps) {
   const [loading, setLoading] = useState(false)
   const [magicLoading, setMagicLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Seed an error passed in from the page (e.g. after a failed redirect).
+  useEffect(() => {
+    if (open && initialError) setError(initialError)
+  }, [open, initialError])
 
   function resetFields() {
     setPassword('')
