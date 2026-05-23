@@ -1,0 +1,504 @@
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Plan {
+  free
+  solo
+  master
+}
+
+enum PlanStatus {
+  active
+  trialing
+  past_due
+  cancelled
+}
+
+enum BillingPeriod {
+  monthly
+  annual
+}
+
+enum Role {
+  user
+  admin
+}
+
+enum EpisodeStatus {
+  draft
+  researching
+  focusing
+  questions
+  intro
+  script
+  video
+  review
+  approved
+  published
+}
+
+enum ShowCategory {
+  interview
+  solo
+  narrative
+  panel
+  educational
+  comedy
+}
+
+enum ShowStatus {
+  active
+  paused
+  archived
+}
+
+enum InterviewStyle {
+  conversational
+  deep_dive
+  fast_paced
+  philosophical
+  challenging
+  supportive
+  comedic
+}
+
+enum HostEnergy {
+  warm_casual
+  professional_structured
+  curious_exploratory
+  edgy_provocative
+  inspirational
+}
+
+enum LanguageLevel {
+  simple_accessible
+  moderate
+  advanced_technical
+}
+
+enum HumorLevel {
+  none
+  light
+  medium
+  heavy
+}
+
+enum Pacing {
+  slow_deep
+  balanced
+  fast_punchy
+}
+
+enum GuestIntroStyle {
+  host_reads_bio
+  guest_introduces_themselves
+  host_tells_a_story_about_guest
+  no_intro_dive_straight_in
+}
+
+enum PublishFrequency {
+  weekly
+  biweekly
+  monthly
+  variable
+}
+
+enum GuestStatus {
+  wishlist
+  outreach_sent
+  confirmed
+  recorded
+  published
+}
+
+enum InfluencerPlatform {
+  Instagram
+  YouTube
+  TikTok
+  Twitter_X
+  LinkedIn
+  Podcast
+  Other
+}
+
+enum CommissionType {
+  percentage
+  fixed
+}
+
+enum InfluencerStatus {
+  active
+  paused
+  pending
+}
+
+enum InfluencerStep {
+  invited
+  agreement_sent
+  agreement_signed
+  stripe_connected
+  active
+}
+
+enum PayoutStatus {
+  success
+  failed
+  skipped
+}
+
+enum AvailabilityStatus {
+  available
+  busy
+}
+
+enum CommentType {
+  feedback
+  revision_request
+  approval
+  general
+}
+
+enum MessageType {
+  chat
+  announcement
+}
+
+model User {
+  id                         String         @id @default(cuid())
+  email                      String         @unique
+  fullName                   String?
+  emailVerified              DateTime?
+  image                      String?
+  role                       Role           @default(user)
+  hostName                   String?
+  showName                   String?
+  showDescription            String?
+  showCategory               String?
+  targetAudience             String?
+  plan                       Plan           @default(free)
+  planStatus                 PlanStatus     @default(active)
+  planOverride               Boolean        @default(false)
+  trialEndsAt                DateTime?
+  stripeCustomerId           String?        @unique
+  stripeSubscriptionId       String?        @unique
+  subscriptionStart          DateTime?
+  billingPeriod              BillingPeriod?
+  subscriptionRenewedAt      DateTime?
+  aiResearchCountThisMonth   Int            @default(0)
+  brandColors                Json?
+  brandLogoUrl               String?
+  brandAppName               String?
+  googleCalendarConnected    Boolean        @default(false)
+  googleCalendarToken        String?
+  googleCalendarRefreshToken String?
+  skippedDnaSetup            Boolean        @default(false)
+  onboardingComplete         Boolean        @default(false)
+  emailConnected             Boolean        @default(false)
+  connectedEmail             String?
+  emailProvider              String?
+  notifyTeamOnAvailability   Boolean        @default(true)
+  appliedCouponCode          String?
+  couponDiscountDescription  String?
+  lastExport                 DateTime?
+  createdAt                  DateTime       @default(now())
+  updatedAt                  DateTime       @updatedAt
+
+  shows              Show[]
+  episodes           Episode[]           @relation("EpisodeCreator")
+  guests             Guest[]
+  availabilityBlocks AvailabilityBlock[]
+  episodeComments    EpisodeComment[]
+  teamMessages       TeamMessage[]
+  accounts           Account[]
+  sessions           Session[]
+}
+
+model Show {
+  id                          String            @id @default(cuid())
+  name                        String
+  description                 String?
+  category                    ShowCategory?
+  coverImageUrl               String?
+  hostName                    String?
+  targetAudience              String?
+  ownerEmail                  String
+  owner                       User              @relation(fields: [ownerEmail], references: [email])
+  memberEmails                String[]          @default([])
+  memberRoles                 Json?
+  pendingInvites              String[]          @default([])
+  requireApproval             Boolean           @default(true)
+  publishFrequency            PublishFrequency?
+  rssUrl                      String?
+  status                      ShowStatus        @default(active)
+  episodeSections             Json?
+  typicalEpisodeLengthMinutes Int               @default(45)
+  interviewStyle              InterviewStyle    @default(conversational)
+  hostEnergy                  HostEnergy        @default(warm_casual)
+  languageLevel               LanguageLevel     @default(moderate)
+  humorLevel                  HumorLevel        @default(light)
+  pacing                      Pacing            @default(balanced)
+  openingLine                 String?
+  closingQuestion             String?
+  topicsToAvoid               String?
+  guestIntroStyle             GuestIntroStyle   @default(host_reads_bio)
+  recurringSegments           String?
+  showValues                  String?
+  interviewInfluences         String[]          @default([])
+  interviewStyleDescription   String?
+  includeVideoStep            Boolean           @default(false)
+  includePromoteStep          Boolean           @default(false)
+  aiResearchInstructions      String?
+  aiQuestionInstructions      String?
+  aiScriptInstructions        String?
+  aiSocialInstructions        String?
+  createdAt                   DateTime          @default(now())
+  updatedAt                   DateTime          @updatedAt
+
+  episodes           Episode[]
+  teamMessages       TeamMessage[]
+  availabilityBlocks AvailabilityBlock[]
+
+  @@index([ownerEmail])
+}
+
+model Episode {
+  id                    String        @id @default(cuid())
+  title                 String?
+  description           String?
+  showId                String?
+  show                  Show?         @relation(fields: [showId], references: [id])
+  guestName             String
+  guestBio              String?
+  guestResearch         String?
+  guestPhotoUrl         String?
+  guestLinkedinUrl      String?
+  guestTwitterUrl       String?
+  guestInstagramUrl     String?
+  guestWebsiteUrl       String?
+  guestExtraContext     String?
+  funFacts              String[]      @default([])
+  focusAnswers          Json?
+  interviewInfluences   String[]      @default([])
+  influenceProfiles     Json?
+  generatedQuestions    Json?
+  selectedQuestions     Json?
+  favoriteQuestions     Json?
+  introductionScript    String?
+  fullScript            String?
+  introVideoUrl         String?
+  teamId                String?
+  releaseDate           DateTime?
+  briefUrl              String?
+  briefSentAt           DateTime?
+  publishedAt           DateTime?
+  socialContent         Json?
+  status                EpisodeStatus @default(draft)
+  currentStep           Int           @default(1)
+  sharedWith            String[]      @default([])
+  managerEmail          String?
+  managerApproved       Boolean       @default(false)
+  googleCalendarEventId String?
+  teamCalendarEventIds  Json?
+  createdByEmail        String
+  createdBy             User          @relation("EpisodeCreator", fields: [createdByEmail], references: [email])
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  comments EpisodeComment[]
+
+  @@index([showId])
+  @@index([createdByEmail])
+}
+
+model Guest {
+  id               String      @id @default(cuid())
+  name             String
+  photoUrl         String?
+  bio              String?
+  researchNotes    String?
+  linkedinUrl      String?
+  twitterUrl       String?
+  websiteUrl       String?
+  topics           String[]    @default([])
+  pipelineStatus   GuestStatus @default(wishlist)
+  outreachNotes    String?
+  ownerEmail       String
+  owner            User        @relation(fields: [ownerEmail], references: [email])
+  episodeIds       String[]    @default([])
+  timesInterviewed Int         @default(0)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@index([ownerEmail])
+}
+
+model EpisodeComment {
+  id          String      @id @default(cuid())
+  episodeId   String
+  episode     Episode     @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  message     String
+  authorName  String?
+  authorEmail String
+  author      User        @relation(fields: [authorEmail], references: [email])
+  type        CommentType @default(general)
+  createdAt   DateTime    @default(now())
+}
+
+model TeamMessage {
+  id          String      @id @default(cuid())
+  showId      String
+  show        Show        @relation(fields: [showId], references: [id], onDelete: Cascade)
+  senderEmail String
+  sender      User        @relation(fields: [senderEmail], references: [email])
+  senderName  String?
+  message     String
+  messageType MessageType @default(chat)
+  createdAt   DateTime    @default(now())
+
+  @@index([showId])
+}
+
+model AvailabilityBlock {
+  id        String             @id @default(cuid())
+  userId    String
+  user      User               @relation(fields: [userId], references: [id])
+  userEmail String
+  date      DateTime           @db.Date
+  timeFrom  String?
+  timeTo    String?
+  status    AvailabilityStatus @default(available)
+  note      String?
+  showId    String?
+  show      Show?              @relation(fields: [showId], references: [id])
+  createdAt DateTime           @default(now())
+}
+
+model Influencer {
+  id                        String              @id @default(cuid())
+  name                      String
+  email                     String?             @unique
+  handle                    String?
+  platform                  InfluencerPlatform?
+  followersCount            Int?
+  couponCode                String?             @unique
+  referralLink              String?
+  commissionType            CommissionType?
+  commissionValue           Float?
+  planAccess                String?
+  status                    InfluencerStatus    @default(pending)
+  notes                     String?
+  stripeAccountId           String?
+  stripeOnboardingSent      Boolean             @default(false)
+  stripeOnboardingCompleted Boolean             @default(false)
+  couponActive              Boolean             @default(false)
+  agreementSentDate         DateTime?           @db.Date
+  agreementSignedDate       DateTime?           @db.Date
+  agreementSigned           Boolean             @default(false)
+  agreementSignatureToken   String?             @unique
+  agreementIpAddress        String?
+  onboardingStep            InfluencerStep      @default(invited)
+  createdAt                 DateTime            @default(now())
+  updatedAt                 DateTime            @updatedAt
+
+  conversions InfluencerConversion[]
+  payouts     PayoutLog[]
+}
+
+model InfluencerConversion {
+  id                 String     @id @default(cuid())
+  influencerId       String
+  influencer         Influencer @relation(fields: [influencerId], references: [id])
+  convertedUserEmail String
+  conversionDate     DateTime   @default(now()) @db.Date
+  planPurchased      Plan
+  revenueAmount      Float?
+  commissionEarned   Float?
+  commissionPaid     Boolean    @default(false)
+  couponCodeUsed     String?
+  notes              String?
+}
+
+model CouponCode {
+  id                 String    @id @default(cuid())
+  code               String    @unique
+  discountType       String
+  discountValue      Float
+  applicablePlan     String?
+  maxUses            Int       @default(0)
+  usesSoFar          Int       @default(0)
+  expiresAt          DateTime?
+  isActive           Boolean   @default(true)
+  createdByEmail     String?
+  notes              String?
+  linkedInfluencerId String?
+  createdAt          DateTime  @default(now())
+}
+
+model PayoutLog {
+  id               String       @id @default(cuid())
+  payoutDate       DateTime     @db.Date
+  influencerId     String
+  influencer       Influencer   @relation(fields: [influencerId], references: [id])
+  influencerName   String?
+  amountUsd        Float?
+  stripeTransferId String?
+  conversionsPaid  Int?
+  status           PayoutStatus @default(success)
+  errorMessage     String?
+  triggeredBy      String?
+  createdAt        DateTime     @default(now())
+}
+
+model UserFeedback {
+  id        String   @id @default(cuid())
+  userEmail String?
+  userName  String?
+  type      String?
+  message   String
+  source    String?
+  question  String?
+  rating    Int?
+  page      String?
+  createdAt DateTime @default(now())
+}
+
+// NextAuth tables
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
