@@ -19,7 +19,6 @@ export function AccountClient({ user }: Props) {
   const [saving, setSaving] = useState(false)
   const [coupon, setCoupon] = useState('')
   const [applyingCoupon, setApplyingCoupon] = useState(false)
-  const [billingLoading, setBillingLoading] = useState(false)
 
   const inputCls = 'bg-[var(--bg-3)] border-[var(--line-2)] text-[var(--ink-1)] placeholder:text-[var(--ink-4)]'
   const labelCls = 'body-sm text-[var(--ink-2)]'
@@ -30,15 +29,6 @@ export function AccountClient({ user }: Props) {
     if (res.ok) toast.success('Profile saved')
     else toast.error('Failed to save')
     setSaving(false)
-  }
-
-  async function openBillingPortal() {
-    setBillingLoading(true)
-    const res = await fetch('/api/stripe/portal', { method: 'POST' })
-    const data = await res.json()
-    if (data.url) window.location.href = data.url
-    else toast.error('Could not open billing portal')
-    setBillingLoading(false)
   }
 
   async function applyCoupon() {
@@ -91,11 +81,6 @@ export function AccountClient({ user }: Props) {
               <p className="body-sm mt-1 text-[var(--accent-violet)]">Coupon applied: {user.appliedCouponCode}</p>
             )}
           </div>
-          {user.stripeCustomerId && (
-            <PillButton variant="secondary" size="sm" onClick={openBillingPortal} disabled={billingLoading}>
-              {billingLoading ? '…' : 'Manage billing'}
-            </PillButton>
-          )}
         </div>
       </GlassCard>
 

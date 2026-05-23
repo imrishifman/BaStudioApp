@@ -24,8 +24,6 @@ const PLANS = [
     name: 'Studio Solo',
     monthly: 19.99,
     annual: 15.99,
-    monthlyPriceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_SOLO_MONTHLY,
-    annualPriceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_SOLO_ANNUAL,
     description: 'For solo podcasters.',
     features: ['4 episodes / month', '2 shows', 'Full Podcast DNA', 'Calendar sync', 'Shareable guest brief', 'Priority support'],
     recommended: true,
@@ -45,28 +43,10 @@ interface Props { currentPlan: Plan }
 
 export function AppPricingClient({ currentPlan }: Props) {
   const [annual, setAnnual] = useState(false)
-  const [loading, setLoading] = useState<Plan | null>(null)
 
-  async function handleUpgrade(planKey: Plan) {
+  function handleUpgrade(planKey: Plan) {
     if (planKey === currentPlan) return
-    setLoading(planKey)
-    try {
-      const priceKey = planKey === 'solo'
-        ? (annual ? 'solo_annual' : 'solo_monthly')
-        : (annual ? 'master_annual' : 'master_monthly')
-      const res = await fetch('/api/stripe/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ priceKey }),
-      })
-      const data = await res.json()
-      if (data.url) window.location.href = data.url
-      else toast.error('Could not start checkout')
-    } catch {
-      toast.error('Something went wrong')
-    } finally {
-      setLoading(null)
-    }
+    toast('Paid plans are coming soon — hang tight!')
   }
 
   return (
@@ -122,9 +102,9 @@ export function AppPricingClient({ currentPlan }: Props) {
                     className="w-full"
                     variant={plan.recommended ? 'primary' : 'secondary'}
                     onClick={() => handleUpgrade(plan.key)}
-                    disabled={loading === plan.key || plan.key === 'free'}
+                    disabled={plan.key === 'free'}
                   >
-                    {loading === plan.key ? 'Loading…' : plan.key === 'free' ? 'Downgrade' : `Upgrade to ${plan.name}`}
+                    {plan.key === 'free' ? 'Downgrade' : `Upgrade to ${plan.name}`}
                   </PillButton>
                 )}
               </div>

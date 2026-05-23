@@ -1,7 +1,7 @@
 'use client'
 
-import { useSearchParams, useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { Suspense, useEffect, useState } from 'react'
 import { Hero } from '@/components/marketing/Hero'
 import { TheWayItWorks } from '@/components/marketing/TheWayItWorks'
 import { DNASection } from '@/components/marketing/DNASection'
@@ -11,9 +11,8 @@ import { PricingSection } from '@/components/marketing/PricingSection'
 import { FinalCTA } from '@/components/marketing/FinalCTA'
 import { SignInDialog } from '@/components/common/SignInDialog'
 
-export default function LandingPage() {
+function SignInController() {
   const searchParams = useSearchParams()
-  const router = useRouter()
   const [signInOpen, setSignInOpen] = useState(false)
 
   useEffect(() => {
@@ -32,6 +31,10 @@ export default function LandingPage() {
     }
   }
 
+  return <SignInDialog open={signInOpen} onOpenChange={handleSignInClose} />
+}
+
+export default function LandingPage() {
   return (
     <>
       <Hero />
@@ -41,7 +44,9 @@ export default function LandingPage() {
       <Quotes />
       <PricingSection />
       <FinalCTA />
-      <SignInDialog open={signInOpen} onOpenChange={handleSignInClose} />
+      <Suspense fallback={null}>
+        <SignInController />
+      </Suspense>
     </>
   )
 }
