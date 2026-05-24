@@ -6,7 +6,7 @@ import type { Show, Episode } from '@prisma/client'
 import { GlassCard } from '@/components/common/GlassCard'
 import { PillButton } from '@/components/common/PillButton'
 import { EditShowModal } from '@/components/shows/EditShowModal'
-import { ArrowLeft, Settings } from 'lucide-react'
+import { ArrowLeft, Settings, Dna } from 'lucide-react'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
 
@@ -44,9 +44,14 @@ export function ShowDetailClient({ show }: { show: ShowWithEpisodes }) {
               {show.description && <p className="body mt-1 text-[var(--ink-2)]">{show.description}</p>}
             </div>
           </div>
-          <PillButton variant="secondary" size="sm" onClick={() => setEditOpen(true)}>
-            <Settings size={14} /> Edit
-          </PillButton>
+          <div className="flex shrink-0 items-center gap-2">
+            <PillButton variant="secondary" size="sm" onClick={() => router.push(`/shows/${show.id}/dna`)}>
+              <Dna size={14} /> Podcast DNA
+            </PillButton>
+            <PillButton variant="secondary" size="sm" onClick={() => setEditOpen(true)}>
+              <Settings size={14} /> Edit
+            </PillButton>
+          </div>
         </div>
       </GlassCard>
 

@@ -9,7 +9,6 @@ import {
   BookOpen,
   Calendar,
   Users,
-  Mic2,
   Settings,
   CreditCard,
   ShieldCheck,
@@ -43,7 +42,6 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Calendar', href: '/calendar', icon: Calendar, requiredPlan: 'solo' },
   { label: 'Hub', href: '/team', icon: Users, requiredPlan: 'master' },
   { label: 'Guests', href: '/guests', icon: UserCircle2, requiredPlan: 'solo' },
-  { label: 'Podcast DNA', href: '/podcast-dna', icon: Mic2 },
 ]
 
 const BOTTOM_ITEMS: NavItem[] = [
@@ -87,7 +85,7 @@ export function Sidebar() {
           className="text-[var(--ink-1)] no-underline"
           style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.02em' }}
         >
-          Ba-Studio
+          Ba Studio
         </Link>
       </div>
 
