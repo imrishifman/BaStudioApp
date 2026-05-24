@@ -31,5 +31,14 @@ export async function POST(req: Request) {
         : [],
     },
   })
+
+  // Grant the team access to the attached show's existing episodes.
+  if (team.showId) {
+    await prisma.episode.updateMany({
+      where: { createdByEmail: session.user.email, showId: team.showId },
+      data: { teamId: team.id, sharedWith: team.memberEmails },
+    })
+  }
+
   return NextResponse.json(team)
 }

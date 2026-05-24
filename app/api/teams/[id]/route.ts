@@ -19,6 +19,22 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   const updated = await prisma.team.update({ where: { id }, data })
+
+  // Keep the attached show's episodes in sync with the team's members.
+  if (updated.showId) {
+    await prisma.episode.updateMany({
+      where: { createdByEmail: session.user.email, showId: updated.showId },
+      data: { teamId: updated.id, sharedWith: updated.memberEmails },
+    })
+  }
+  // If the show was detached, drop this team's sharing from its old episodes.
+  if (team.showId && updated.showId !== team.showId) {
+    await prisma.episode.updateMany({
+      where: { createdByEmail: session.user.email, showId: team.showId, teamId: updated.id },
+      data: { teamId: null, sharedWith: [] },
+    })
+  }
+
   return NextResponse.json(updated)
 }
 
@@ -26,6 +42,12 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   const { id } = await params
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // Revoke this team's sharing from its episodes before deleting it.
+  await prisma.episode.updateMany({
+    where: { createdByEmail: session.user.email, teamId: id },
+    data: { teamId: null, sharedWith: [] },
+  })
   await prisma.team.deleteMany({ where: { id, ownerEmail: session.user.email } })
   return NextResponse.json({ ok: true })
 }
