@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import Anthropic from '@anthropic-ai/sdk'
 import { buildQuestionsPrompt } from '@/lib/ai/prompts'
+import { resolveSections, normalizeGenerated } from '@/lib/questions'
 
 export async function POST(req: Request) {
   const anthropic = new Anthropic()
@@ -17,7 +18,10 @@ export async function POST(req: Request) {
 
   const show = showId ? await prisma.show.findUnique({ where: { id: showId } }) : null
 
-  // Get questions from previous episodes for repeat detection
+  // Section structure: Podcast DNA → default.
+  const sections = resolveSections(show?.episodeSections, null)
+
+  // Previous questions (any shape) so the AI avoids repeats.
   const prevEpisodes = await prisma.episode.findMany({
     where: { createdByEmail: session.user.email, id: { not: episodeId } },
     select: { generatedQuestions: true },
@@ -25,20 +29,21 @@ export async function POST(req: Request) {
     orderBy: { createdAt: 'desc' },
   })
   const prevQs = prevEpisodes.flatMap(ep => {
-    const qs = ep.generatedQuestions as { text: string }[] | null
-    return qs?.map(q => q.text) ?? []
+    const { map } = normalizeGenerated(ep.generatedQuestions)
+    return Object.values(map).flat().map(q => q.question)
   })
 
   const prompt = buildQuestionsPrompt(
     { ...episode, focusAnswers: focusAnswers ?? episode.focusAnswers },
     show,
+    sections,
     prevQs
   )
 
   try {
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 3000,
+      max_tokens: 4096,
       messages: [{ role: 'user', content: prompt }],
     })
 
@@ -46,12 +51,13 @@ export async function POST(req: Request) {
     const jsonMatch = text.match(/\{[\s\S]*\}/)
     if (!jsonMatch) return NextResponse.json({ error: 'Invalid response' }, { status: 500 })
 
-    const data = JSON.parse(jsonMatch[0])
-    const questions = data.questions ?? []
+    const parsed = JSON.parse(jsonMatch[0])
+    // Store the sectioned object plus the resolved section metadata.
+    const generated = { ...parsed, _sections: sections }
 
-    await prisma.episode.update({ where: { id: episodeId }, data: { generatedQuestions: questions, status: 'questions' } })
+    await prisma.episode.update({ where: { id: episodeId }, data: { generatedQuestions: generated, status: 'questions' } })
 
-    return NextResponse.json({ questions })
+    return NextResponse.json({ questions: generated })
   } catch (err) {
     console.error('Questions AI error:', err)
     return NextResponse.json({ error: 'AI request failed' }, { status: 500 })

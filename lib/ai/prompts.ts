@@ -1,4 +1,11 @@
 import type { Episode, Show } from '@prisma/client'
+import {
+  type QSection,
+  resolveSections,
+  normalizeGenerated,
+  chosenQuestionTexts,
+  DEFAULT_CLOSING_QUESTION,
+} from '@/lib/questions'
 
 type DnaShow = Pick<
   Show,
@@ -67,24 +74,17 @@ Focus on what makes this guest interesting and unique for THIS show's audience. 
 }
 
 export function buildQuestionsPrompt(
-  episode: Pick<Episode, 'guestName' | 'guestBio' | 'guestResearch' | 'focusAnswers' | 'interviewInfluences'>,
-  show: Pick<Show, 'episodeSections' | 'interviewStyle' | 'hostEnergy' | 'pacing' | 'humorLevel' | 'aiQuestionInstructions' | 'openingLine' | 'closingQuestion'> | null,
+  episode: Pick<Episode, 'guestName' | 'guestBio' | 'guestResearch' | 'focusAnswers'>,
+  show: Pick<Show, 'interviewStyle' | 'hostEnergy' | 'pacing' | 'humorLevel' | 'aiQuestionInstructions' | 'targetAudience'> | null,
+  sections: QSection[],
   previousQuestions: string[]
 ) {
-  const sections = (show?.episodeSections as { name: string; purpose: string }[] | null) ?? [
-    { name: 'Opening', purpose: 'Warm up, establish rapport' },
-    { name: 'Origin & Background', purpose: 'Guest journey and key turning points' },
-    { name: 'Core Insight', purpose: 'Main value the episode delivers' },
-    { name: 'Challenge & Growth', purpose: 'Obstacles overcome and lessons learned' },
-    { name: 'Future & Close', purpose: 'Where things are heading, closing thoughts' },
-  ]
-
   const focusStr = Array.isArray(episode.focusAnswers)
     ? (episode.focusAnswers as string[]).map((a, i) => `${i + 1}. ${a}`).join('\n')
     : ''
 
   const prevStr = previousQuestions.length
-    ? `\nAVOID these previously-asked questions (flag if similar):\n${previousQuestions.slice(0, 20).join('\n')}`
+    ? `\nAvoid repeating these previously-asked questions:\n${previousQuestions.slice(0, 20).join('\n')}`
     : ''
 
   const customInstructions = show?.aiQuestionInstructions ? `\nCustom instructions: ${show.aiQuestionInstructions}` : ''
@@ -98,35 +98,41 @@ Research: ${episode.guestResearch ?? 'Not provided'}
 Episode focus:
 ${focusStr}
 
-Interview style: ${show?.interviewStyle ?? 'conversational'}
-Host energy: ${show?.hostEnergy ?? 'warm_casual'}
-Pacing: ${show?.pacing ?? 'balanced'}${prevStr}${customInstructions}
+Podcast DNA:
+- Interview style: ${show?.interviewStyle ?? 'conversational'}
+- Host energy: ${show?.hostEnergy ?? 'warm_casual'}
+- Pacing: ${show?.pacing ?? 'balanced'}
+- Humor level: ${show?.humorLevel ?? 'light'}
+- Audience: ${show?.targetAudience ?? 'general'}${prevStr}${customInstructions}
 
-Generate 4-6 questions for each of these sections:
-${sections.map(s => `- ${s.name}: ${s.purpose}`).join('\n')}
+Return a JSON object whose keys are EXACTLY these section keys (and nothing else):
+${sections.map(s => `- "${s.key}"  (${s.name})`).join('\n')}
 
-Return JSON with this structure:
-{
-  "questions": [
-    { "id": "unique-id", "text": "question text", "section": "section name", "isRepeat": false }
-  ]
-}
+For each section key, return an array of 4-6 question objects shaped like:
+{ "question": "the question text", "strength_score": 8, "context": "what to listen for or why this lands", "go_deeper": ["a sharp follow-up", "another follow-up"] }
 
-Make questions specific to this guest, not generic. Vary the depth and style within each section.`
+- strength_score is 1-10 (10 = your strongest, most revealing question for that section).
+- Make every question specific to THIS guest and matched to the show's DNA above — never generic.
+- Vary depth and style within each section.
+
+Return ONLY the JSON object, e.g.:
+{ ${sections.map(s => `"${s.key}": [ { "question": "...", "strength_score": 9, "context": "...", "go_deeper": ["..."] } ]`).join(', ')} }`
 }
 
 export function buildScriptPrompt(
-  episode: Pick<Episode, 'guestName' | 'guestBio' | 'guestResearch' | 'introductionScript' | 'generatedQuestions' | 'favoriteQuestions' | 'focusAnswers'>,
-  show: Pick<Show, 'name' | 'hostName' | 'interviewStyle' | 'openingLine' | 'closingQuestion' | 'guestIntroStyle' | 'aiScriptInstructions' | 'hostEnergy' | 'humorLevel' | 'targetAudience'> | null,
+  episode: Pick<Episode, 'guestName' | 'guestBio' | 'guestResearch' | 'introductionScript' | 'generatedQuestions' | 'selectedQuestions' | 'focusAnswers'>,
+  show: Pick<Show, 'name' | 'hostName' | 'interviewStyle' | 'openingLine' | 'closingQuestion' | 'guestIntroStyle' | 'aiScriptInstructions' | 'hostEnergy' | 'humorLevel' | 'targetAudience' | 'episodeSections'> | null,
   kind: 'intro' | 'full'
 ) {
   const hostName = show?.hostName ?? 'the host'
   const showName = show?.name ?? 'the show'
-  const favoriteQs = (episode.favoriteQuestions as string[] | null) ?? []
-  const allQs = (episode.generatedQuestions as { id: string; text: string; section: string }[] | null) ?? []
-  const questions = favoriteQs.length
-    ? allQs.filter(q => favoriteQs.includes(q.id))
-    : allQs
+
+  const { storedSections } = normalizeGenerated(episode.generatedQuestions)
+  const sections = resolveSections(show?.episodeSections, storedSections)
+  // The host's chosen questions, in section order (closing handled separately).
+  const questionTexts = chosenQuestionTexts(episode.generatedQuestions, episode.selectedQuestions, sections, '')
+  const customClosing = (episode.selectedQuestions as { _closing?: string } | null)?._closing
+  const closingQuestion = customClosing ?? show?.closingQuestion ?? DEFAULT_CLOSING_QUESTION
 
   const customInstructions = show?.aiScriptInstructions ? `\nCustom instructions: ${show.aiScriptInstructions}` : ''
 
@@ -156,9 +162,9 @@ Research: ${episode.guestResearch ?? 'Not provided'}
 Interview style: ${show?.interviewStyle ?? 'conversational'}
 
 Questions to weave in:
-${questions.map((q, i) => `${i + 1}. [${q.section}] ${q.text}`).join('\n')}
+${questionTexts.map((t, i) => `${i + 1}. ${t}`).join('\n')}
 
-Closing question: ${show?.closingQuestion ?? 'What advice would you give your younger self?'}${customInstructions}
+Closing question: ${closingQuestion}${customInstructions}
 
 Write a full conversational script with:
 - Transitions between questions

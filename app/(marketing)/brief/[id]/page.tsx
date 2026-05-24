@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import { GlassCard } from '@/components/common/GlassCard'
 import { Mic, Calendar, Clock, FileText } from 'lucide-react'
+import { resolveSections, normalizeGenerated, chosenQuestionTexts, DEFAULT_CLOSING_QUESTION } from '@/lib/questions'
 
 export default async function BriefPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -17,7 +18,11 @@ export default async function BriefPage({ params }: { params: Promise<{ id: stri
     { icon: Calendar, label: 'Frequency', value: episode.show?.publishFrequency },
   ].filter(s => s.value)
 
-  const questions = (episode.selectedQuestions ?? episode.generatedQuestions) as string[] | null
+  const { storedSections } = normalizeGenerated(episode.generatedQuestions)
+  const briefSections = resolveSections(episode.show?.episodeSections, storedSections)
+  const customClosing = (episode.selectedQuestions as { _closing?: string } | null)?._closing
+  const closing = customClosing ?? episode.show?.closingQuestion ?? DEFAULT_CLOSING_QUESTION
+  const questions = chosenQuestionTexts(episode.generatedQuestions, episode.selectedQuestions, briefSections, closing)
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-16">
