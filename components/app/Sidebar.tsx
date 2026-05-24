@@ -199,6 +199,7 @@ function SidebarItem({
   return (
     <Link
       href={locked ? '/pricing' : item.href}
+      data-tour={item.href}
       className={cn(
         'relative flex h-10 items-center gap-2 rounded-[var(--radius-sm)] px-3 transition-colors',
         active

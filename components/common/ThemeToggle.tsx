@@ -39,6 +39,7 @@ export function ThemeToggle({ className }: { className?: string }) {
   return (
     <button
       onClick={toggle}
+      data-tour="theme"
       className={
         className ??
         'flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-3 py-2 text-[var(--ink-2)] transition-colors hover:bg-[rgba(127,127,127,0.08)] hover:text-[var(--ink-1)]'

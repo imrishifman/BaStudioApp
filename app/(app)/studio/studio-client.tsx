@@ -102,9 +102,11 @@ export function StudioClient({ episodes, shows, user, guestCount, publishedDates
             </p>
           )}
         </div>
-        <PillButton onClick={handleNewEpisode} size="sm">
-          <Plus size={14} /> New episode
-        </PillButton>
+        <div data-tour="new-episode">
+          <PillButton onClick={handleNewEpisode} size="sm">
+            <Plus size={14} /> New episode
+          </PillButton>
+        </div>
       </div>
 
       {/* Onboarding quest */}
