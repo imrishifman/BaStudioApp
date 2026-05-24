@@ -19,7 +19,7 @@ import {
   Draggable,
   type DropResult,
 } from '@hello-pangea/dnd'
-import { ChevronLeft, ChevronRight, Check, X, Share2, Copy } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Check, X, Share2, Copy, CalendarPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { GlassCard } from '@/components/common/GlassCard'
 import { cn, initials } from '@/lib/utils'
@@ -323,6 +323,12 @@ export function CalendarClient({
                       {d === 0 ? 'Today' : `In ${d}d`}
                     </span>
                   </div>
+                  <a
+                    href={`/api/episodes/${ep.id}/ics`}
+                    className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-[var(--ink-3)] transition-colors hover:text-[var(--ink-1)]"
+                  >
+                    <CalendarPlus size={12} /> Add to calendar
+                  </a>
                 </GlassCard>
               )
             })}

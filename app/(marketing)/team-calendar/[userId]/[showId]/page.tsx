@@ -35,7 +35,12 @@ export default async function TeamCalendarPage({ params }: { params: Promise<{ u
           <p className="body text-[var(--ink-3)]">No available slots yet. Check back soon.</p>
         </GlassCard>
       ) : (
-        <TeamCalendarClient blocks={JSON.parse(JSON.stringify(blocks))} showName={show.name} />
+        <TeamCalendarClient
+          blocks={JSON.parse(JSON.stringify(blocks))}
+          showName={show.name}
+          userId={userId}
+          showId={showId}
+        />
       )}
     </div>
   )

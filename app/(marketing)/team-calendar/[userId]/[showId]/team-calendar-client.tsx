@@ -9,17 +9,58 @@ import type { AvailabilityBlock } from '@prisma/client'
 interface Props {
   blocks: AvailabilityBlock[]
   showName: string
+  userId: string
+  showId: string
 }
 
-export function TeamCalendarClient({ blocks, showName }: Props) {
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+export function TeamCalendarClient({ blocks, showName, userId, showId }: Props) {
   const [selected, setSelected] = useState<string | null>(null)
   const [confirmed, setConfirmed] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function confirmBooking() {
+    const block = blocks.find((b) => b.id === selected)
+    if (!block || !name.trim() || !EMAIL_RE.test(email)) return
+    setSubmitting(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          showId,
+          date: String(block.date).slice(0, 10),
+          time: block.timeFrom,
+          guestName: name.trim(),
+          guestEmail: email.trim(),
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setError(data.error ?? 'Could not complete the booking.')
+        return
+      }
+      setConfirmed(true)
+    } catch {
+      setError('Could not complete the booking.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   function formatSlot(block: AvailabilityBlock) {
+    // Availability is stored as a date-only value; format in UTC so the day
+    // shown matches the day the host marked (and the invite that gets sent).
     const d = new Date(block.date)
-    const dateStr = d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
+    const dateStr = d.toLocaleDateString('en-US', {
+      weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC',
+    })
     return block.timeFrom ? `${dateStr} at ${block.timeFrom}` : dateStr
   }
 
@@ -69,12 +110,13 @@ export function TeamCalendarClient({ blocks, showName }: Props) {
               style={{ background: 'var(--bg-3)', border: '1px solid var(--line-2)', color: 'var(--ink-1)' }}
             />
           </div>
+          {error && <p className="body-sm" style={{ color: 'var(--error)' }}>{error}</p>}
           <PillButton
             size="sm"
-            onClick={() => { if (name && email) setConfirmed(true) }}
-            disabled={!name || !email}
+            onClick={confirmBooking}
+            disabled={!name.trim() || !EMAIL_RE.test(email) || submitting}
           >
-            Confirm booking
+            {submitting ? 'Sending invite…' : 'Confirm booking'}
           </PillButton>
         </GlassCard>
       )}
