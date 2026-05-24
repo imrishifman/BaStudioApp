@@ -7,8 +7,10 @@ import { GlassCard } from '@/components/common/GlassCard'
 import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/common/PillButton'
 import { initials, formatDate } from '@/lib/utils'
-import { Send } from 'lucide-react'
+import { Send, Crown, UserPlus, X, Link2, CalendarDays, Mail, Clock } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
 interface Message {
   id: string
@@ -25,21 +27,285 @@ interface Props {
   sessionUser: Session['user']
 }
 
-export function TeamClient({ shows, initialMessages, sessionUser }: Props) {
-  const [selectedShowId, setSelectedShowId] = useState(shows[0]?.id ?? '')
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+export function TeamClient({ shows: initialShows, initialMessages, sessionUser }: Props) {
+  const [shows, setShows] = useState(initialShows)
+  const [selectedShowId, setSelectedShowId] = useState(initialShows[0]?.id ?? '')
+  const [tab, setTab] = useState<'members' | 'chat'>('members')
+
+  const selectedShow = shows.find((s) => s.id === selectedShowId) ?? null
+
+  if (shows.length === 0) {
+    return (
+      <div className="mx-auto max-w-3xl p-6 lg:p-8">
+        <GlassCard className="p-10 text-center">
+          <p className="display-sm text-[var(--ink-1)]">No teams yet</p>
+          <p className="body mt-2 text-[var(--ink-2)]">Create a show first — each show has its own team.</p>
+        </GlassCard>
+      </div>
+    )
+  }
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-6 p-6 lg:p-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="display-sm text-[var(--ink-1)]">Hub</h1>
+        <div className="flex gap-1 rounded-full p-1" style={{ background: 'var(--bg-2)', border: '1px solid var(--line-1)' }}>
+          {(['members', 'chat'] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={cn(
+                'body-sm rounded-full px-4 py-1.5 font-semibold capitalize transition-all',
+                tab === t ? 'bg-[var(--ink-1)] text-[var(--bg-0)]' : 'text-[var(--ink-3)]'
+              )}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Show selector */}
+      <div className="flex flex-wrap gap-2">
+        {shows.map((show) => (
+          <button
+            key={show.id}
+            onClick={() => setSelectedShowId(show.id)}
+            className={cn(
+              'body-sm rounded-full border px-3 py-1.5 font-medium transition-all',
+              selectedShowId === show.id
+                ? 'border-transparent bg-[var(--accent-violet)] text-[var(--bg-0)]'
+                : 'border-[var(--line-2)] text-[var(--ink-2)] hover:text-[var(--ink-1)]'
+            )}
+          >
+            {show.name}
+          </button>
+        ))}
+      </div>
+
+      {selectedShow &&
+        (tab === 'members' ? (
+          <MembersPanel
+            show={selectedShow}
+            sessionUser={sessionUser}
+            onUpdate={(patch) =>
+              setShows((prev) => prev.map((s) => (s.id === selectedShow.id ? { ...s, ...patch } : s)))
+            }
+          />
+        ) : (
+          <ChatPanel showId={selectedShow.id} initialMessages={initialMessages} sessionUser={sessionUser} />
+        ))}
+    </div>
+  )
+}
+
+function MembersPanel({
+  show,
+  sessionUser,
+  onUpdate,
+}: {
+  show: Show
+  sessionUser: Session['user']
+  onUpdate: (patch: Partial<Show>) => void
+}) {
+  const [inviteEmail, setInviteEmail] = useState('')
+  const members = show.memberEmails ?? []
+  const pending = show.pendingInvites ?? []
+
+  async function patchShow(data: Partial<Show>) {
+    onUpdate(data)
+    try {
+      await fetch(`/api/shows/${show.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+    } catch {
+      toast.error('Could not save')
+    }
+  }
+
+  function invite() {
+    const email = inviteEmail.trim().toLowerCase()
+    if (!EMAIL_RE.test(email)) {
+      toast.error('Enter a valid email')
+      return
+    }
+    if (email === sessionUser.email || members.includes(email) || pending.includes(email)) {
+      toast('Already on this team')
+      return
+    }
+    patchShow({ pendingInvites: [...pending, email] })
+    setInviteEmail('')
+    toast.success(`Invited ${email}`)
+  }
+
+  function copyCalendarLink() {
+    const url = `${window.location.origin}/team-calendar/${sessionUser.id}/${show.id}`
+    navigator.clipboard.writeText(url)
+    toast.success('Calendar link copied')
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* Invite */}
+      <GlassCard className="p-5">
+        <p className="body-sm mb-3 font-semibold text-[var(--ink-1)]">Invite a teammate</p>
+        <div className="flex flex-wrap gap-2">
+          <Input
+            value={inviteEmail}
+            onChange={(e) => setInviteEmail(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && invite()}
+            placeholder="teammate@email.com"
+            className="min-w-[200px] flex-1 border-[var(--line-2)] bg-[var(--bg-3)] text-[var(--ink-1)] placeholder:text-[var(--ink-4)]"
+          />
+          <PillButton size="sm" onClick={invite}>
+            <UserPlus size={14} /> Invite
+          </PillButton>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            onClick={copyCalendarLink}
+            className="body-sm flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[var(--ink-2)] transition-colors hover:text-[var(--ink-1)]"
+            style={{ borderColor: 'var(--line-2)' }}
+          >
+            <CalendarDays size={13} /> Share calendar link
+          </button>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(`${window.location.origin}/?signin=1`)
+              toast.success('Sign-in link copied')
+            }}
+            className="body-sm flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[var(--ink-2)] transition-colors hover:text-[var(--ink-1)]"
+            style={{ borderColor: 'var(--line-2)' }}
+          >
+            <Link2 size={13} /> Copy app link
+          </button>
+        </div>
+      </GlassCard>
+
+      {/* Members */}
+      <div>
+        <p className="body-sm mb-2 font-semibold text-[var(--ink-2)]">
+          Team · {members.length + 1} member{members.length + 1 !== 1 ? 's' : ''}
+        </p>
+        <GlassCard className="divide-y p-0" style={{ borderColor: 'var(--line-1)' }}>
+          {/* Owner */}
+          <MemberRow
+            email={sessionUser.email}
+            label={sessionUser.name ?? sessionUser.email}
+            role="Manager"
+            roleIcon={<Crown size={13} style={{ color: 'var(--warning)' }} />}
+          />
+          {members.map((email) => (
+            <MemberRow
+              key={email}
+              email={email}
+              label={email}
+              role="Member"
+              onRemove={() =>
+                patchShow({ memberEmails: members.filter((m) => m !== email) })
+              }
+            />
+          ))}
+        </GlassCard>
+      </div>
+
+      {/* Pending invites */}
+      {pending.length > 0 && (
+        <div>
+          <p className="body-sm mb-2 font-semibold text-[var(--ink-2)]">Pending invites</p>
+          <GlassCard className="divide-y p-0" style={{ borderColor: 'var(--line-1)' }}>
+            {pending.map((email) => (
+              <div key={email} className="flex items-center justify-between gap-3 px-4 py-3">
+                <div className="flex items-center gap-2.5">
+                  <Mail size={15} className="text-[var(--ink-3)]" />
+                  <span className="body-sm text-[var(--ink-1)]">{email}</span>
+                  <span className="flex items-center gap-1 text-[11px] text-[var(--ink-4)]">
+                    <Clock size={11} /> pending
+                  </span>
+                </div>
+                <button
+                  onClick={() => patchShow({ pendingInvites: pending.filter((p) => p !== email) })}
+                  className="text-[var(--ink-4)] transition-colors hover:text-[var(--error)]"
+                  aria-label="Cancel invite"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+            ))}
+          </GlassCard>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MemberRow({
+  email,
+  label,
+  role,
+  roleIcon,
+  onRemove,
+}: {
+  email: string
+  label: string
+  role: string
+  roleIcon?: React.ReactNode
+  onRemove?: () => void
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 px-4 py-3">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <div
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
+          style={{ background: 'var(--bg-3)', color: 'var(--ink-2)' }}
+        >
+          {initials(label)}
+        </div>
+        <div className="min-w-0">
+          <p className="body-sm truncate font-medium text-[var(--ink-1)]">{label}</p>
+          <p className="truncate text-[11px] text-[var(--ink-3)]">{email}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold text-[var(--ink-3)]" style={{ background: 'var(--bg-3)' }}>
+          {roleIcon} {role}
+        </span>
+        {onRemove && (
+          <button onClick={onRemove} className="text-[var(--ink-4)] transition-colors hover:text-[var(--error)]" aria-label="Remove">
+            <X size={15} />
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ChatPanel({
+  showId,
+  initialMessages,
+  sessionUser,
+}: {
+  showId: string
+  initialMessages: Message[]
+  sessionUser: Session['user']
+}) {
   const [draft, setDraft] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
   const qc = useQueryClient()
 
   const { data: messages = initialMessages } = useQuery<Message[]>({
-    queryKey: ['team-messages', selectedShowId],
+    queryKey: ['team-messages', showId],
     queryFn: async () => {
-      const res = await fetch(`/api/team/messages?showId=${selectedShowId}`)
+      const res = await fetch(`/api/team/messages?showId=${showId}`)
       return res.json()
     },
     initialData: initialMessages,
     refetchInterval: 4000,
-    enabled: !!selectedShowId,
+    enabled: !!showId,
   })
 
   const sendMutation = useMutation({
@@ -47,85 +313,55 @@ export function TeamClient({ shows, initialMessages, sessionUser }: Props) {
       await fetch('/api/team/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ showId: selectedShowId, message: msg }),
+        body: JSON.stringify({ showId, message: msg }),
       })
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['team-messages', selectedShowId] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['team-messages', showId] }),
   })
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
 
-  async function handleSend() {
+  function handleSend() {
     if (!draft.trim()) return
     sendMutation.mutate(draft)
     setDraft('')
   }
 
   return (
-    <div className="mx-auto flex max-w-5xl gap-6 p-6 lg:p-8" style={{ height: 'calc(100vh - 56px)' }}>
-      {/* Roster sidebar */}
-      <div className="hidden w-56 shrink-0 flex-col gap-4 lg:flex">
-        <p className="body font-semibold text-[var(--ink-1)]">Hub</p>
-        <GlassCard className="flex-1 p-3">
-          <p className="eyebrow mb-3 text-[var(--ink-3)]">Shows</p>
-          {shows.map(show => (
-            <button
-              key={show.id}
-              onClick={() => setSelectedShowId(show.id)}
-              className="w-full rounded-[var(--radius-sm)] px-3 py-2 text-left transition-colors hover:bg-[rgba(255,255,255,0.05)]"
-              style={selectedShowId === show.id ? { background: 'rgba(255,255,255,0.08)' } : {}}
-            >
-              <p className="body-sm font-medium text-[var(--ink-1)]">{show.name}</p>
-            </button>
-          ))}
-        </GlassCard>
-      </div>
-
-      {/* Chat panel */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <GlassCard className="flex flex-1 flex-col overflow-hidden p-0">
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {messages.map(msg => {
-              const isMe = msg.senderEmail === sessionUser.email
-              return (
-                <div key={msg.id} className={`flex gap-2 ${isMe ? 'flex-row-reverse' : ''}`}>
-                  <div
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
-                    style={{ background: 'var(--bg-3)', color: 'var(--ink-2)' }}
-                  >
-                    {initials(msg.sender.fullName ?? msg.senderEmail)}
-                  </div>
-                  <div className={`max-w-[70%] ${isMe ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
-                    <div
-                      className="rounded-[14px] px-3 py-2"
-                      style={isMe ? { background: 'var(--ink-1)', color: 'var(--bg-0)' } : { background: 'var(--bg-2)', color: 'var(--ink-1)' }}
-                    >
-                      <p className="body-sm">{msg.message}</p>
-                    </div>
-                    <p className="body-sm text-[var(--ink-4)]">{formatDate(msg.createdAt)}</p>
-                  </div>
+    <GlassCard className="flex flex-col overflow-hidden p-0" style={{ height: '60vh' }}>
+      <div className="flex-1 space-y-3 overflow-y-auto p-4">
+        {messages.map((msg) => {
+          const isMe = msg.senderEmail === sessionUser.email
+          return (
+            <div key={msg.id} className={`flex gap-2 ${isMe ? 'flex-row-reverse' : ''}`}>
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold" style={{ background: 'var(--bg-3)', color: 'var(--ink-2)' }}>
+                {initials(msg.sender.fullName ?? msg.senderEmail)}
+              </div>
+              <div className={`flex max-w-[70%] flex-col gap-1 ${isMe ? 'items-end' : 'items-start'}`}>
+                <div className="rounded-[14px] px-3 py-2" style={isMe ? { background: 'var(--ink-1)', color: 'var(--bg-0)' } : { background: 'var(--bg-2)', color: 'var(--ink-1)' }}>
+                  <p className="body-sm">{msg.message}</p>
                 </div>
-              )
-            })}
-            <div ref={bottomRef} />
-          </div>
-
-          {/* Input */}
-          <div className="flex gap-2 p-3" style={{ borderTop: '1px solid var(--line-1)' }}>
-            <Input
-              value={draft}
-              onChange={e => setDraft(e.target.value)}
-              placeholder="Message the team…"
-              className="flex-1 bg-[var(--bg-3)] border-[var(--line-2)] text-[var(--ink-1)] placeholder:text-[var(--ink-4)]"
-              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
-            />
-            <PillButton size="sm" onClick={handleSend} disabled={!draft.trim()}>
-              <Send size={14} />
-            </PillButton>
-          </div>
-        </GlassCard>
+                <p className="body-sm text-[var(--ink-4)]">{formatDate(msg.createdAt)}</p>
+              </div>
+            </div>
+          )
+        })}
+        <div ref={bottomRef} />
       </div>
-    </div>
+      <div className="flex gap-2 p-3" style={{ borderTop: '1px solid var(--line-1)' }}>
+        <Input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="Message the team…"
+          className="flex-1 border-[var(--line-2)] bg-[var(--bg-3)] text-[var(--ink-1)] placeholder:text-[var(--ink-4)]"
+          onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
+        />
+        <PillButton size="sm" onClick={handleSend} disabled={!draft.trim()}>
+          <Send size={14} />
+        </PillButton>
+      </div>
+    </GlassCard>
   )
 }
