@@ -3,70 +3,127 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Menu, X } from 'lucide-react'
-import { useSession, signOut } from 'next-auth/react'
-import { LayoutDashboard, Tv2, BookOpen, Calendar, Users, Mic2, Settings, CreditCard } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { signOut } from 'next-auth/react'
+import {
+  LayoutDashboard,
+  BookOpen,
+  Tv2,
+  Calendar,
+  Users,
+  Settings,
+  CreditCard,
+  Menu,
+  LogOut,
+  X,
+} from 'lucide-react'
+import { ThemeToggle } from '@/components/common/ThemeToggle'
 
-const NAV = [
+const PRIMARY = [
   { label: 'Studio', href: '/studio', icon: LayoutDashboard },
   { label: 'Episodes', href: '/dashboard', icon: BookOpen },
   { label: 'Shows', href: '/shows', icon: Tv2 },
   { label: 'Calendar', href: '/calendar', icon: Calendar },
+]
+
+const MORE = [
   { label: 'Hub', href: '/team', icon: Users },
-  { label: 'Guests', href: '/guests', icon: Users },
-  { label: 'DNA', href: '/podcast-dna', icon: Mic2 },
   { label: 'Account', href: '/account', icon: Settings },
   { label: 'Pricing', href: '/pricing', icon: CreditCard },
 ]
 
 export function MobileNav() {
-  const [open, setOpen] = useState(false)
   const pathname = usePathname()
-  const { data: session } = useSession()
+  const [moreOpen, setMoreOpen] = useState(false)
+  const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
 
   return (
     <>
-      {/* Top bar */}
+      {/* Slim top bar */}
       <header
-        className="sticky top-0 z-40 flex h-14 items-center justify-between px-4 lg:hidden"
+        className="sticky top-0 z-40 flex h-14 items-center px-4 lg:hidden"
         style={{ background: 'var(--bg-1)', borderBottom: '1px solid var(--line-1)' }}
       >
-        <Link href="/studio" className="text-[var(--ink-1)] no-underline" style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.02em' }}>
-          Ba-Studio
+        <Link
+          href="/studio"
+          className="text-[var(--ink-1)] no-underline"
+          style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.02em' }}
+        >
+          Ba Studio
         </Link>
-        <button onClick={() => setOpen(v => !v)} className="text-[var(--ink-1)]" aria-label="Menu">
-          {open ? <X size={20} /> : <Menu size={20} />}
-        </button>
       </header>
 
-      {/* Drawer */}
-      {open && (
-        <div
-          className="fixed inset-0 top-14 z-50 flex flex-col gap-1 overflow-y-auto p-4 lg:hidden"
-          style={{ background: 'rgba(0,0,0,0.97)', backdropFilter: 'blur(20px)' }}
-        >
-          {NAV.map(item => (
+      {/* Bottom tab strip */}
+      <nav
+        className="fixed inset-x-0 bottom-0 z-40 flex h-16 items-stretch lg:hidden"
+        style={{
+          background: 'var(--bg-1)',
+          borderTop: '1px solid var(--line-1)',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+        }}
+      >
+        {PRIMARY.map((item) => {
+          const Icon = item.icon
+          const active = isActive(item.href)
+          return (
             <Link
               key={item.href}
               href={item.href}
-              onClick={() => setOpen(false)}
-              className={cn(
-                'flex items-center gap-3 rounded-[var(--radius-sm)] px-3 py-3',
-                pathname === item.href ? 'bg-[rgba(255,255,255,0.08)] text-[var(--ink-1)]' : 'text-[var(--ink-2)]'
-              )}
+              className="flex flex-1 flex-col items-center justify-center gap-0.5"
+              style={{ color: active ? 'var(--ink-1)' : 'var(--ink-3)' }}
             >
-              <item.icon size={18} aria-hidden />
-              <span className="body font-medium">{item.label}</span>
+              <Icon size={20} />
+              <span className="text-[10px] font-medium">{item.label}</span>
             </Link>
-          ))}
-          <div className="hairline my-2" />
-          <button
-            onClick={() => signOut({ callbackUrl: '/' })}
-            className="flex items-center gap-3 rounded-[var(--radius-sm)] px-3 py-3 text-[var(--ink-3)]"
+          )
+        })}
+        <button
+          onClick={() => setMoreOpen(true)}
+          className="flex flex-1 flex-col items-center justify-center gap-0.5"
+          style={{ color: 'var(--ink-3)' }}
+        >
+          <Menu size={20} />
+          <span className="text-[10px] font-medium">More</span>
+        </button>
+      </nav>
+
+      {/* More sheet */}
+      {moreOpen && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col justify-end lg:hidden"
+          style={{ background: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setMoreOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="rounded-t-2xl p-4"
+            style={{ background: 'var(--bg-1)', borderTop: '1px solid var(--line-1)' }}
           >
-            <span className="body">Sign out</span>
-          </button>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="body font-semibold text-[var(--ink-1)]">More</p>
+              <button onClick={() => setMoreOpen(false)} className="text-[var(--ink-3)]" aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+            {MORE.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setMoreOpen(false)}
+                className="flex items-center gap-3 rounded-[var(--radius-sm)] px-3 py-3 text-[var(--ink-2)]"
+              >
+                <item.icon size={18} />
+                <span className="body font-medium">{item.label}</span>
+              </Link>
+            ))}
+            <ThemeToggle />
+            <button
+              onClick={() => signOut({ callbackUrl: '/' })}
+              className="flex w-full items-center gap-3 rounded-[var(--radius-sm)] px-3 py-3 text-[var(--ink-3)]"
+            >
+              <LogOut size={18} />
+              <span className="body font-medium">Sign out</span>
+            </button>
+          </div>
         </div>
       )}
     </>

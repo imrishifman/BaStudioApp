@@ -18,7 +18,7 @@ export default async function AppLayout({
       <div className="flex flex-1 flex-col overflow-hidden">
         <MobileNav />
         <UpgradeBanner />
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">
           {children}
         </main>
       </div>
