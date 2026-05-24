@@ -8,6 +8,7 @@ import { PillButton } from '@/components/common/PillButton'
 import { FeatureLockModal } from '@/components/common/FeatureLockModal'
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard'
 import { OnboardingQuest, type QuestStep } from '@/components/onboarding/OnboardingQuest'
+import { ProductTour } from '@/components/onboarding/ProductTour'
 import { StreakCard } from '@/components/studio/StreakCard'
 import { computeStreak } from '@/lib/streak'
 import { maxEpisodesPerMonth, episodesThisMonth } from '@/lib/plan-gating'
@@ -221,6 +222,7 @@ export function StudioClient({ episodes, shows, user, guestCount, publishedDates
 
       <FeatureLockModal open={lockOpen} onOpenChange={setLockOpen} requiredPlan="solo" featureName="More episodes" />
       {showOnboarding && <OnboardingWizard onDone={() => setShowOnboarding(false)} />}
+      {!showOnboarding && <ProductTour />}
     </div>
   )
 }
