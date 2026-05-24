@@ -19,7 +19,7 @@ import {
   Draggable,
   type DropResult,
 } from '@hello-pangea/dnd'
-import { ChevronLeft, ChevronRight, Check, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Check, X, Share2, Copy } from 'lucide-react'
 import { toast } from 'sonner'
 import { GlassCard } from '@/components/common/GlassCard'
 import { cn, initials } from '@/lib/utils'
@@ -73,15 +73,29 @@ const statusColor = (s: string) => STATUS_COLOR[s] ?? 'var(--ink-4)'
 export function CalendarClient({
   episodes: initial,
   availability,
+  shows,
+  userId,
 }: {
   episodes: EpisodeEvent[]
   availability: AvailBlock[]
+  shows: { id: string; name: string }[]
+  userId: string
 }) {
   const [episodes, setEpisodes] = useState(initial)
   const [current, setCurrent] = useState(new Date())
   const [mode, setMode] = useState<'episodes' | 'availability'>('episodes')
   const [selectedChip, setSelectedChip] = useState<AvailStatus | null>(null)
+  const [shareOpen, setShareOpen] = useState(false)
   const dragStatus = useRef<AvailStatus | null>(null)
+
+  function copyShareLink(showId: string) {
+    const url = `${window.location.origin}/team-calendar/${userId}/${showId}`
+    navigator.clipboard
+      .writeText(url)
+      .then(() => toast.success('Booking link copied'))
+      .catch(() => toast.error('Could not copy link'))
+    setShareOpen(false)
+  }
 
   const [availMap, setAvailMap] = useState<Record<string, AvailStatus>>(() => {
     const m: Record<string, AvailStatus> = {}
@@ -233,6 +247,46 @@ export function CalendarClient({
               {s === 'available' ? <Check size={13} /> : <X size={13} />} {s}
             </button>
           ))}
+
+          {/* Share booking link */}
+          <div className="relative ml-auto">
+            <button
+              onClick={() => setShareOpen((o) => !o)}
+              className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-semibold text-[var(--ink-2)] transition-colors hover:text-[var(--ink-1)]"
+              style={{ borderColor: 'var(--line-2)' }}
+            >
+              <Share2 size={13} /> Share booking link
+            </button>
+            {shareOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShareOpen(false)} />
+                <div
+                  className="absolute right-0 z-20 mt-2 w-64 rounded-[var(--radius-md)] p-2 shadow-2xl"
+                  style={{ background: 'var(--bg-2)', border: '1px solid var(--line-1)' }}
+                >
+                  <p className="body-sm px-2 py-1.5 font-semibold text-[var(--ink-1)]">
+                    Share available days for…
+                  </p>
+                  {shows.length === 0 ? (
+                    <p className="body-sm px-2 py-2 text-[var(--ink-3)]">
+                      Create a show first to share a booking link.
+                    </p>
+                  ) : (
+                    shows.map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => copyShareLink(s.id)}
+                        className="flex w-full items-center justify-between gap-2 rounded-[var(--radius-sm)] px-2 py-2 text-left transition-colors hover:bg-[rgba(127,127,127,0.08)]"
+                      >
+                        <span className="body-sm truncate text-[var(--ink-1)]">{s.name}</span>
+                        <Copy size={13} className="shrink-0 text-[var(--ink-3)]" />
+                      </button>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
 

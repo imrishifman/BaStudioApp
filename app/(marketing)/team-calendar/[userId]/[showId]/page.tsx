@@ -7,10 +7,13 @@ import { TeamCalendarClient } from './team-calendar-client'
 export default async function TeamCalendarPage({ params }: { params: Promise<{ userId: string; showId: string }> }) {
   const { userId, showId } = await params
 
+  const today = new Date()
+  today.setUTCHours(0, 0, 0, 0)
+
   const [show, blocks] = await Promise.all([
     prisma.show.findFirst({ where: { id: showId }, include: { owner: { select: { fullName: true } } } }),
     prisma.availabilityBlock.findMany({
-      where: { userId, showId },
+      where: { userId, status: 'available', date: { gte: today } },
       orderBy: { date: 'asc' },
     }),
   ])
