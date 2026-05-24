@@ -55,7 +55,13 @@ const COLUMNS: {
   },
 ]
 
-export function GuestsClient({ guests: initialGuests }: { guests: Guest[] }) {
+export function GuestsClient({
+  guests: initialGuests,
+  embedded = false,
+}: {
+  guests: Guest[]
+  embedded?: boolean
+}) {
   const [guests, setGuests] = useState(initialGuests)
 
   function columnOf(g: Guest): ColumnKey {
@@ -83,10 +89,12 @@ export function GuestsClient({ guests: initialGuests }: { guests: Guest[] }) {
   }
 
   return (
-    <div className="p-6 lg:p-8">
-      <div className="mb-1">
-        <h1 className="display-sm text-[var(--ink-1)]">Guests</h1>
-      </div>
+    <div className={embedded ? '' : 'p-6 lg:p-8'}>
+      {!embedded && (
+        <div className="mb-1">
+          <h1 className="display-sm text-[var(--ink-1)]">Guests</h1>
+        </div>
+      )}
       <p className="body-sm mb-6 text-[var(--ink-3)]">
         Drag a guest across the pipeline as your relationship warms up.
       </p>

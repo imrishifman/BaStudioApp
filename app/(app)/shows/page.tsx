@@ -10,11 +10,22 @@ export default async function ShowsPage() {
 
   if (!canAccess(session.user, 'solo')) redirect('/pricing')
 
-  const shows = await prisma.show.findMany({
-    where: { ownerEmail: session.user.email },
-    orderBy: { updatedAt: 'desc' },
-    include: { _count: { select: { episodes: true } } },
-  })
+  const [shows, guests] = await Promise.all([
+    prisma.show.findMany({
+      where: { ownerEmail: session.user.email },
+      orderBy: { updatedAt: 'desc' },
+      include: { episodes: { select: { status: true } } },
+    }),
+    prisma.guest.findMany({
+      where: { ownerEmail: session.user.email },
+      orderBy: { updatedAt: 'desc' },
+    }),
+  ])
 
-  return <ShowsClient shows={JSON.parse(JSON.stringify(shows))} />
+  return (
+    <ShowsClient
+      shows={JSON.parse(JSON.stringify(shows))}
+      guests={JSON.parse(JSON.stringify(guests))}
+    />
+  )
 }
