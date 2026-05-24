@@ -20,12 +20,14 @@ export async function POST(req: Request) {
   }
 
   let show = null
+  let extraContext: string | null = null
   if (episodeId) {
     const ep = await prisma.episode.findFirst({ where: { id: episodeId, createdByEmail: session.user.email } })
+    extraContext = ep?.guestExtraContext ?? null
     if (ep?.showId) show = await prisma.show.findUnique({ where: { id: ep.showId } })
   }
 
-  const prompt = buildResearchPrompt(guestName, links ?? [], null, mode, show)
+  const prompt = buildResearchPrompt(guestName, links ?? [], extraContext, mode, show)
 
   try {
     const message = await anthropic.messages.create({

@@ -43,6 +43,19 @@ export function Step2GuestBio({ episode, show, onNext }: Props) {
         })
         const json = await res.json()
         if (json.error) throw new Error(json.error)
+        // Draft a DNA-aware intro early (best-effort) without advancing status —
+        // it stays refinable on the Intro step. The research is already saved,
+        // so the intro generator reads it from the DB.
+        if (mode === 'initial' && !episode.introductionScript) {
+          try {
+            await fetch('/api/ai/script', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              signal,
+              body: JSON.stringify({ episodeId: episode.id, showId: episode.showId, kind: 'intro', setStatus: false }),
+            })
+          } catch { /* the early intro draft is a bonus */ }
+        }
         return json
       })
       setBio(data.bio ?? bio)

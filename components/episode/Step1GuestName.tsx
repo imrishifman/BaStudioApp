@@ -27,8 +27,11 @@ export function Step1GuestName({ episode, show, shows, onNext, onEpisodeCreated,
   const [guestExtraContext, setExtra] = useState(episode?.guestExtraContext ?? '')
   const [loading, setLoading] = useState(false)
 
+  const hasFocus = !!(guestLinkedinUrl.trim() || guestWebsiteUrl.trim() || guestExtraContext.trim())
+
   async function handleResearch() {
     if (!guestName.trim()) { toast.error('Enter a guest name first'); return }
+    if (!hasFocus) { toast.error('Add at least one link or some context so the research stays focused'); return }
     setLoading(true)
     try {
       const patch: Partial<Episode> = {
@@ -50,7 +53,7 @@ export function Step1GuestName({ episode, show, shows, onNext, onEpisodeCreated,
         <p className="eyebrow mb-1 text-[var(--ink-3)]">Step 1 of 10</p>
         <h2 className="display-sm text-[var(--ink-1)]">Who's your guest?</h2>
         <p className="body mt-1 text-[var(--ink-2)]">
-          Enter their name and any links. Ba-Studio will research the rest.
+          Enter their name plus at least one link or some context. Ba-Studio researches the rest.
         </p>
       </div>
 
@@ -105,9 +108,16 @@ export function Step1GuestName({ episode, show, shows, onNext, onEpisodeCreated,
         </div>
       </div>
 
-      <PillButton onClick={handleResearch} disabled={loading || !guestName.trim()} size="lg">
-        {loading ? 'Researching…' : <><Sparkles size={16} /> Research guest</>}
-      </PillButton>
+      <div className="space-y-2">
+        <PillButton onClick={handleResearch} disabled={loading || !guestName.trim() || !hasFocus} size="lg">
+          {loading ? 'Researching…' : <><Sparkles size={16} /> Research guest</>}
+        </PillButton>
+        {guestName.trim() && !hasFocus && (
+          <p className="body-sm text-[var(--ink-3)]">
+            Add a LinkedIn, a website, or some context above so the research stays focused on the right person.
+          </p>
+        )}
+      </div>
     </div>
   )
 }

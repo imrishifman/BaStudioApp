@@ -1,33 +1,69 @@
 import type { Episode, Show } from '@prisma/client'
 
+type DnaShow = Pick<
+  Show,
+  | 'name'
+  | 'hostName'
+  | 'targetAudience'
+  | 'aiResearchInstructions'
+  | 'interviewStyle'
+  | 'hostEnergy'
+  | 'pacing'
+  | 'humorLevel'
+  | 'episodeSections'
+  | 'openingLine'
+  | 'closingQuestion'
+  | 'guestIntroStyle'
+>
+
+// A compact summary of the show's Podcast DNA so the AI shapes its output to fit
+// the show's identity (voice, structure, audience) rather than producing generic work.
+function buildDnaSection(show: DnaShow): string {
+  const sectionNames = Array.isArray(show.episodeSections)
+    ? (show.episodeSections as { name: string }[]).map((s) => s.name).filter(Boolean)
+    : []
+  const lines = [
+    show.name && `- Show: "${show.name}"${show.hostName ? `, hosted by ${show.hostName}` : ''}`,
+    show.targetAudience && `- Audience: ${show.targetAudience}`,
+    show.interviewStyle && `- Interview style: ${show.interviewStyle}`,
+    show.hostEnergy && `- Host energy: ${show.hostEnergy}`,
+    show.pacing && `- Pacing: ${show.pacing}`,
+    show.humorLevel && `- Humor level: ${show.humorLevel}`,
+    sectionNames.length && `- Episode structure: ${sectionNames.join(' → ')}`,
+    show.openingLine && `- Signature opening: ${show.openingLine}`,
+    show.closingQuestion && `- Signature closing question: ${show.closingQuestion}`,
+  ].filter(Boolean)
+  return lines.length ? `\n\nPodcast DNA (shape everything to fit this show):\n${lines.join('\n')}` : ''
+}
+
 export function buildResearchPrompt(
   guestName: string,
   links: string[],
   extraContext: string | null,
   mode: 'initial' | 'deep',
-  show: Pick<Show, 'name' | 'hostName' | 'targetAudience' | 'aiResearchInstructions'> | null
+  show: DnaShow | null
 ) {
   const linksSection = links.length ? `\nLinks: ${links.join(', ')}` : ''
-  const extra = extraContext ? `\nExtra context from host: ${extraContext}` : ''
-  const showContext = show
-    ? `\nShow: "${show.name}", hosted by ${show.hostName ?? 'the host'}, audience: ${show.targetAudience ?? 'general'}`
-    : ''
+  const extra = extraContext ? `\nExtra context / bio from host: ${extraContext}` : ''
+  const dna = show ? buildDnaSection(show) : ''
   const depth = mode === 'deep' ? 'Do an extremely thorough job. Find obscure stories, lesser-known projects, and unique angles.' : ''
   const customInstructions = show?.aiResearchInstructions ? `\nCustom instructions: ${show.aiResearchInstructions}` : ''
 
   return `You are a world-class podcast researcher. Research the following guest for a podcast interview.
 
-Guest: ${guestName}${linksSection}${extra}${showContext}${customInstructions}
+Guest: ${guestName}${linksSection}${extra}${dna}${customInstructions}
 
 ${depth}
 
+Use the Podcast DNA above to decide what to dig into: surface the stories, themes, and angles that fit this show's audience and style. Lean on the provided links and host context to stay focused on the right person.
+
 Return a JSON object with:
-- bio: A compelling 2-3 paragraph bio suitable for reading on air
-- research: Detailed research notes (stories, achievements, controversies, unique angles, fun facts, talking points) — minimum 400 words
+- bio: A compelling 2-3 paragraph bio suitable for reading on air, in a tone that matches the show's DNA
+- research: Detailed research notes (stories, achievements, controversies, unique angles, fun facts, talking points) tailored to this show — minimum 400 words
 - funFacts: An array of 3-5 surprising or interesting facts about this person
 - photoUrl: Best available professional headshot URL if known (or null)
 
-Focus on what makes this guest interesting and unique. Surface stories the audience hasn't heard before.`
+Focus on what makes this guest interesting and unique for THIS show's audience. Surface stories they haven't heard before.`
 }
 
 export function buildQuestionsPrompt(
@@ -81,7 +117,7 @@ Make questions specific to this guest, not generic. Vary the depth and style wit
 
 export function buildScriptPrompt(
   episode: Pick<Episode, 'guestName' | 'guestBio' | 'guestResearch' | 'introductionScript' | 'generatedQuestions' | 'favoriteQuestions' | 'focusAnswers'>,
-  show: Pick<Show, 'name' | 'hostName' | 'interviewStyle' | 'openingLine' | 'closingQuestion' | 'guestIntroStyle' | 'aiScriptInstructions'> | null,
+  show: Pick<Show, 'name' | 'hostName' | 'interviewStyle' | 'openingLine' | 'closingQuestion' | 'guestIntroStyle' | 'aiScriptInstructions' | 'hostEnergy' | 'humorLevel' | 'targetAudience'> | null,
   kind: 'intro' | 'full'
 ) {
   const hostName = show?.hostName ?? 'the host'
@@ -98,11 +134,16 @@ export function buildScriptPrompt(
     return `Write a compelling podcast intro script for ${hostName} introducing ${episode.guestName} on ${showName}.
 
 Bio to work from: ${episode.guestBio ?? 'Not provided'}
-Research: ${episode.guestResearch?.slice(0, 500) ?? 'Not provided'}
-Intro style: ${show?.guestIntroStyle ?? 'host_reads_bio'}
-Opening line template: ${show?.openingLine ?? 'none'}${customInstructions}
+Research: ${episode.guestResearch?.slice(0, 800) ?? 'Not provided'}
 
-The intro should be warm, specific to this guest, and make the listener want to keep listening.
+Podcast DNA (match this voice):
+- Audience: ${show?.targetAudience ?? 'general'}
+- Host energy: ${show?.hostEnergy ?? 'warm_casual'}
+- Humor level: ${show?.humorLevel ?? 'light'}
+- Intro style: ${show?.guestIntroStyle ?? 'host_reads_bio'}
+- Opening line template: ${show?.openingLine ?? 'none'}${customInstructions}
+
+The intro should be warm, specific to this guest, draw on the research, and match the show's DNA above so it sounds like this host on this show. Make the listener want to keep listening.
 Write it as spoken word, ready to read on air. 150-250 words.
 
 Return JSON: { "script": "the intro text" }`

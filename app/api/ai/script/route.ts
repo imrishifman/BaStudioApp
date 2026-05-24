@@ -9,7 +9,7 @@ export async function POST(req: Request) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { episodeId, showId, kind = 'full' } = await req.json()
+  const { episodeId, showId, kind = 'full', setStatus = true } = await req.json()
   if (!episodeId) return NextResponse.json({ error: 'episodeId required' }, { status: 400 })
 
   const episode = await prisma.episode.findFirst({ where: { id: episodeId, createdByEmail: session.user.email } })
@@ -31,9 +31,12 @@ export async function POST(req: Request) {
 
     const { script } = JSON.parse(jsonMatch[0])
 
-    const updateData = kind === 'intro'
-      ? { introductionScript: script, status: 'script' as const }
-      : { fullScript: script, status: 'review' as const }
+    // Early auto-drafts (setStatus=false) save the text without advancing the
+    // pipeline status — the user is still earlier in the wizard.
+    const updateData =
+      kind === 'intro'
+        ? { introductionScript: script, ...(setStatus ? { status: 'script' as const } : {}) }
+        : { fullScript: script, ...(setStatus ? { status: 'review' as const } : {}) }
 
     await prisma.episode.update({ where: { id: episodeId }, data: updateData })
 
