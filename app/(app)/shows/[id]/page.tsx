@@ -17,5 +17,10 @@ export default async function ShowDetailPage({ params }: { params: Promise<{ id:
 
   if (!show) notFound()
 
-  return <ShowDetailClient show={JSON.parse(JSON.stringify(show))} />
+  return (
+    <ShowDetailClient
+      show={JSON.parse(JSON.stringify(show))}
+      currentEmail={session.user.email}
+    />
+  )
 }
