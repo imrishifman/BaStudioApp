@@ -3,6 +3,9 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import Anthropic from '@anthropic-ai/sdk'
 import { buildScriptPrompt } from '@/lib/ai/prompts'
+import { extractJson, aiErrorMessage } from '@/lib/ai/json'
+
+export const maxDuration = 60
 
 export async function POST(req: Request) {
   const anthropic = new Anthropic()
@@ -26,10 +29,7 @@ export async function POST(req: Request) {
     })
 
     const text = message.content[0].type === 'text' ? message.content[0].text : ''
-    const jsonMatch = text.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) return NextResponse.json({ error: 'Invalid response' }, { status: 500 })
-
-    const { script } = JSON.parse(jsonMatch[0])
+    const { script } = extractJson<{ script: string }>(text)
 
     // Early auto-drafts (setStatus=false) save the text without advancing the
     // pipeline status — the user is still earlier in the wizard.
@@ -43,6 +43,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ script })
   } catch (err) {
     console.error('Script AI error:', err)
-    return NextResponse.json({ error: 'AI request failed' }, { status: 500 })
+    const { message, status } = aiErrorMessage(err)
+    return NextResponse.json({ error: message }, { status })
   }
 }

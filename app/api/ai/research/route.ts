@@ -3,6 +3,10 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import Anthropic from '@anthropic-ai/sdk'
 import { buildResearchPrompt } from '@/lib/ai/prompts'
+import { extractJson, aiErrorMessage } from '@/lib/ai/json'
+
+// AI calls can take 20-40s; without this Vercel kills them at the default ~10s.
+export const maxDuration = 60
 
 export async function POST(req: Request) {
   const anthropic = new Anthropic()
@@ -37,10 +41,7 @@ export async function POST(req: Request) {
     })
 
     const text = message.content[0].type === 'text' ? message.content[0].text : ''
-    const jsonMatch = text.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) return NextResponse.json({ error: 'Invalid AI response' }, { status: 500 })
-
-    const data = JSON.parse(jsonMatch[0])
+    const data = extractJson<{ bio?: string; research?: string; funFacts?: string[]; photoUrl?: string }>(text)
 
     // Save to episode + increment counter
     if (episodeId) {
@@ -59,6 +60,7 @@ export async function POST(req: Request) {
     return NextResponse.json(data)
   } catch (err) {
     console.error('Research AI error:', err)
-    return NextResponse.json({ error: 'AI request failed' }, { status: 500 })
+    const { message, status } = aiErrorMessage(err)
+    return NextResponse.json({ error: message }, { status })
   }
 }

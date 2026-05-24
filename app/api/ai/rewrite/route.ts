@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import Anthropic from '@anthropic-ai/sdk'
+import { aiErrorMessage } from '@/lib/ai/json'
+
+export const maxDuration = 60
 
 // Inline "Writing Tools": rewrite a selected snippet. Lightweight + fast (Haiku).
 const INSTRUCTIONS: Record<string, string> = {
@@ -36,6 +39,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ text: out })
   } catch (err) {
     console.error('Rewrite AI error:', err)
-    return NextResponse.json({ error: 'Rewrite failed' }, { status: 500 })
+    const { message, status } = aiErrorMessage(err)
+    return NextResponse.json({ error: message }, { status })
   }
 }

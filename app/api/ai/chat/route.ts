@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import Anthropic from '@anthropic-ai/sdk'
 import { buildChatPrompt } from '@/lib/ai/prompts'
+import { aiErrorMessage } from '@/lib/ai/json'
+
+export const maxDuration = 60
 
 export async function POST(req: Request) {
   const anthropic = new Anthropic()
@@ -21,7 +24,9 @@ export async function POST(req: Request) {
     })
     const reply = response.content[0].type === 'text' ? response.content[0].text : ''
     return NextResponse.json({ reply })
-  } catch {
-    return NextResponse.json({ error: 'AI request failed' }, { status: 500 })
+  } catch (err) {
+    console.error('Chat AI error:', err)
+    const { message, status } = aiErrorMessage(err)
+    return NextResponse.json({ error: message }, { status })
   }
 }

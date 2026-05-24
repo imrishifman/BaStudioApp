@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import Anthropic from '@anthropic-ai/sdk'
 import { buildQuestionsPrompt } from '@/lib/ai/prompts'
 import { resolveSections, normalizeGenerated } from '@/lib/questions'
+import { extractJson, aiErrorMessage } from '@/lib/ai/json'
+
+export const maxDuration = 60
 
 export async function POST(req: Request) {
   const anthropic = new Anthropic()
@@ -43,23 +47,24 @@ export async function POST(req: Request) {
   try {
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 4096,
+      max_tokens: 8000,
       messages: [{ role: 'user', content: prompt }],
     })
 
     const text = message.content[0].type === 'text' ? message.content[0].text : ''
-    const jsonMatch = text.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) return NextResponse.json({ error: 'Invalid response' }, { status: 500 })
-
-    const parsed = JSON.parse(jsonMatch[0])
+    const parsed = extractJson<Record<string, unknown>>(text)
     // Store the sectioned object plus the resolved section metadata.
     const generated = { ...parsed, _sections: sections }
 
-    await prisma.episode.update({ where: { id: episodeId }, data: { generatedQuestions: generated, status: 'questions' } })
+    await prisma.episode.update({
+      where: { id: episodeId },
+      data: { generatedQuestions: generated as unknown as Prisma.InputJsonValue, status: 'questions' },
+    })
 
     return NextResponse.json({ questions: generated })
   } catch (err) {
     console.error('Questions AI error:', err)
-    return NextResponse.json({ error: 'AI request failed' }, { status: 500 })
+    const { message, status } = aiErrorMessage(err)
+    return NextResponse.json({ error: message }, { status })
   }
 }

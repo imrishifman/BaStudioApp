@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import Anthropic from '@anthropic-ai/sdk'
 import { buildSocialPrompt } from '@/lib/ai/prompts'
+import { extractJson, aiErrorMessage } from '@/lib/ai/json'
+
+export const maxDuration = 60
 
 export async function POST(req: Request) {
   const anthropic = new Anthropic()
@@ -26,15 +30,13 @@ export async function POST(req: Request) {
     })
 
     const text = message.content[0].type === 'text' ? message.content[0].text : ''
-    const jsonMatch = text.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) return NextResponse.json({ error: 'Invalid response' }, { status: 500 })
-
-    const data = JSON.parse(jsonMatch[0])
-    await prisma.episode.update({ where: { id: episodeId }, data: { socialContent: data } })
+    const data = extractJson(text)
+    await prisma.episode.update({ where: { id: episodeId }, data: { socialContent: data as Prisma.InputJsonValue } })
 
     return NextResponse.json(data)
   } catch (err) {
     console.error('Social AI error:', err)
-    return NextResponse.json({ error: 'AI request failed' }, { status: 500 })
+    const { message, status } = aiErrorMessage(err)
+    return NextResponse.json({ error: message }, { status })
   }
 }
