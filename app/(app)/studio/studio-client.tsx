@@ -7,7 +7,8 @@ import { GlassCard } from '@/components/common/GlassCard'
 import { PillButton } from '@/components/common/PillButton'
 import { FeatureLockModal } from '@/components/common/FeatureLockModal'
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard'
-import { canAccess, maxEpisodesPerMonth, episodesThisMonth } from '@/lib/plan-gating'
+import { OnboardingQuest, type QuestStep } from '@/components/onboarding/OnboardingQuest'
+import { maxEpisodesPerMonth, episodesThisMonth } from '@/lib/plan-gating'
 import { formatDate } from '@/lib/utils'
 import { ArrowRight, Plus, Clock, CheckCircle2, Mic2, BookOpen } from 'lucide-react'
 import Link from 'next/link'
@@ -17,6 +18,7 @@ interface Props {
   episodes: Episode[]
   shows: Show[]
   user: { fullName: string | null; plan: string; onboardingComplete: boolean; skippedDnaSetup: boolean; aiResearchCountThisMonth: number } | null
+  guestCount: number
   sessionUser: Session['user']
 }
 
@@ -32,12 +34,33 @@ const STATUS_COLOR: Record<string, string> = {
   video: 'var(--warning)', review: 'var(--warning)', approved: 'var(--success)', published: 'var(--success)',
 }
 
-export function StudioClient({ episodes, shows, user, sessionUser }: Props) {
+export function StudioClient({ episodes, shows, user, guestCount, sessionUser }: Props) {
   const router = useRouter()
   const [lockOpen, setLockOpen] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(
     !user?.onboardingComplete && !user?.skippedDnaSetup
   )
+  const [questDismissed, setQuestDismissed] = useState(false)
+
+  // Onboarding quest — computed from real data, reappears each sign-in until done
+  const hasDna = shows.some(
+    (s) =>
+      !!(s.openingLine || s.closingQuestion || s.targetAudience || s.aiResearchInstructions) ||
+      (Array.isArray(s.episodeSections) && (s.episodeSections as unknown[]).length > 0)
+  )
+  const questSteps: QuestStep[] = [
+    { label: 'Set up your first show', done: shows.length > 0, href: '/shows', cta: 'Create' },
+    {
+      label: 'Define its Podcast DNA',
+      done: hasDna,
+      href: shows[0] ? `/shows/${shows[0].id}/dna` : '/shows',
+      cta: 'Open',
+    },
+    { label: 'Add your first guest', done: guestCount > 0, href: '/guests', cta: 'View' },
+    { label: 'Produce your first episode', done: episodes.length > 0, href: '/episodes/new', cta: 'Start' },
+  ]
+  const showQuest =
+    !questSteps.every((s) => s.done) && !questDismissed && !showOnboarding
 
   const plan = (user?.plan ?? 'free') as 'free' | 'solo' | 'master'
   const inProgress = episodes.filter(ep => !['published', 'approved'].includes(ep.status))
@@ -77,6 +100,11 @@ export function StudioClient({ episodes, shows, user, sessionUser }: Props) {
           <Plus size={14} /> New episode
         </PillButton>
       </div>
+
+      {/* Onboarding quest */}
+      {showQuest && (
+        <OnboardingQuest steps={questSteps} onDismiss={() => setQuestDismissed(true)} />
+      )}
 
       {/* Create banner */}
       {episodes.length === 0 && (
