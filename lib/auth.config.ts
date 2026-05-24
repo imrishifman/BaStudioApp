@@ -25,6 +25,10 @@ declare module 'next-auth' {
  * provider, and the DB-enriched session — all of which run only in Node.
  */
 export const authConfig = {
+  // Trust the incoming host so session cookies + OAuth callbacks use the real
+  // request domain (e.g. bastudiopodcast.com) behind Vercel's proxy, instead of
+  // bouncing when the canonical host can't be inferred.
+  trustHost: true,
   providers: [
     Google({
       clientId: process.env.AUTH_GOOGLE_ID,
