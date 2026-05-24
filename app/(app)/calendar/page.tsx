@@ -10,9 +10,17 @@ export default async function CalendarPage() {
   if (!canAccess(session.user, 'solo')) redirect('/pricing')
 
   const episodes = await prisma.episode.findMany({
-    where: { createdByEmail: session.user.email, releaseDate: { not: null } },
+    where: { createdByEmail: session.user.email },
     orderBy: { releaseDate: 'asc' },
-    select: { id: true, title: true, guestName: true, releaseDate: true, status: true },
+    select: {
+      id: true,
+      title: true,
+      guestName: true,
+      guestPhotoUrl: true,
+      releaseDate: true,
+      status: true,
+      show: { select: { name: true } },
+    },
   })
 
   return <CalendarClient episodes={JSON.parse(JSON.stringify(episodes))} />
