@@ -15,6 +15,7 @@ import { Step7Script } from './Step7Script'
 import { Step8Video } from './Step8Video'
 import { Step9Share } from './Step9Share'
 import { Step10Promote } from './Step10Promote'
+import { AILoadingProvider } from './AILoadingContext'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -143,6 +144,7 @@ export function EpisodeWizard({ episode: initialEpisode, shows, userEmail }: Pro
   }
 
   return (
+    <AILoadingProvider>
     <div className="flex min-h-screen flex-col" style={{ background: 'var(--bg-0)' }}>
       {/* Wizard header */}
       <div
@@ -218,5 +220,6 @@ export function EpisodeWizard({ episode: initialEpisode, shows, userEmail }: Pro
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </AILoadingProvider>
   )
 }

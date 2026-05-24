@@ -7,6 +7,7 @@ import { GlassCard } from '@/components/common/GlassCard'
 import { Sparkles, Star, RefreshCw, ArrowRight, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { useAILoading } from './AILoadingContext'
 
 interface Question {
   id: string
@@ -25,6 +26,7 @@ interface Props {
 }
 
 export function Step5Questions({ episode, show, onNext }: Props) {
+  const { runAI } = useAILoading()
   const [questions, setQuestions] = useState<Question[]>(() => {
     const stored = episode?.generatedQuestions as Question[] | null
     return stored ?? []
@@ -44,17 +46,22 @@ export function Step5Questions({ episode, show, onNext }: Props) {
     if (!episode?.id) return
     setLoading(true)
     try {
-      const res = await fetch('/api/ai/questions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ episodeId: episode.id, showId: episode.showId, focusAnswers: episode.focusAnswers }),
+      const data = await runAI('questions', async (signal) => {
+        const res = await fetch('/api/ai/questions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal,
+          body: JSON.stringify({ episodeId: episode.id, showId: episode.showId, focusAnswers: episode.focusAnswers }),
+        })
+        const json = await res.json()
+        if (json.error) throw new Error(json.error)
+        return json
       })
-      const data = await res.json()
-      if (data.error) { toast.error(data.error); return }
-      const qs: Question[] = data.questions ?? []
-      setQuestions(qs)
-    } catch {
-      toast.error('Failed to generate questions')
+      setQuestions((data.questions ?? []) as Question[])
+    } catch (err) {
+      if ((err as Error)?.name !== 'AbortError') {
+        toast.error(err instanceof Error ? err.message : 'Failed to generate questions')
+      }
     } finally {
       setLoading(false)
     }

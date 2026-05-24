@@ -165,6 +165,71 @@
   filter: invert(1);
 }
 
+/* ===================== AI loading screen ===================== */
+.ai-orb {
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #99f6e4, #2dd4bf 55%, #0d9488 100%);
+  animation: ai-orb-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes ai-orb-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 40px 8px rgba(45, 212, 191, 0.45), inset 0 0 20px rgba(13, 148, 136, 0.5);
+  }
+  50% {
+    transform: scale(1.12);
+    box-shadow: 0 0 80px 24px rgba(45, 212, 191, 0.7), inset 0 0 26px rgba(13, 148, 136, 0.6);
+  }
+}
+
+@keyframes ai-orb-complete {
+  0% { transform: scale(1); }
+  45% {
+    transform: scale(1.45);
+    box-shadow: 0 0 110px 36px rgba(45, 212, 191, 0.95), inset 0 0 30px rgba(13, 148, 136, 0.7);
+  }
+  100% { transform: scale(1); }
+}
+
+.ai-bar-track {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: #0a0e1a;
+  border: 1px solid rgba(34, 211, 238, 0.5);
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.4), inset 0 0 6px rgba(34, 211, 238, 0.25);
+}
+
+.ai-bar-fill {
+  position: relative;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(34, 211, 238, 0.55), #22d3ee);
+  box-shadow: 0 0 14px rgba(34, 211, 238, 0.7);
+}
+
+.ai-bar-orb {
+  position: absolute;
+  right: -5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #67e8f9;
+  box-shadow: 0 0 16px 4px rgba(34, 211, 238, 0.9);
+}
+
+.ai-bar-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  color: rgba(34, 211, 238, 0.85);
+}
+
 html,
 body {
   background: var(--bg-0);

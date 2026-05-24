@@ -8,6 +8,7 @@ import { GlassCard } from '@/components/common/GlassCard'
 import { Sparkles, ArrowRight, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { useAILoading } from './AILoadingContext'
 
 interface Props {
   episode: Episode | null; show: Show | null; shows: Show[]
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export function Step6Intro({ episode, onNext }: Props) {
+  const { runAI } = useAILoading()
   const [intro, setIntro] = useState(episode?.introductionScript ?? '')
   const [loading, setLoading] = useState(false)
 
@@ -24,11 +26,16 @@ export function Step6Intro({ episode, onNext }: Props) {
     if (!episode?.id) return
     setLoading(true)
     try {
-      const res = await fetch('/api/ai/script', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ episodeId: episode.id, showId: episode.showId, kind: 'intro' }) })
-      const data = await res.json()
-      if (data.script) setIntro(data.script)
-      else toast.error(data.error ?? 'Generation failed')
-    } catch { toast.error('Failed to generate') } finally { setLoading(false) }
+      const data = await runAI('intro', async (signal) => {
+        const res = await fetch('/api/ai/script', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal, body: JSON.stringify({ episodeId: episode.id, showId: episode.showId, kind: 'intro' }) })
+        const json = await res.json()
+        if (!json.script) throw new Error(json.error ?? 'Generation failed')
+        return json
+      })
+      setIntro(data.script)
+    } catch (err) {
+      if ((err as Error)?.name !== 'AbortError') toast.error(err instanceof Error ? err.message : 'Failed to generate')
+    } finally { setLoading(false) }
   }
 
   return (

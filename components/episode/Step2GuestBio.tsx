@@ -7,6 +7,7 @@ import { PillButton } from '@/components/common/PillButton'
 import { GlassCard } from '@/components/common/GlassCard'
 import { Sparkles, ArrowRight } from 'lucide-react'
 import { toast } from 'sonner'
+import { useAILoading } from './AILoadingContext'
 
 interface Props {
   episode: Episode | null
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export function Step2GuestBio({ episode, show, onNext }: Props) {
+  const { runAI } = useAILoading()
   const [bio, setBio] = useState(episode?.guestBio ?? '')
   const [research, setResearch] = useState(episode?.guestResearch ?? '')
   const [loading, setLoading] = useState(false)
@@ -32,17 +34,23 @@ export function Step2GuestBio({ episode, show, onNext }: Props) {
     if (!episode?.id) return
     mode === 'initial' ? setLoading(true) : setDeepLoading(true)
     try {
-      const res = await fetch('/api/ai/research', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ episodeId: episode.id, guestName: episode.guestName, links: [episode.guestLinkedinUrl, episode.guestWebsiteUrl].filter(Boolean), mode }),
+      const data = await runAI('research', async (signal) => {
+        const res = await fetch('/api/ai/research', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal,
+          body: JSON.stringify({ episodeId: episode.id, guestName: episode.guestName, links: [episode.guestLinkedinUrl, episode.guestWebsiteUrl].filter(Boolean), mode }),
+        })
+        const json = await res.json()
+        if (json.error) throw new Error(json.error)
+        return json
       })
-      const data = await res.json()
-      if (data.error) { toast.error(data.error); return }
       setBio(data.bio ?? bio)
       setResearch(data.research ?? research)
-    } catch {
-      toast.error('Research failed')
+    } catch (err) {
+      if ((err as Error)?.name !== 'AbortError') {
+        toast.error(err instanceof Error ? err.message : 'Research failed')
+      }
     } finally {
       mode === 'initial' ? setLoading(false) : setDeepLoading(false)
     }
