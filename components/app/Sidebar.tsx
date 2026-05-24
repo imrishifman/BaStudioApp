@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { cn, initials } from '@/lib/utils'
 import { canAccess, isAdmin } from '@/lib/plan-gating'
+import { ThemeToggle } from '@/components/common/ThemeToggle'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -127,6 +128,9 @@ export function Sidebar() {
       {/* User footer */}
       {user && (
         <div style={{ borderTop: '1px solid var(--line-1)', padding: '12px' }}>
+          <div className="mb-1">
+            <ThemeToggle />
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2 py-2 transition-colors hover:bg-[rgba(255,255,255,0.05)]">

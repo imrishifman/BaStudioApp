@@ -113,7 +113,53 @@
   --sidebar-ring: oklch(0.88 0.1 200);
 }
 
-/* Force dark appearance — this is an always-dark app */
+/* === Light theme (opt-in via data-theme="light") === */
+[data-theme='light'] {
+  --bg-0: #ffffff;
+  --bg-1: #f6f6f8;
+  --bg-2: #eeeef1;
+  --bg-3: #e5e5ea;
+
+  --ink-1: #1d1d1f;
+  --ink-2: rgba(29, 29, 31, 0.72);
+  --ink-3: rgba(29, 29, 31, 0.5);
+  --ink-4: rgba(29, 29, 31, 0.3);
+
+  --line-1: rgba(0, 0, 0, 0.08);
+  --line-2: rgba(0, 0, 0, 0.14);
+
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-stroke: rgba(0, 0, 0, 0.08);
+
+  --shadow-1: 0 1px 0 rgba(0, 0, 0, 0.02) inset, 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-2: 0 1px 0 rgba(0, 0, 0, 0.03) inset, 0 24px 60px rgba(0, 0, 0, 0.12);
+
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.2 0 0);
+  --card: oklch(0.99 0 0 / 92%);
+  --card-foreground: oklch(0.2 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.2 0 0);
+  --primary: oklch(0.2 0 0);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.95 0 0);
+  --secondary-foreground: oklch(0.3 0 0);
+  --muted: oklch(0.95 0 0);
+  --muted-foreground: oklch(0.45 0 0);
+  --accent: oklch(0.93 0 0);
+  --accent-foreground: oklch(0.2 0 0);
+  --border: oklch(0 0 0 / 8%);
+  --input: oklch(0 0 0 / 10%);
+
+  --sidebar: oklch(0.98 0 0);
+  --sidebar-foreground: oklch(0.2 0 0);
+  --sidebar-primary: oklch(0.2 0 0);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.93 0 0);
+  --sidebar-accent-foreground: oklch(0.2 0 0);
+  --sidebar-border: oklch(0 0 0 / 8%);
+}
+
 html,
 body {
   background: var(--bg-0);
