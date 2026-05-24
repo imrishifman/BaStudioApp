@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import {
@@ -43,12 +44,15 @@ export function MobileNav() {
         className="sticky top-0 z-40 flex h-14 items-center px-4 lg:hidden"
         style={{ background: 'var(--bg-1)', borderBottom: '1px solid var(--line-1)' }}
       >
-        <Link
-          href="/studio"
-          className="text-[var(--ink-1)] no-underline"
-          style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.02em' }}
-        >
-          Ba Studio
+        <Link href="/studio" className="no-underline">
+          <Image
+            src="/logo.png"
+            alt="Ba Studio"
+            width={140}
+            height={60}
+            priority
+            className="brand-logo h-6 w-auto"
+          />
         </Link>
       </header>
 

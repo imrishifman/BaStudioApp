@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useSession, signIn } from 'next-auth/react'
 import { Menu, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -50,12 +51,15 @@ export function MarketingNav() {
         style={{ padding: '0 clamp(20px, 5vw, 80px)' }}
       >
         {/* Wordmark */}
-        <Link
-          href="/"
-          className="display-sm font-[600] text-[var(--ink-1)] no-underline"
-          style={{ fontSize: 'clamp(18px, 2vw, 24px)' }}
-        >
-          Ba Studio
+        <Link href="/" className="no-underline">
+          <Image
+            src="/logo.png"
+            alt="Ba Studio"
+            width={160}
+            height={69}
+            priority
+            className="brand-logo h-7 w-auto md:h-8"
+          />
         </Link>
 
         {/* Desktop nav */}

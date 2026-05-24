@@ -160,6 +160,11 @@
   --sidebar-border: oklch(0 0 0 / 8%);
 }
 
+/* The brand logo is pure white; invert it to black on the light theme. */
+[data-theme='light'] .brand-logo {
+  filter: invert(1);
+}
+
 html,
 body {
   background: var(--bg-0);
