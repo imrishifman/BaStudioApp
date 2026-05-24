@@ -88,14 +88,16 @@ export function DashboardClient({ episodes, sessionUser }: Props) {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map(ep => <EpisodeCard key={ep.id} episode={ep} />)}
+          {filtered.map(ep => (
+            <EpisodeCard key={ep.id} episode={ep} shared={ep.createdByEmail !== sessionUser.email} />
+          ))}
         </div>
       )}
     </div>
   )
 }
 
-function EpisodeCard({ episode }: { episode: Episode }) {
+function EpisodeCard({ episode, shared }: { episode: Episode; shared?: boolean }) {
   const stepLabels = ['', 'Guest', 'Bio', 'Focus', 'Style', 'Questions', 'Intro', 'Script', 'Video', 'Share', 'Promote']
   const currentStepLabel = stepLabels[episode.currentStep] ?? `Step ${episode.currentStep}`
 
@@ -104,7 +106,7 @@ function EpisodeCard({ episode }: { episode: Episode }) {
       <GlassCard hover className="flex flex-col gap-3 p-5">
         {/* Cover placeholder */}
         <div
-          className="aspect-video rounded-[var(--radius-sm)]"
+          className="relative aspect-video rounded-[var(--radius-sm)]"
           style={{ background: 'var(--bg-3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
           {episode.guestPhotoUrl ? (
@@ -113,6 +115,14 @@ function EpisodeCard({ episode }: { episode: Episode }) {
             <p className="text-2xl font-bold text-[var(--ink-4)]">
               {episode.guestName.slice(0, 2).toUpperCase()}
             </p>
+          )}
+          {shared && (
+            <span
+              className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-bold"
+              style={{ background: 'var(--accent-violet)', color: '#fff' }}
+            >
+              Shared
+            </span>
           )}
         </div>
 

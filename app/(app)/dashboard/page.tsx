@@ -8,7 +8,12 @@ export default async function DashboardPage() {
   if (!session) redirect('/?signin=1')
 
   const episodes = await prisma.episode.findMany({
-    where: { createdByEmail: session.user.email },
+    where: {
+      OR: [
+        { createdByEmail: session.user.email },
+        { sharedWith: { has: session.user.email } },
+      ],
+    },
     orderBy: { updatedAt: 'desc' },
   })
 

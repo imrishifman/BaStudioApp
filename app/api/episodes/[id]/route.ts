@@ -3,8 +3,11 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ensureGuestFromEpisode } from '@/lib/guest-sync'
 
+// Owner or a team member the episode was shared with (view + edit).
 async function getEpisode(id: string, email: string) {
-  return prisma.episode.findFirst({ where: { id, createdByEmail: email } })
+  return prisma.episode.findFirst({
+    where: { id, OR: [{ createdByEmail: email }, { sharedWith: { has: email } }] },
+  })
 }
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -31,9 +34,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const updated = await prisma.episode.update({ where: { id }, data: body })
 
-  // Keep the Guest CRM in sync when guest details change.
+  // Keep the Guest CRM in sync when guest details change (under the owner).
   if ('guestName' in body) {
-    await ensureGuestFromEpisode(session.user.email, updated)
+    await ensureGuestFromEpisode(updated.createdByEmail, updated)
   }
 
   return NextResponse.json(updated)
@@ -44,7 +47,10 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const ep = await getEpisode(id, session.user.email)
+  // Only the owner may delete a shared episode.
+  const ep = await prisma.episode.findFirst({
+    where: { id, createdByEmail: session.user.email },
+  })
   if (!ep) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   await prisma.episode.delete({ where: { id } })

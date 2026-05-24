@@ -9,7 +9,13 @@ export default async function EpisodeDetailPage({ params }: { params: Promise<{ 
   if (!session) redirect('/?signin=1')
 
   const episode = await prisma.episode.findFirst({
-    where: { id, createdByEmail: session.user.email },
+    where: {
+      id,
+      OR: [
+        { createdByEmail: session.user.email },
+        { sharedWith: { has: session.user.email } },
+      ],
+    },
   })
 
   if (!episode) notFound()
