@@ -161,6 +161,41 @@ export function ShowDnaClient({ show }: { show: Show }) {
     return () => clearTimeout(t)
   }, [fields, sections, show.id])
 
+  // DNA completeness + gentle nudge toward the next high-impact field
+  const checks: { label: string; done: boolean; tab: Tab }[] = [
+    {
+      label: 'episode structure',
+      done: sections.length > 0 && sections.every((s) => s.name.trim() !== ''),
+      tab: 'Structure',
+    },
+    { label: 'an opening line', done: !!(fields.openingLine ?? '').trim(), tab: 'Signature' },
+    { label: 'a closing question', done: !!(fields.closingQuestion ?? '').trim(), tab: 'Signature' },
+    { label: 'your show values', done: !!(fields.showValues ?? '').trim(), tab: 'Signature' },
+    { label: 'your audience', done: !!(fields.targetAudience ?? '').trim(), tab: 'Audience' },
+    { label: 'research instructions', done: !!(fields.aiResearchInstructions ?? '').trim(), tab: 'AI Instructions' },
+    { label: 'question instructions', done: !!(fields.aiQuestionInstructions ?? '').trim(), tab: 'AI Instructions' },
+    { label: 'script instructions', done: !!(fields.aiScriptInstructions ?? '').trim(), tab: 'AI Instructions' },
+  ]
+  const completeness = Math.round(
+    (checks.filter((c) => c.done).length / checks.length) * 100
+  )
+  const nextMissing = checks.find((c) => !c.done)
+
+  const celebrated = useRef(false)
+  useEffect(() => {
+    if (completeness === 100 && !celebrated.current) {
+      celebrated.current = true
+      import('canvas-confetti').then((m) =>
+        m.default({ particleCount: 90, spread: 75, origin: { y: 0.3 } })
+      )
+    }
+    if (completeness < 100) celebrated.current = false
+  }, [completeness])
+
+  const tabHasChecks = (t: Tab) => checks.some((c) => c.tab === t)
+  const tabComplete = (t: Tab) =>
+    checks.filter((c) => c.tab === t).every((c) => c.done)
+
   function onDragEnd(result: DropResult) {
     if (!result.destination) return
     const next = [...sections]
@@ -200,6 +235,44 @@ export function ShowDnaClient({ show }: { show: Show }) {
         </div>
       </div>
 
+      {/* Completeness meter */}
+      <GlassCard className="p-5">
+        <div className="mb-2 flex items-end justify-between gap-4">
+          <div>
+            <p className="body-sm font-semibold text-[var(--ink-1)]">
+              {completeness === 100
+                ? "Your show's DNA is fully tuned 🎙️"
+                : `Your show's DNA is ${completeness}% complete`}
+            </p>
+            <p className="body-sm text-[var(--ink-3)]">
+              {completeness === 100
+                ? 'Every AI output will sound just like your show.'
+                : nextMissing
+                  ? `Add ${nextMissing.label} to make it stronger.`
+                  : ''}
+            </p>
+          </div>
+          <p
+            className="font-bold text-[var(--ink-1)]"
+            style={{ fontSize: 28, letterSpacing: '-0.02em' }}
+          >
+            {completeness}%
+          </p>
+        </div>
+        <div className="h-2 overflow-hidden rounded-full" style={{ background: 'var(--bg-3)' }}>
+          <div
+            className="h-full rounded-full transition-all duration-700"
+            style={{
+              width: `${completeness}%`,
+              background:
+                completeness === 100
+                  ? 'var(--success)'
+                  : 'linear-gradient(90deg, var(--accent-violet), var(--accent-cyan))',
+            }}
+          />
+        </div>
+      </GlassCard>
+
       {/* Tabs */}
       <div
         className="flex gap-1 overflow-x-auto rounded-full p-1"
@@ -216,7 +289,15 @@ export function ShowDnaClient({ show }: { show: Show }) {
                 : 'text-[var(--ink-3)] hover:text-[var(--ink-1)]'
             )}
           >
-            {t}
+            <span className="inline-flex items-center gap-1.5">
+              {t}
+              {tabHasChecks(t) && (
+                <span
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{ background: tabComplete(t) ? 'var(--success)' : 'var(--line-2)' }}
+                />
+              )}
+            </span>
           </button>
         ))}
       </div>
