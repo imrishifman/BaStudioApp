@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { ensureGuestFromEpisode } from '@/lib/guest-sync'
 
 async function getEpisode(id: string, email: string) {
   return prisma.episode.findFirst({ where: { id, createdByEmail: email } })
@@ -29,6 +30,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   delete body.id; delete body.createdByEmail; delete body.createdAt
 
   const updated = await prisma.episode.update({ where: { id }, data: body })
+
+  // Keep the Guest CRM in sync when guest details change.
+  if ('guestName' in body) {
+    await ensureGuestFromEpisode(session.user.email, updated)
+  }
+
   return NextResponse.json(updated)
 }
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { ensureGuestFromEpisode } from '@/lib/guest-sync'
 
 export async function GET() {
   const session = await auth()
@@ -26,5 +27,9 @@ export async function POST(req: Request) {
       status: 'draft',
     },
   })
+
+  // Every episode guest flows into the Guest CRM automatically.
+  await ensureGuestFromEpisode(session.user.email, episode)
+
   return NextResponse.json(episode)
 }
