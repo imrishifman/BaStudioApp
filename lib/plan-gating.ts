@@ -1,7 +1,6 @@
 import type { Plan } from '@prisma/client'
 import type { Session } from 'next-auth'
-
-export const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'imri@babalata.com'
+import { isAdmin as isAdminEmail } from './admin'
 
 // Normalise legacy plan names from base44 source
 export function normalisePlan(plan: string | null | undefined): Plan {
@@ -18,14 +17,14 @@ export function canAccess(
   requiredPlan: Plan
 ): boolean {
   if (!user) return false
-  if (user.email === ADMIN_EMAIL) return true
+  if (isAdminEmail(user.email)) return true
   const userPlan = normalisePlan(user.plan)
   return PLAN_RANK[userPlan] >= PLAN_RANK[requiredPlan]
 }
 
 export function isAdmin(user: Session['user'] | null | undefined): boolean {
   if (!user) return false
-  return user.role === 'admin' || user.email === ADMIN_EMAIL
+  return user.role === 'admin' || isAdminEmail(user.email)
 }
 
 export function episodesThisMonth<

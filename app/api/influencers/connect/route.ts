@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'imri@babalata.com'
+import { isAdmin } from '@/lib/admin'
 
 export async function GET(req: Request) {
   const session = await auth()
@@ -17,7 +16,7 @@ export async function GET(req: Request) {
     return NextResponse.json(influencer)
   }
 
-  if (session.user.email !== ADMIN_EMAIL)
+  if (!isAdmin(session.user.email))
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const influencers = await prisma.influencer.findMany({ orderBy: { createdAt: 'desc' } })
@@ -26,7 +25,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const session = await auth()
-  if (!session || session.user.email !== ADMIN_EMAIL)
+  if (!session || !isAdmin(session.user.email))
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { name, email, handle, commissionValue } = await req.json()
