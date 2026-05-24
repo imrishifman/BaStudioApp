@@ -49,7 +49,7 @@ export function TheWayItWorks() {
   const chapterIndex = useTransform(scrollYProgress, [0, 0.25, 0.5, 0.75, 1], [0, 1, 2, 3, 3])
 
   return (
-    <div ref={outerRef} id="how-it-works" className="relative" style={{ height: '400vh' }}>
+    <div ref={outerRef} id="how-it-works" className="relative" style={{ height: '240vh' }}>
       {/* Sticky viewport */}
       <div
         className="sticky top-0 flex h-screen items-center overflow-hidden"
@@ -86,8 +86,6 @@ export function TheWayItWorks() {
           </div>
         </div>
 
-        {/* Step progress bar */}
-        <StepProgress scrollYProgress={scrollYProgress} />
       </div>
     </div>
   )
@@ -185,23 +183,6 @@ function VisualPanel({
         </motion.div>
       )}
     </AnimatePresence>
-  )
-}
-
-function StepProgress({
-  scrollYProgress,
-}: {
-  scrollYProgress: ReturnType<typeof useScroll>['scrollYProgress']
-}) {
-  const width = useTransform(scrollYProgress, [0, 1], ['0%', '100%'])
-
-  return (
-    <div
-      className="absolute bottom-0 left-0 right-0 h-px"
-      style={{ background: 'var(--line-1)' }}
-    >
-      <motion.div className="h-full" style={{ width, background: 'var(--accent-violet)' }} />
-    </div>
   )
 }
 

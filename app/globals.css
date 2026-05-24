@@ -138,6 +138,20 @@ body {
   line-height: 0.95;
 }
 
+/* Violet -> cyan -> pink gradient text for key headlines */
+.text-gradient {
+  background: linear-gradient(
+    100deg,
+    var(--accent-violet) 0%,
+    var(--accent-cyan) 50%,
+    var(--accent-pink) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
 .display-md {
   font-size: clamp(36px, 4.5vw, 64px);
   font-weight: 700;

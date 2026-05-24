@@ -17,7 +17,7 @@ export function FinalCTA() {
         transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
         className="flex flex-col items-center gap-8"
       >
-        <h2 className="display-lg text-[var(--ink-1)]">
+        <h2 className="display-lg text-gradient">
           Your next episode
           <br />
           starts here.

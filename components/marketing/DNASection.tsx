@@ -42,9 +42,11 @@ const SECTIONS_DATA: Record<Tab, { label: string; duration: string }[]> = {
 
 export function DNASection() {
   const [activeTab, setActiveTab] = useState<Tab>('Structure')
+  const [paused, setPaused] = useState(false)
 
-  // Auto-advance through the tabs every 2 seconds.
+  // Auto-advance through the tabs every 2 seconds — stops once the user clicks.
   useEffect(() => {
+    if (paused) return
     const interval = setInterval(() => {
       setActiveTab((current) => {
         const next = (TABS.indexOf(current) + 1) % TABS.length
@@ -52,7 +54,7 @@ export function DNASection() {
       })
     }, 2000)
     return () => clearInterval(interval)
-  }, [])
+  }, [paused])
 
   return (
     <section
@@ -63,7 +65,7 @@ export function DNASection() {
         <EyebrowTag dot className="mb-4">
           Podcast DNA
         </EyebrowTag>
-        <h2 className="display-lg mb-4 text-[var(--ink-1)]">
+        <h2 className="display-lg text-gradient mb-4">
           Your show has a soul.
         </h2>
         <p className="body-lg text-[var(--ink-2)]">
@@ -81,7 +83,10 @@ export function DNASection() {
           {TABS.map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => {
+                setActiveTab(tab)
+                setPaused(true)
+              }}
               className={cn(
                 'body-sm relative px-6 py-4 font-semibold transition-colors',
                 activeTab === tab
@@ -103,7 +108,7 @@ export function DNASection() {
 
         {/* Rows */}
         <div className="divide-y" style={{ borderColor: 'var(--line-1)' }}>
-          {SECTIONS_DATA[activeTab].map((row, i) => (
+          {SECTIONS_DATA[activeTab].slice(0, 4).map((row, i) => (
             <motion.div
               key={row.label}
               initial={{ opacity: 0, x: -8 }}

@@ -64,7 +64,7 @@ export function Hero() {
         </EyebrowTag>
 
         <h1
-          className="display-xl mb-6 text-[var(--ink-1)]"
+          className="display-xl text-gradient mb-6"
           style={{ maxWidth: '16ch' }}
         >
           Create podcasts at the speed of AI

@@ -72,7 +72,7 @@ export function PricingSection() {
     >
       <div className="mb-16 flex flex-col items-center gap-6 text-center">
         <EyebrowTag dot>Pricing</EyebrowTag>
-        <h2 className="display-lg text-[var(--ink-1)]">
+        <h2 className="display-lg text-gradient">
           One studio, three scales.
         </h2>
 

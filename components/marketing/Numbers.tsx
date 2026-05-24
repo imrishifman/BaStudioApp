@@ -1,7 +1,6 @@
 'use client'
 
-import { motion, useInView } from 'framer-motion'
-import { useRef } from 'react'
+import { motion } from 'framer-motion'
 
 const STATS = [
   { number: '4,200+', label: 'Episodes produced' },
@@ -12,43 +11,67 @@ const STATS = [
 ]
 
 export function Numbers() {
-  const ref = useRef<HTMLDivElement>(null)
-  const inView = useInView(ref, { once: true, margin: '-20%' })
+  // Duplicate the list so the marquee can loop seamlessly.
+  const items = [...STATS, ...STATS]
 
   return (
     <section
-      ref={ref}
-      className="relative mx-auto max-w-[1240px]"
-      style={{ padding: '0 clamp(20px, 5vw, 80px) clamp(96px, 12vw, 200px)' }}
+      className="relative"
+      style={{ padding: '0 0 clamp(96px, 12vw, 200px)' }}
     >
-      <div className="hairline mb-16" />
-
-      <div className="grid grid-cols-2 gap-px md:grid-cols-5" style={{ background: 'var(--line-1)' }}>
-        {STATS.map((stat, i) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 24 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
-            transition={{
-              duration: 0.8,
-              delay: i * 0.08,
-              ease: [0.16, 1, 0.3, 1],
-            }}
-            className="flex flex-col items-center gap-2 p-8 text-center"
-            style={{ background: 'var(--bg-0)' }}
-          >
-            <p
-              className="display-md font-bold text-[var(--ink-1)]"
-              style={{ fontVariantNumeric: 'tabular-nums', fontSize: 'clamp(32px, 4vw, 52px)' }}
-            >
-              {stat.number}
-            </p>
-            <p className="body-sm text-[var(--ink-3)]">{stat.label}</p>
-          </motion.div>
-        ))}
+      <div
+        className="mx-auto max-w-[1240px]"
+        style={{ paddingInline: 'clamp(20px, 5vw, 80px)' }}
+      >
+        <div className="hairline mb-12" />
       </div>
 
-      <div className="hairline mt-16" />
+      {/* Moving line of numbers (same on mobile) */}
+      <div className="relative overflow-hidden">
+        {/* Edge fades */}
+        <div
+          className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 md:w-32"
+          style={{ background: 'linear-gradient(to right, var(--bg-0), transparent)' }}
+        />
+        <div
+          className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 md:w-32"
+          style={{ background: 'linear-gradient(to left, var(--bg-0), transparent)' }}
+        />
+
+        <motion.div
+          className="flex w-max items-baseline gap-10 md:gap-16"
+          animate={{ x: ['0%', '-50%'] }}
+          transition={{ duration: 30, ease: 'linear', repeat: Infinity }}
+        >
+          {items.map((stat, i) => (
+            <div key={i} className="flex items-baseline gap-3 whitespace-nowrap">
+              <span
+                className="font-bold text-[var(--ink-1)]"
+                style={{
+                  fontVariantNumeric: 'tabular-nums',
+                  fontSize: 'clamp(28px, 4vw, 48px)',
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                {stat.number}
+              </span>
+              <span className="body-sm text-[var(--ink-3)]">{stat.label}</span>
+              <span
+                className="ml-7 inline-block h-1.5 w-1.5 shrink-0 rounded-full md:ml-10"
+                style={{ background: 'var(--accent-violet)' }}
+                aria-hidden
+              />
+            </div>
+          ))}
+        </motion.div>
+      </div>
+
+      <div
+        className="mx-auto max-w-[1240px]"
+        style={{ paddingInline: 'clamp(20px, 5vw, 80px)' }}
+      >
+        <div className="hairline mt-12" />
+      </div>
     </section>
   )
 }
