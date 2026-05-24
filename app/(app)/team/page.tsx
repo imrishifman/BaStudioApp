@@ -9,10 +9,16 @@ export default async function TeamPage() {
   if (!session) redirect('/?signin=1')
   if (!canAccess(session.user, 'master')) redirect('/pricing')
 
-  const shows = await prisma.show.findMany({
-    where: { ownerEmail: session.user.email },
-    orderBy: { updatedAt: 'desc' },
-  })
+  const [shows, teams] = await Promise.all([
+    prisma.show.findMany({
+      where: { ownerEmail: session.user.email },
+      orderBy: { updatedAt: 'desc' },
+    }),
+    prisma.team.findMany({
+      where: { ownerEmail: session.user.email },
+      orderBy: { createdAt: 'desc' },
+    }),
+  ])
 
   // Last message per group (show) for the WhatsApp-style list preview.
   const lastMessages: Record<string, { message: string; createdAt: string } | null> = {}
@@ -31,6 +37,7 @@ export default async function TeamPage() {
   return (
     <TeamClient
       shows={JSON.parse(JSON.stringify(shows))}
+      teams={JSON.parse(JSON.stringify(teams))}
       lastMessages={lastMessages}
       sessionUser={session.user}
     />

@@ -339,6 +339,19 @@ model Guest {
   @@index([ownerEmail])
 }
 
+model Team {
+  id           String   @id @default(cuid())
+  name         String
+  ownerEmail   String
+  showId       String?
+  memberEmails String[] @default([])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([ownerEmail])
+  @@index([showId])
+}
+
 model EpisodeComment {
   id          String      @id @default(cuid())
   episodeId   String

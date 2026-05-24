@@ -31,5 +31,19 @@ export async function POST(req: Request) {
   // Every episode guest flows into the Guest CRM automatically.
   await ensureGuestFromEpisode(session.user.email, episode)
 
+  // Auto-attach the show's team (if any) to the new episode.
+  if (episode.showId) {
+    const team = await prisma.team.findFirst({
+      where: { ownerEmail: session.user.email, showId: episode.showId },
+    })
+    if (team) {
+      const withTeam = await prisma.episode.update({
+        where: { id: episode.id },
+        data: { teamId: team.id, sharedWith: team.memberEmails },
+      })
+      return NextResponse.json(withTeam)
+    }
+  }
+
   return NextResponse.json(episode)
 }
