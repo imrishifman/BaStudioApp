@@ -14,7 +14,7 @@ import { SignInDialog } from '@/components/common/SignInDialog'
 function authErrorMessage(code: string | null): string {
   switch (code) {
     case 'OAuthAccountNotLinked':
-      return 'That email is already registered with a password — sign in with your email and password instead.'
+      return 'That email is already registered with a password. Sign in with your email and password instead.'
     case 'AccessDenied':
       return 'Access was denied. Try a different account.'
     case 'Configuration':

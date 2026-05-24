@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { GripVertical } from 'lucide-react'
 import { GlassCard } from '@/components/common/GlassCard'
@@ -43,6 +43,17 @@ const SECTIONS_DATA: Record<Tab, { label: string; duration: string }[]> = {
 export function DNASection() {
   const [activeTab, setActiveTab] = useState<Tab>('Structure')
 
+  // Auto-advance through the tabs every 2 seconds.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveTab((current) => {
+        const next = (TABS.indexOf(current) + 1) % TABS.length
+        return TABS[next]
+      })
+    }, 2000)
+    return () => clearInterval(interval)
+  }, [])
+
   return (
     <section
       className="mx-auto max-w-[1240px]"
@@ -57,7 +68,7 @@ export function DNASection() {
         </h2>
         <p className="body-lg text-[var(--ink-2)]">
           Define your structure, tone, and signature once. Every episode inherits
-          it — refined over time until the AI sounds exactly like you.
+          it, refined over time until the AI sounds exactly like you.
         </p>
       </div>
 

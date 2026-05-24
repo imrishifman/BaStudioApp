@@ -8,21 +8,21 @@ import { GlassCard } from '@/components/common/GlassCard'
 const QUOTES = [
   {
     quote:
-      'Ba-Studio cut my episode prep from four hours to forty minutes. The guest research alone is worth the subscription.',
-    name: 'Alex Morgan',
-    role: 'Host, The Builders Podcast',
+      'Ba Studio cut my episode prep from four hours to forty minutes. The guest research alone is worth the subscription.',
+    name: 'Juniper Vale',
+    role: 'Host, The Signal Room',
   },
   {
     quote:
       'My questions used to feel recycled. Now every episode has a fresh angle. I trust the research completely.',
-    name: 'Sarah Chen',
-    role: 'Founder & Host, Scale with Intention',
+    name: 'Caspian Holt',
+    role: 'Founder & Host, Orbit Sessions',
   },
   {
     quote:
       'The DNA system understands my voice. The scripts sound like me on a very good day, not like a robot.',
-    name: 'Marcus Okafor',
-    role: 'Host, Deep Current',
+    name: 'Marlowe Quinn',
+    role: 'Host, Nightfall Radio',
   },
 ]
 
@@ -33,7 +33,8 @@ export function Quotes() {
   return (
     <section
       ref={ref}
-      className="mx-auto max-w-[1240px]"
+      id="customers"
+      className="mx-auto max-w-[1240px] scroll-mt-20"
       style={{ padding: '0 clamp(20px, 5vw, 80px) clamp(96px, 12vw, 200px)' }}
     >
       <div className="grid gap-6 md:grid-cols-3">

@@ -16,7 +16,7 @@ const CHAPTERS = [
     step: '01',
     eyebrow: 'The Guest',
     heading: 'You type a name.\nWe bring back a person.',
-    body: 'Our AI scours the web, LinkedIn, and past interviews to build a real portrait of your guest — their worldview, their stories, their unasked questions.',
+    body: 'Our AI scours the web, LinkedIn, and past interviews to build a real portrait of your guest: their worldview, their stories, their unasked questions.',
   },
   {
     step: '02',
@@ -28,13 +28,13 @@ const CHAPTERS = [
     step: '03',
     eyebrow: 'The Questions',
     heading: 'Never ask\nthe same thing twice.',
-    body: "Ba-Studio cross-references every episode you've ever made. If a question sounds familiar, it tells you — and suggests a sharper angle instead.",
+    body: "Ba Studio cross-references every episode you've ever made. If a question sounds familiar, it tells you, and suggests a sharper angle instead.",
   },
   {
     step: '04',
     eyebrow: 'The Script',
     heading: 'From research to script\nin a single take.',
-    body: 'One studio. The whole journey. Guest research, questions, intro, and full script — built in minutes, sounding like you on your very best day.',
+    body: 'One studio. The whole journey. Guest research, questions, intro, and full script, built in minutes, sounding like you on your very best day.',
   },
 ]
 
@@ -49,7 +49,7 @@ export function TheWayItWorks() {
   const chapterIndex = useTransform(scrollYProgress, [0, 0.25, 0.5, 0.75, 1], [0, 1, 2, 3, 3])
 
   return (
-    <div ref={outerRef} className="relative" style={{ height: '400vh' }}>
+    <div ref={outerRef} id="how-it-works" className="relative" style={{ height: '400vh' }}>
       {/* Sticky viewport */}
       <div
         className="sticky top-0 flex h-screen items-center overflow-hidden"

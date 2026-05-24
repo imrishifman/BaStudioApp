@@ -60,31 +60,28 @@ export function Hero() {
         className="relative z-10 mx-auto flex max-w-[1240px] flex-col items-center text-center"
       >
         <EyebrowTag dot className="mb-8">
-          New · Ba-Studio 2
+          Ba Studio
         </EyebrowTag>
 
         <h1
           className="display-xl mb-6 text-[var(--ink-1)]"
-          style={{ maxWidth: '14ch' }}
+          style={{ maxWidth: '16ch' }}
         >
-          Podcasts, the way you&apos;d imagine them.
+          Create podcasts at the speed of AI
         </h1>
 
         <p
           className="body-lg mb-10 text-[var(--ink-2)]"
           style={{ maxWidth: '46ch' }}
         >
-          From the first idea to the final cut — in one studio that learns how
+          From the first idea to the final cut, in one studio that learns how
           you sound.
         </p>
 
         <div className="flex flex-wrap items-center justify-center gap-4">
           <Link href="/?signin=1" className="pill-primary pill-primary-lg">
-            Try Ba-Studio
+            Try Ba Studio
           </Link>
-          <button className="pill-secondary pill-secondary-lg">
-            Watch film
-          </button>
         </div>
       </motion.div>
 

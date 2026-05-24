@@ -7,11 +7,23 @@ import { Menu, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const NAV_LINKS = [
-  { label: 'Product', href: '#' },
-  { label: 'Pricing', href: '/pricing' },
-  { label: 'Customers', href: '#' },
-  { label: 'Company', href: '#' },
+  { label: 'How it works', href: '#how-it-works' },
+  { label: 'Pricing', href: '#pricing' },
+  { label: 'Customers', href: '#customers' },
 ]
+
+function scrollToHash(href: string) {
+  if (!href.startsWith('#')) return
+  const el = document.querySelector(href)
+  if (!el) return
+  const lenis = (
+    window as unknown as {
+      lenis?: { scrollTo: (t: Element, o?: { offset?: number }) => void }
+    }
+  ).lenis
+  if (lenis) lenis.scrollTo(el, { offset: -64 })
+  else el.scrollIntoView({ behavior: 'smooth' })
+}
 
 export function MarketingNav() {
   const { data: session } = useSession()
@@ -43,19 +55,23 @@ export function MarketingNav() {
           className="display-sm font-[600] text-[var(--ink-1)] no-underline"
           style={{ fontSize: 'clamp(18px, 2vw, 24px)' }}
         >
-          Ba-Studio
+          Ba Studio
         </Link>
 
         {/* Desktop nav */}
         <nav className="hidden items-center gap-6 md:flex">
           {NAV_LINKS.map((link) => (
-            <Link
+            <a
               key={link.label}
               href={link.href}
-              className="body-sm text-[var(--ink-2)] transition-colors hover:text-[var(--ink-1)]"
+              onClick={(e) => {
+                e.preventDefault()
+                scrollToHash(link.href)
+              }}
+              className="body-sm cursor-pointer text-[var(--ink-2)] transition-colors hover:text-[var(--ink-1)]"
             >
               {link.label}
-            </Link>
+            </a>
           ))}
           <div
             className="mx-2 h-4 w-px"
@@ -77,7 +93,7 @@ export function MarketingNav() {
             </button>
           )}
           <Link href={session ? '/studio' : '/?signin=1'} className="pill-primary pill-primary-sm">
-            Try Ba-Studio
+            Try Ba Studio
           </Link>
         </nav>
 
@@ -101,14 +117,18 @@ export function MarketingNav() {
           }}
         >
           {NAV_LINKS.map((link) => (
-            <Link
+            <a
               key={link.label}
               href={link.href}
               className="display-sm py-3 text-[var(--ink-1)] no-underline"
-              onClick={() => setMenuOpen(false)}
+              onClick={(e) => {
+                e.preventDefault()
+                setMenuOpen(false)
+                scrollToHash(link.href)
+              }}
             >
               {link.label}
-            </Link>
+            </a>
           ))}
           <div className="hairline my-4" />
           {session ? (
@@ -136,7 +156,7 @@ export function MarketingNav() {
               className="pill-primary pill-primary-lg w-full"
               onClick={() => setMenuOpen(false)}
             >
-              Try Ba-Studio
+              Try Ba Studio
             </Link>
           </div>
         </div>
