@@ -9,22 +9,29 @@ export default async function TeamPage() {
   if (!session) redirect('/?signin=1')
   if (!canAccess(session.user, 'master')) redirect('/pricing')
 
-  const shows = await prisma.show.findMany({ where: { ownerEmail: session.user.email } })
-  const firstShow = shows[0]
+  const shows = await prisma.show.findMany({
+    where: { ownerEmail: session.user.email },
+    orderBy: { updatedAt: 'desc' },
+  })
 
-  const messages = firstShow
-    ? await prisma.teamMessage.findMany({
-        where: { showId: firstShow.id },
+  // Last message per group (show) for the WhatsApp-style list preview.
+  const lastMessages: Record<string, { message: string; createdAt: string } | null> = {}
+  await Promise.all(
+    shows.map(async (s) => {
+      const m = await prisma.teamMessage.findFirst({
+        where: { showId: s.id },
         orderBy: { createdAt: 'desc' },
-        take: 50,
-        include: { sender: { select: { fullName: true, email: true, image: true } } },
       })
-    : []
+      lastMessages[s.id] = m
+        ? { message: m.message, createdAt: m.createdAt.toISOString() }
+        : null
+    })
+  )
 
   return (
     <TeamClient
       shows={JSON.parse(JSON.stringify(shows))}
-      initialMessages={JSON.parse(JSON.stringify(messages.reverse()))}
+      lastMessages={lastMessages}
       sessionUser={session.user}
     />
   )
