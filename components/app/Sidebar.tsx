@@ -12,7 +12,6 @@ import {
   Settings,
   CreditCard,
   ShieldCheck,
-  UserCircle2,
   ChevronDown,
   LogOut,
   type LucideIcon,
@@ -41,7 +40,6 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Shows', href: '/shows', icon: Tv2, requiredPlan: 'solo' },
   { label: 'Calendar', href: '/calendar', icon: Calendar, requiredPlan: 'solo' },
   { label: 'Hub', href: '/team', icon: Users, requiredPlan: 'master' },
-  { label: 'Guests', href: '/guests', icon: UserCircle2, requiredPlan: 'solo' },
 ]
 
 const BOTTOM_ITEMS: NavItem[] = [
