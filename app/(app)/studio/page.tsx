@@ -7,7 +7,7 @@ export default async function StudioPage() {
   const session = await auth()
   if (!session) redirect('/?signin=1')
 
-  const [episodes, shows, user, guestCount] = await Promise.all([
+  const [episodes, shows, user, guestCount, published] = await Promise.all([
     prisma.episode.findMany({
       where: { createdByEmail: session.user.email },
       orderBy: { updatedAt: 'desc' },
@@ -28,7 +28,21 @@ export default async function StudioPage() {
       },
     }),
     prisma.guest.count({ where: { ownerEmail: session.user.email } }),
+    prisma.episode.findMany({
+      where: {
+        createdByEmail: session.user.email,
+        status: 'published',
+        publishedAt: { not: null },
+      },
+      select: { publishedAt: true },
+      orderBy: { publishedAt: 'desc' },
+      take: 60,
+    }),
   ])
+
+  const publishedDates = published
+    .map((e) => e.publishedAt?.toISOString())
+    .filter((d): d is string => !!d)
 
   return (
     <StudioClient
@@ -36,6 +50,7 @@ export default async function StudioPage() {
       shows={JSON.parse(JSON.stringify(shows))}
       user={user}
       guestCount={guestCount}
+      publishedDates={publishedDates}
       sessionUser={session.user}
     />
   )

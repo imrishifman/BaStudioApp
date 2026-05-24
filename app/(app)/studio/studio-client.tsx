@@ -8,6 +8,8 @@ import { PillButton } from '@/components/common/PillButton'
 import { FeatureLockModal } from '@/components/common/FeatureLockModal'
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard'
 import { OnboardingQuest, type QuestStep } from '@/components/onboarding/OnboardingQuest'
+import { StreakCard } from '@/components/studio/StreakCard'
+import { computeStreak } from '@/lib/streak'
 import { maxEpisodesPerMonth, episodesThisMonth } from '@/lib/plan-gating'
 import { formatDate } from '@/lib/utils'
 import { ArrowRight, Plus, Clock, CheckCircle2, Mic2, BookOpen } from 'lucide-react'
@@ -19,6 +21,7 @@ interface Props {
   shows: Show[]
   user: { fullName: string | null; plan: string; onboardingComplete: boolean; skippedDnaSetup: boolean; aiResearchCountThisMonth: number } | null
   guestCount: number
+  publishedDates: string[]
   sessionUser: Session['user']
 }
 
@@ -34,7 +37,7 @@ const STATUS_COLOR: Record<string, string> = {
   video: 'var(--warning)', review: 'var(--warning)', approved: 'var(--success)', published: 'var(--success)',
 }
 
-export function StudioClient({ episodes, shows, user, guestCount, sessionUser }: Props) {
+export function StudioClient({ episodes, shows, user, guestCount, publishedDates, sessionUser }: Props) {
   const router = useRouter()
   const [lockOpen, setLockOpen] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(
@@ -61,6 +64,8 @@ export function StudioClient({ episodes, shows, user, guestCount, sessionUser }:
   ]
   const showQuest =
     !questSteps.every((s) => s.done) && !questDismissed && !showOnboarding
+
+  const streak = computeStreak(publishedDates)
 
   const plan = (user?.plan ?? 'free') as 'free' | 'solo' | 'master'
   const inProgress = episodes.filter(ep => !['published', 'approved'].includes(ep.status))
@@ -136,6 +141,9 @@ export function StudioClient({ episodes, shows, user, guestCount, sessionUser }:
           </GlassCard>
         ))}
       </div>
+
+      {/* Publishing streak / weekly challenge */}
+      {publishedDates.length > 0 && <StreakCard {...streak} />}
 
       {/* Plan usage */}
       {plan !== 'master' && (
