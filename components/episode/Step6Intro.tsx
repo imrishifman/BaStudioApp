@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
 import type { Episode, Show } from '@prisma/client'
-import { Textarea } from '@/components/ui/textarea'
+import { SmartTextarea } from './SmartTextarea'
 import { PillButton } from '@/components/common/PillButton'
 import { GlassCard } from '@/components/common/GlassCard'
 import { Sparkles, ArrowRight, RefreshCw } from 'lucide-react'
@@ -57,7 +58,9 @@ export function Step6Intro({ episode, onNext }: Props) {
           <p className="body text-[var(--ink-2)]">Writing your intro…</p>
         </GlassCard>
       ) : (
-        <Textarea value={intro} onChange={e => setIntro(e.target.value)} rows={10} className="bg-[var(--bg-2)] border-[var(--line-2)] text-[var(--ink-1)] leading-relaxed" placeholder="Your intro will appear here…" />
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+          <SmartTextarea value={intro} onChange={setIntro} rows={10} className="bg-[var(--bg-2)] border-[var(--line-2)] text-[var(--ink-1)] leading-relaxed" placeholder="Your intro will appear here…" />
+        </motion.div>
       )}
 
       {!loading && <PillButton onClick={() => onNext({ introductionScript: intro, status: 'script' })} disabled={!intro}>Next <ArrowRight size={14} /></PillButton>}

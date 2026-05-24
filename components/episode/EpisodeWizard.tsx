@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import type { Episode, Show } from '@prisma/client'
 import { StepIndicator } from './StepIndicator'
@@ -16,6 +17,7 @@ import { Step8Video } from './Step8Video'
 import { Step9Share } from './Step9Share'
 import { Step10Promote } from './Step10Promote'
 import { AILoadingProvider } from './AILoadingContext'
+import { EpisodeReadyOverlay } from './EpisodeReadyOverlay'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -53,6 +55,9 @@ export function EpisodeWizard({ episode: initialEpisode, shows, userEmail }: Pro
   const [currentStep, setCurrentStep] = useState(initialEpisode?.currentStep ?? 1)
   const [exitOpen, setExitOpen] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const [dir, setDir] = useState(1)
+  const [showReady, setShowReady] = useState(false)
+  const readyShownRef = useRef(false)
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const selectedShow = shows.find(s => s.id === episode?.showId) ?? null
@@ -109,6 +114,8 @@ export function EpisodeWizard({ episode: initialEpisode, shows, userEmail }: Pro
   }
 
   async function goNext(patch?: Partial<Episode>) {
+    const leavingLabel = steps[currentStep - 1]?.label
+    setDir(1)
     if (patch) await createOrUpdateEpisode({ ...patch, currentStep: currentStep + 1 })
     else if (episode?.id) {
       await fetch(`/api/episodes/${episode.id}`, {
@@ -118,9 +125,15 @@ export function EpisodeWizard({ episode: initialEpisode, shows, userEmail }: Pro
       })
     }
     setCurrentStep(s => Math.min(s + 1, steps.length))
+    // Celebrate once the full script is done.
+    if (leavingLabel === 'Script' && !readyShownRef.current) {
+      readyShownRef.current = true
+      setShowReady(true)
+    }
   }
 
   function goBack() {
+    setDir(-1)
     setCurrentStep(s => Math.max(s - 1, 1))
   }
 
@@ -154,7 +167,7 @@ export function EpisodeWizard({ episode: initialEpisode, shows, userEmail }: Pro
         <StepIndicator
           steps={steps}
           currentStep={currentStep}
-          onStepClick={s => setCurrentStep(s)}
+          onStepClick={s => { setDir(s > currentStep ? 1 : -1); setCurrentStep(s) }}
         />
         <button
           onClick={() => setExitOpen(true)}
@@ -168,7 +181,23 @@ export function EpisodeWizard({ episode: initialEpisode, shows, userEmail }: Pro
       {/* Step content */}
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl p-6 lg:p-8">
-          {renderStep()}
+          <AnimatePresence mode="wait" custom={dir} initial={false}>
+            <motion.div
+              key={currentStep}
+              custom={dir}
+              variants={{
+                enter: (d: number) => ({ x: d > 0 ? 44 : -44, opacity: 0 }),
+                center: { x: 0, opacity: 1 },
+                exit: (d: number) => ({ x: d > 0 ? -44 : 44, opacity: 0 }),
+              }}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+            >
+              {renderStep()}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
 
@@ -219,6 +248,8 @@ export function EpisodeWizard({ episode: initialEpisode, shows, userEmail }: Pro
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {showReady && <EpisodeReadyOverlay onContinue={() => setShowReady(false)} />}
     </div>
     </AILoadingProvider>
   )

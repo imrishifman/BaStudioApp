@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import type { Episode, Show } from '@prisma/client'
-import { Textarea } from '@/components/ui/textarea'
 import { PillButton } from '@/components/common/PillButton'
 import { GlassCard } from '@/components/common/GlassCard'
 import { Sparkles, ArrowRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAILoading } from './AILoadingContext'
+import { SmartTextarea } from './SmartTextarea'
 
 interface Props {
   episode: Episode | null
@@ -77,11 +77,11 @@ export function Step2GuestBio({ episode, show, onNext }: Props) {
         <div className="space-y-4">
           <div className="flex flex-col gap-1.5">
             <label className="body-sm text-[var(--ink-2)]">Guest bio</label>
-            <Textarea value={bio} onChange={e => setBio(e.target.value)} rows={4} className="bg-[var(--bg-2)] border-[var(--line-2)] text-[var(--ink-1)]" />
+            <SmartTextarea value={bio} onChange={setBio} rows={4} className="bg-[var(--bg-2)] border-[var(--line-2)] text-[var(--ink-1)]" />
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="body-sm text-[var(--ink-2)]">Research notes</label>
-            <Textarea value={research} onChange={e => setResearch(e.target.value)} rows={8} className="bg-[var(--bg-2)] border-[var(--line-2)] text-[var(--ink-1)]" />
+            <SmartTextarea value={research} onChange={setResearch} rows={8} className="bg-[var(--bg-2)] border-[var(--line-2)] text-[var(--ink-1)]" />
           </div>
           <div className="flex gap-3">
             <PillButton variant="secondary" size="sm" onClick={() => runResearch('deep')} disabled={deepLoading}>

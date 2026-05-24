@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
 import type { Episode, Show } from '@prisma/client'
-import { Textarea } from '@/components/ui/textarea'
+import { SmartTextarea } from './SmartTextarea'
 import { PillButton } from '@/components/common/PillButton'
 import { GlassCard } from '@/components/common/GlassCard'
 import { Sparkles, ArrowRight, RefreshCw } from 'lucide-react'
@@ -58,7 +59,9 @@ export function Step7Script({ episode, onNext }: Props) {
           <p className="body-sm text-[var(--ink-3)]">This takes about 30 seconds</p>
         </GlassCard>
       ) : (
-        <Textarea value={script} onChange={e => setScript(e.target.value)} rows={20} className="bg-[var(--bg-2)] border-[var(--line-2)] text-[var(--ink-1)] leading-relaxed font-mono text-sm" placeholder="Your full script will appear here…" />
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+          <SmartTextarea value={script} onChange={setScript} rows={20} className="bg-[var(--bg-2)] border-[var(--line-2)] text-[var(--ink-1)] leading-relaxed font-mono text-sm" placeholder="Your full script will appear here…" />
+        </motion.div>
       )}
 
       {!loading && <PillButton onClick={() => onNext({ fullScript: script, status: 'review' })} disabled={!script}>Next <ArrowRight size={14} /></PillButton>}

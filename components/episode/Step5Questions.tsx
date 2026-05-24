@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
 import type { Episode, Show } from '@prisma/client'
 import { PillButton } from '@/components/common/PillButton'
 import { GlassCard } from '@/components/common/GlassCard'
@@ -115,22 +116,32 @@ export function Step5Questions({ episode, show, onNext }: Props) {
             <div key={section}>
               <p className="eyebrow mb-3 text-[var(--ink-3)]">{section}</p>
               <div className="space-y-2">
-                {qs.map(q => (
-                  <GlassCard key={q.id} className="flex items-start gap-3 p-4">
-                    {q.isRepeat && (
-                      <AlertTriangle size={14} className="mt-0.5 shrink-0 text-[var(--warning)]" />
-                    )}
-                    <p className="body flex-1 text-[var(--ink-1)]">{q.text}</p>
-                    <button
-                      onClick={() => toggleFavorite(q.id)}
-                      className="shrink-0 transition-colors"
-                      style={{ color: favorites.includes(q.id) ? 'var(--warning)' : 'var(--ink-4)' }}
-                      aria-label="Favourite"
+                {qs.map(q => {
+                  const order = questions.findIndex(x => x.id === q.id)
+                  return (
+                    <motion.div
+                      key={q.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: Math.min(order, 12) * 0.05, type: 'spring', stiffness: 300, damping: 30 }}
                     >
-                      <Star size={16} fill={favorites.includes(q.id) ? 'currentColor' : 'none'} />
-                    </button>
-                  </GlassCard>
-                ))}
+                      <GlassCard className="flex items-start gap-3 p-4">
+                        {q.isRepeat && (
+                          <AlertTriangle size={14} className="mt-0.5 shrink-0 text-[var(--warning)]" />
+                        )}
+                        <p className="body flex-1 text-[var(--ink-1)]">{q.text}</p>
+                        <button
+                          onClick={() => toggleFavorite(q.id)}
+                          className="shrink-0 transition-transform active:scale-90"
+                          style={{ color: favorites.includes(q.id) ? 'var(--warning)' : 'var(--ink-4)' }}
+                          aria-label="Favourite"
+                        >
+                          <Star size={16} fill={favorites.includes(q.id) ? 'currentColor' : 'none'} />
+                        </button>
+                      </GlassCard>
+                    </motion.div>
+                  )
+                })}
               </div>
             </div>
           ))}
