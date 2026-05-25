@@ -121,7 +121,9 @@ export function buildQuestionsPrompt(
   sections: QSection[],
   previousQuestions: string[],
   influences: string[] = [],
-  targetTotal = 40
+  // Capped to fit the 60s serverless function limit on Hobby (Sonnet can't
+  // generate ~40 richly-annotated questions in time). Raise on Vercel Pro.
+  targetTotal = 24
 ) {
   const focusStr = Array.isArray(episode.focusAnswers)
     ? (episode.focusAnswers as string[]).map((a, i) => `${i + 1}. ${a}`).join('\n')
