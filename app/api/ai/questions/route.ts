@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { episodeId, showId, focusAnswers } = await req.json()
+  const { episodeId, showId, focusAnswers, influences } = await req.json()
   if (!episodeId) return NextResponse.json({ error: 'episodeId required' }, { status: 400 })
 
   const episode = await prisma.episode.findFirst({ where: { id: episodeId, createdByEmail: session.user.email } })
@@ -41,7 +41,8 @@ export async function POST(req: Request) {
     { ...episode, focusAnswers: focusAnswers ?? episode.focusAnswers },
     show,
     sections,
-    prevQs
+    prevQs,
+    Array.isArray(influences) ? influences : (episode.interviewInfluences ?? [])
   )
 
   try {

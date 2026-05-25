@@ -118,7 +118,9 @@ export function buildQuestionsPrompt(
   episode: Pick<Episode, 'guestName' | 'guestBio' | 'guestResearch' | 'focusAnswers'>,
   show: Pick<Show, 'interviewStyle' | 'hostEnergy' | 'pacing' | 'humorLevel' | 'aiQuestionInstructions' | 'targetAudience'> | null,
   sections: QSection[],
-  previousQuestions: string[]
+  previousQuestions: string[],
+  influences: string[] = [],
+  targetTotal = 40
 ) {
   const focusStr = Array.isArray(episode.focusAnswers)
     ? (episode.focusAnswers as string[]).map((a, i) => `${i + 1}. ${a}`).join('\n')
@@ -127,6 +129,12 @@ export function buildQuestionsPrompt(
   const prevStr = previousQuestions.length
     ? `\nAvoid repeating these previously-asked questions:\n${previousQuestions.slice(0, 20).join('\n')}`
     : ''
+
+  const influenceStr = influences.length
+    ? `\nInterview style influences — emulate how these hosts ask questions: ${influences.join(', ')}.`
+    : ''
+
+  const perSection = Math.max(3, Math.round(targetTotal / Math.max(1, sections.length)))
 
   const customInstructions = show?.aiQuestionInstructions ? `\nCustom instructions: ${show.aiQuestionInstructions}` : ''
 
@@ -144,9 +152,9 @@ Podcast DNA:
 - Host energy: ${show?.hostEnergy ?? 'warm_casual'}
 - Pacing: ${show?.pacing ?? 'balanced'}
 - Humor level: ${show?.humorLevel ?? 'light'}
-- Audience: ${show?.targetAudience ?? 'general'}${prevStr}${customInstructions}
+- Audience: ${show?.targetAudience ?? 'general'}${influenceStr}${prevStr}${customInstructions}
 
-Return a JSON object whose keys are EXACTLY these section keys (and nothing else):
+Generate roughly ${targetTotal} questions total — about ${perSection} per section (weight more toward the core/middle sections). Return a JSON object whose keys are EXACTLY these section keys (and nothing else):
 ${sections.map(s => `- "${s.key}"  (${s.name})`).join('\n')}
 
 For each section key, return an array of 4-6 question objects shaped like:
