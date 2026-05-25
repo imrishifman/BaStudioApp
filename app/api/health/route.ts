@@ -1,10 +1,17 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-// Reports env-var presence (booleans only, never values) AND whether the
-// deployment can actually reach the database — so we can tell config issues
-// (missing key) apart from connectivity issues (wrong DB host on Vercel).
-export async function GET() {
+// Allow long runs so the ?sleep diagnostic can test the real function limit.
+export const maxDuration = 60
+
+// Reports env-var presence (booleans only, never values), DB connectivity, and
+// supports ?sleep=N to test whether the deployment can run longer than the
+// default ~10s cap (i.e. whether Fluid Compute is actually active).
+export async function GET(req: Request) {
+  const sleep = Math.min(parseInt(new URL(req.url).searchParams.get('sleep') ?? '0', 10) || 0, 55)
+  const started = Date.now()
+  if (sleep > 0) await new Promise((r) => setTimeout(r, sleep * 1000))
+
   const present = (v?: string) => typeof v === 'string' && v.trim().length > 0
 
   let dbConnects = false
@@ -19,6 +26,7 @@ export async function GET() {
   return NextResponse.json({
     ok: true,
     ts: new Date().toISOString(),
+    sleptMs: Date.now() - started,
     dbConnects,
     dbError,
     env: {
