@@ -23,11 +23,19 @@ export function Step1GuestName({ episode, show, shows, onNext, onEpisodeCreated,
   const [guestName, setGuestName] = useState(episode?.guestName ?? '')
   const [showId, setShowId] = useState(episode?.showId ?? shows[0]?.id ?? '')
   const [guestLinkedinUrl, setLinkedin] = useState(episode?.guestLinkedinUrl ?? '')
+  const [guestTwitterUrl, setTwitter] = useState(episode?.guestTwitterUrl ?? '')
+  const [guestInstagramUrl, setInstagram] = useState(episode?.guestInstagramUrl ?? '')
   const [guestWebsiteUrl, setWebsite] = useState(episode?.guestWebsiteUrl ?? '')
   const [guestExtraContext, setExtra] = useState(episode?.guestExtraContext ?? '')
   const [loading, setLoading] = useState(false)
 
-  const hasFocus = !!(guestLinkedinUrl.trim() || guestWebsiteUrl.trim() || guestExtraContext.trim())
+  const hasFocus = !!(
+    guestLinkedinUrl.trim() ||
+    guestTwitterUrl.trim() ||
+    guestInstagramUrl.trim() ||
+    guestWebsiteUrl.trim() ||
+    guestExtraContext.trim()
+  )
 
   async function handleResearch() {
     if (!guestName.trim()) { toast.error('Enter a guest name first'); return }
@@ -37,6 +45,8 @@ export function Step1GuestName({ episode, show, shows, onNext, onEpisodeCreated,
       const patch: Partial<Episode> = {
         guestName, showId: showId || undefined,
         guestLinkedinUrl: guestLinkedinUrl || undefined,
+        guestTwitterUrl: guestTwitterUrl || undefined,
+        guestInstagramUrl: guestInstagramUrl || undefined,
         guestWebsiteUrl: guestWebsiteUrl || undefined,
         guestExtraContext: guestExtraContext || undefined,
         status: 'researching',
@@ -85,15 +95,21 @@ export function Step1GuestName({ episode, show, shows, onNext, onEpisodeCreated,
           />
         </div>
 
+        <div className="flex items-center gap-2">
+          <Label className="body-sm text-[var(--ink-2)]">Social & web links</Label>
+          <span
+            className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+            style={{ background: 'rgba(167,139,250,0.14)', color: 'var(--accent-violet)' }}
+          >
+            Recommended!
+          </span>
+          <span className="body-sm text-[var(--ink-4)]">— the more sources, the sharper the research</span>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="flex flex-col gap-1.5">
-            <Label className="body-sm text-[var(--ink-2)]">LinkedIn URL (optional)</Label>
-            <Input value={guestLinkedinUrl} onChange={e => setLinkedin(e.target.value)} placeholder="linkedin.com/in/…" className="bg-[var(--bg-2)] border-[var(--line-2)] text-[var(--ink-1)] placeholder:text-[var(--ink-4)]" />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label className="body-sm text-[var(--ink-2)]">Website URL (optional)</Label>
-            <Input value={guestWebsiteUrl} onChange={e => setWebsite(e.target.value)} placeholder="https://…" className="bg-[var(--bg-2)] border-[var(--line-2)] text-[var(--ink-1)] placeholder:text-[var(--ink-4)]" />
-          </div>
+          <Input value={guestLinkedinUrl} onChange={e => setLinkedin(e.target.value)} placeholder="LinkedIn URL" className="bg-[var(--bg-2)] border-[var(--line-2)] text-[var(--ink-1)] placeholder:text-[var(--ink-4)]" />
+          <Input value={guestTwitterUrl} onChange={e => setTwitter(e.target.value)} placeholder="Twitter / X URL" className="bg-[var(--bg-2)] border-[var(--line-2)] text-[var(--ink-1)] placeholder:text-[var(--ink-4)]" />
+          <Input value={guestInstagramUrl} onChange={e => setInstagram(e.target.value)} placeholder="Instagram URL" className="bg-[var(--bg-2)] border-[var(--line-2)] text-[var(--ink-1)] placeholder:text-[var(--ink-4)]" />
+          <Input value={guestWebsiteUrl} onChange={e => setWebsite(e.target.value)} placeholder="Website URL" className="bg-[var(--bg-2)] border-[var(--line-2)] text-[var(--ink-1)] placeholder:text-[var(--ink-4)]" />
         </div>
 
         <div className="flex flex-col gap-1.5">

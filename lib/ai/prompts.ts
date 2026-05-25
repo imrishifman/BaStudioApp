@@ -50,29 +50,58 @@ export function buildResearchPrompt(
   mode: 'initial' | 'deep',
   show: DnaShow | null
 ) {
-  const linksSection = links.length ? `\nLinks: ${links.join(', ')}` : ''
-  const extra = extraContext ? `\nExtra context / bio from host: ${extraContext}` : ''
+  const linksSection = links.length
+    ? `\nPrimary sources — check these first with web_search:\n${links.map((l) => `- ${l}`).join('\n')}`
+    : ''
+  const extra = extraContext ? `\nContext / bio from the host: ${extraContext}` : ''
   const dna = show ? buildDnaSection(show) : ''
-  const depth = mode === 'deep' ? 'Do an extremely thorough job. Find obscure stories, lesser-known projects, and unique angles.' : ''
+  const depth = mode === 'deep'
+    ? 'Be exhaustive: run multiple searches, find obscure stories, lesser-known projects, publications, awards, quotes, and unique angles.'
+    : 'Run a few focused searches to verify the key facts.'
   const customInstructions = show?.aiResearchInstructions ? `\nCustom instructions: ${show.aiResearchInstructions}` : ''
 
-  return `You are a world-class podcast researcher. Research the following guest for a podcast interview.
+  return `You are a world-class podcast researcher with live web access. Research ${guestName} for a podcast interview.
 
-Guest: ${guestName}${linksSection}${extra}${dna}${customInstructions}
+Use the web_search tool to verify facts from real sources. Treat the provided links as primary sources and check them first.${linksSection}${extra}${dna}${customInstructions}
 
 ${depth}
 
-Use the Podcast DNA above to decide what to dig into: surface the stories, themes, and angles that fit this show's audience and style. Lean on the provided links and host context to stay focused on the right person.
+IMPORTANT — accuracy over completeness: only include verifiable facts you actually found. Do NOT fabricate, invent, or infer details, dates, quotes, or achievements. If unsure, leave it out.
 
-IMPORTANT — accuracy over completeness: Only include verifiable facts you are confident about. Do NOT fabricate, invent, or infer details, dates, quotes, or achievements. If you are unsure about something, leave it out rather than guess.
+Use the Podcast DNA above to decide what matters: surface the stories and angles that fit this show's audience and style.
 
-Return a JSON object with:
-- bio: A compelling 2-3 paragraph bio suitable for reading on air, in a tone that matches the show's DNA
-- research: Detailed research notes (stories, achievements, controversies, unique angles, talking points) tailored to this show — only verifiable facts
-- funFacts: An array of 3-5 accurate, verifiable facts about this person — do not invent or infer
-- photoUrl: Best available professional headshot URL if known (or null)
+Write a structured research brief in markdown with these sections:
+## Background & origin story
+## Notable achievements
+## Recent work & current focus
+## Areas of expertise
+## Angles & stories worth exploring on this show
 
-Focus on what makes this guest genuinely interesting for THIS show's audience, without fabricating anything.`
+Output ONLY the brief — no preamble, no closing remarks.`
+}
+
+// Step 1, call 2 — distills the research brief into a short on-air bio.
+export function buildBioPrompt(
+  research: string,
+  guestName: string,
+  show: Pick<Show, 'hostEnergy' | 'targetAudience'> | null
+) {
+  return `Using ONLY the research below, write a clean 2-3 sentence on-air bio for ${guestName}, focused on their current role and most notable achievement. Match the tone — host energy: ${show?.hostEnergy ?? 'warm_casual'}, audience: ${show?.targetAudience ?? 'general'}. Do not add anything not present in the research.
+
+Research:
+${research}
+
+Return only the bio text — no preamble, no quotation marks.`
+}
+
+// Step 1, call 3 — extracts verifiable fun facts from the research brief.
+export function buildFunFactsPrompt(research: string, guestName: string) {
+  return `From the research below about ${guestName}, extract 5 accurate, verifiable, genuinely interesting facts. Use ONLY facts present in the research — do not invent or infer.
+
+Research:
+${research}
+
+Return JSON exactly in this shape: { "facts": ["fact 1", "fact 2", "fact 3", "fact 4", "fact 5"] }`
 }
 
 export function buildQuestionsPrompt(
