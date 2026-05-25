@@ -48,7 +48,8 @@ export function buildResearchPrompt(
   links: string[],
   extraContext: string | null,
   mode: 'initial' | 'deep',
-  show: DnaShow | null
+  show: DnaShow | null,
+  existingResearch?: string
 ) {
   const linksSection = links.length
     ? `\nPrimary sources — check these first with web_search:\n${links.map((l) => `- ${l}`).join('\n')}`
@@ -56,13 +57,16 @@ export function buildResearchPrompt(
   const extra = extraContext ? `\nContext / bio from the host: ${extraContext}` : ''
   const dna = show ? buildDnaSection(show) : ''
   const depth = mode === 'deep'
-    ? 'Be exhaustive: run multiple searches, find obscure stories, lesser-known projects, publications, awards, quotes, and unique angles.'
+    ? 'Be exhaustive: run multiple searches across career timeline, publications, awards, quotes, companies, controversies, personal interests, and upcoming projects.'
     : 'Run a few focused searches to verify the key facts.'
   const customInstructions = show?.aiResearchInstructions ? `\nCustom instructions: ${show.aiResearchInstructions}` : ''
+  const deepDelta = mode === 'deep' && existingResearch
+    ? `\n\nYou already have the research below. Find ONLY NEW information not already covered here — do not repeat anything from it:\n"""\n${existingResearch.slice(0, 4000)}\n"""\nReturn just the NEW findings as additional markdown sections.`
+    : ''
 
   return `You are a world-class podcast researcher with live web access. Research ${guestName} for a podcast interview.
 
-Use the web_search tool to verify facts from real sources. Treat the provided links as primary sources and check them first.${linksSection}${extra}${dna}${customInstructions}
+Use the web_search tool to verify facts from real sources. Treat the provided links as primary sources and check them first.${linksSection}${extra}${dna}${customInstructions}${deepDelta}
 
 ${depth}
 
@@ -80,13 +84,19 @@ Write a structured research brief in markdown with these sections:
 Output ONLY the brief — no preamble, no closing remarks.`
 }
 
-// Step 1, call 2 — distills the research brief into a short on-air bio.
+// Distills the research brief into an on-air bio. Length + energy are tunable so
+// Step 2 can produce a richer "expanded bio" or a punchier regeneration.
 export function buildBioPrompt(
   research: string,
   guestName: string,
-  show: Pick<Show, 'hostEnergy' | 'targetAudience'> | null
+  show: Pick<Show, 'hostEnergy' | 'targetAudience'> | null,
+  opts: { sentences?: string; punchy?: boolean } = {}
 ) {
-  return `Using ONLY the research below, write a clean 2-3 sentence on-air bio for ${guestName}, focused on their current role and most notable achievement. Match the tone — host energy: ${show?.hostEnergy ?? 'warm_casual'}, audience: ${show?.targetAudience ?? 'general'}. Do not add anything not present in the research.
+  const length = opts.sentences ?? '2-3 sentences'
+  const punch = opts.punchy
+    ? ' Make this version punchier and more exciting than a standard bio — a different angle from anything generic.'
+    : ''
+  return `Using ONLY the research below, write a clean ${length} on-air bio for ${guestName}, focused on their current role and most notable achievement. Match the tone — host energy: ${show?.hostEnergy ?? 'warm_casual'}, audience: ${show?.targetAudience ?? 'general'}. Do not add anything not present in the research.${punch}
 
 Research:
 ${research}
@@ -94,14 +104,14 @@ ${research}
 Return only the bio text — no preamble, no quotation marks.`
 }
 
-// Step 1, call 3 — extracts verifiable fun facts from the research brief.
-export function buildFunFactsPrompt(research: string, guestName: string) {
-  return `From the research below about ${guestName}, extract 5 accurate, verifiable, genuinely interesting facts. Use ONLY facts present in the research — do not invent or infer.
+// Extracts verifiable fun facts from the research brief (count tunable).
+export function buildFunFactsPrompt(research: string, guestName: string, count = 5) {
+  return `From the research below about ${guestName}, extract ${count} accurate, verifiable, genuinely interesting facts. Use ONLY facts present in the research — do not invent or infer.
 
 Research:
 ${research}
 
-Return JSON exactly in this shape: { "facts": ["fact 1", "fact 2", "fact 3", "fact 4", "fact 5"] }`
+Return JSON exactly in this shape: { "facts": ["fact 1", "fact 2", ...] } with ${count} items.`
 }
 
 export function buildQuestionsPrompt(
@@ -180,10 +190,11 @@ Podcast DNA (match this voice):
 - Intro style: ${show?.guestIntroStyle ?? 'host_reads_bio'}
 - Opening line template: ${show?.openingLine ?? 'none'}${customInstructions}
 
-The intro should be warm, specific to this guest, draw on the research, and match the show's DNA above so it sounds like this host on this show. Make the listener want to keep listening.
-Write it as spoken word, ready to read on air. 150-250 words.
+The intro should be warm, specific to this guest, draw on the research, and match the show's DNA so it sounds like this host on this show. The goal: make a listener who has never heard of the guest want to keep listening.
 
-Return JSON: { "script": "the intro text" }`
+Format it as 3-4 short paragraphs, each prefixed with "HOST:" — written word-for-word for the host to read on air.
+
+Return JSON: { "script": "HOST: ...\\n\\nHOST: ...\\n\\nHOST: ..." }`
   }
 
   return `Write a full interview script for ${hostName} interviewing ${episode.guestName} on ${showName}.

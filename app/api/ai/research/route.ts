@@ -26,10 +26,10 @@ export async function POST(req: Request) {
 
   const { episodeId, guestName, mode = 'initial' } = await req.json()
 
-  // Plan limits — free plan: 1 research call ever
+  // Plan limits — free plan: 1 research call ever (skip for the lightweight bio regen)
   const user = await prisma.user.findUnique({ where: { email: session.user.email } })
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 })
-  if (user.plan === 'free' && user.aiResearchCountThisMonth >= 1) {
+  if (mode !== 'regenerate-bio' && user.plan === 'free' && user.aiResearchCountThisMonth >= 1) {
     return NextResponse.json({ error: 'Research limit reached. Upgrade to continue.' }, { status: 403 })
   }
 
@@ -49,17 +49,34 @@ export async function POST(req: Request) {
   }
 
   try {
-    // Call 1 — deep research with live web search (primary sources first).
+    // Lightweight path: just regenerate a punchier bio from existing research.
+    if (mode === 'regenerate-bio') {
+      const existing = ep?.guestResearch ?? ''
+      const bioMsg = await anthropic.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 400,
+        messages: [{ role: 'user', content: buildBioPrompt(existing, guestName, show, { punchy: true }) }],
+      })
+      const bio = allText(bioMsg)
+      if (episodeId) await prisma.episode.updateMany({ where: { id: episodeId, createdByEmail: session.user.email }, data: { guestBio: bio } })
+      return NextResponse.json({ bio })
+    }
+
+    const isDeep = mode === 'deep'
+    // Call 1 — research with live web search. Deep mode finds ONLY new info.
     const researchMsg = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 4000,
-      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: mode === 'deep' ? 8 : 5 }],
-      messages: [{ role: 'user', content: buildResearchPrompt(guestName, links, extraContext, mode, show) }],
+      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: isDeep ? 8 : 5 }],
+      messages: [{ role: 'user', content: buildResearchPrompt(guestName, links, extraContext, mode, show, isDeep ? ep?.guestResearch ?? undefined : undefined) }],
     })
-    const research = allText(researchMsg)
-    if (!research) throw new Error('No research could be produced')
+    const newResearch = allText(researchMsg)
+    if (!newResearch) throw new Error('No research could be produced')
+    // Deep mode appends to the existing brief; initial replaces it.
+    const research = isDeep && ep?.guestResearch
+      ? `${ep.guestResearch}\n\n---\n## Deep research (additional findings)\n${newResearch}`
+      : newResearch
 
-    // Persist the brief immediately so it isn't lost if a later call fails.
     if (episodeId) {
       await prisma.episode.updateMany({
         where: { id: episodeId, createdByEmail: session.user.email },
@@ -67,17 +84,17 @@ export async function POST(req: Request) {
       })
     }
 
-    // Calls 2 & 3 — bio + fun facts, in parallel, from the verified research.
+    // Calls 2 & 3 — bio + fun facts in parallel. Deep mode = richer bio + 10 facts.
     const [bioMsg, factsMsg] = await Promise.all([
       anthropic.messages.create({
         model: 'claude-sonnet-4-6',
-        max_tokens: 400,
-        messages: [{ role: 'user', content: buildBioPrompt(research, guestName, show) }],
+        max_tokens: isDeep ? 600 : 400,
+        messages: [{ role: 'user', content: buildBioPrompt(research, guestName, show, isDeep ? { sentences: '4-5 sentences' } : {}) }],
       }),
       anthropic.messages.create({
         model: 'claude-sonnet-4-6',
-        max_tokens: 600,
-        messages: [{ role: 'user', content: buildFunFactsPrompt(research, guestName) }],
+        max_tokens: isDeep ? 900 : 600,
+        messages: [{ role: 'user', content: buildFunFactsPrompt(research, guestName, isDeep ? 10 : 5) }],
       }),
     ])
     const bio = allText(bioMsg)
