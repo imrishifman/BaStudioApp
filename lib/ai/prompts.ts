@@ -64,13 +64,15 @@ ${depth}
 
 Use the Podcast DNA above to decide what to dig into: surface the stories, themes, and angles that fit this show's audience and style. Lean on the provided links and host context to stay focused on the right person.
 
+IMPORTANT — accuracy over completeness: Only include verifiable facts you are confident about. Do NOT fabricate, invent, or infer details, dates, quotes, or achievements. If you are unsure about something, leave it out rather than guess.
+
 Return a JSON object with:
 - bio: A compelling 2-3 paragraph bio suitable for reading on air, in a tone that matches the show's DNA
-- research: Detailed research notes (stories, achievements, controversies, unique angles, fun facts, talking points) tailored to this show — minimum 400 words
-- funFacts: An array of 3-5 surprising or interesting facts about this person
+- research: Detailed research notes (stories, achievements, controversies, unique angles, talking points) tailored to this show — only verifiable facts
+- funFacts: An array of 3-5 accurate, verifiable facts about this person — do not invent or infer
 - photoUrl: Best available professional headshot URL if known (or null)
 
-Focus on what makes this guest interesting and unique for THIS show's audience. Surface stories they haven't heard before.`
+Focus on what makes this guest genuinely interesting for THIS show's audience, without fabricating anything.`
 }
 
 export function buildQuestionsPrompt(
