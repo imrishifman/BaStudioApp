@@ -8,6 +8,7 @@ import { Sparkles, ArrowRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAILoading } from './AILoadingContext'
 import { SmartTextarea } from './SmartTextarea'
+import { postAI } from '@/lib/ai-client'
 
 interface Props {
   episode: Episode | null
@@ -35,25 +36,18 @@ export function Step2GuestBio({ episode, show, onNext }: Props) {
     mode === 'initial' ? setLoading(true) : setDeepLoading(true)
     try {
       const data = await runAI('research', async (signal) => {
-        const res = await fetch('/api/ai/research', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          signal,
-          body: JSON.stringify({ episodeId: episode.id, guestName: episode.guestName, links: [episode.guestLinkedinUrl, episode.guestWebsiteUrl].filter(Boolean), mode }),
-        })
-        const json = await res.json()
-        if (json.error) throw new Error(json.error)
+        const json = await postAI<{ bio?: string; research?: string }>('/api/ai/research', {
+          episodeId: episode.id,
+          guestName: episode.guestName,
+          links: [episode.guestLinkedinUrl, episode.guestWebsiteUrl].filter(Boolean),
+          mode,
+        }, signal)
         // Draft a DNA-aware intro early (best-effort) without advancing status —
         // it stays refinable on the Intro step. The research is already saved,
         // so the intro generator reads it from the DB.
         if (mode === 'initial' && !episode.introductionScript) {
           try {
-            await fetch('/api/ai/script', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              signal,
-              body: JSON.stringify({ episodeId: episode.id, showId: episode.showId, kind: 'intro', setStatus: false }),
-            })
+            await postAI('/api/ai/script', { episodeId: episode.id, showId: episode.showId, kind: 'intro', setStatus: false }, signal)
           } catch { /* the early intro draft is a bonus */ }
         }
         return json

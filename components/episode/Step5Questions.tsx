@@ -10,6 +10,7 @@ import { Sparkles, Star, RefreshCw, ArrowRight, Lock, Pencil, Check, X } from 'l
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useAILoading } from './AILoadingContext'
+import { postAI } from '@/lib/ai-client'
 import {
   normalizeGenerated,
   resolveSections,
@@ -82,17 +83,13 @@ export function Step5Questions({ episode, show, onNext }: Props) {
     if (!episode?.id) return
     setLoading(true)
     try {
-      const data = await runAI('questions', async (signal) => {
-        const res = await fetch('/api/ai/questions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          signal,
-          body: JSON.stringify({ episodeId: episode.id, showId: episode.showId, focusAnswers: episode.focusAnswers }),
-        })
-        const json = await res.json()
-        if (json.error) throw new Error(json.error)
-        return json
-      })
+      const data = await runAI('questions', async (signal) =>
+        postAI<{ questions: unknown }>('/api/ai/questions', {
+          episodeId: episode.id,
+          showId: episode.showId,
+          focusAnswers: episode.focusAnswers,
+        }, signal)
+      )
       const norm = normalizeGenerated(data.questions)
       setGenerated(norm.map)
       setStoredSections(norm.storedSections)

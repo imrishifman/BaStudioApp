@@ -10,6 +10,7 @@ import { Sparkles, ArrowRight, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useAILoading } from './AILoadingContext'
+import { postAI } from '@/lib/ai-client'
 
 interface Props {
   episode: Episode | null; show: Show | null; shows: Show[]
@@ -28,12 +29,11 @@ export function Step6Intro({ episode, onNext }: Props) {
     setLoading(true)
     try {
       const data = await runAI('intro', async (signal) => {
-        const res = await fetch('/api/ai/script', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal, body: JSON.stringify({ episodeId: episode.id, showId: episode.showId, kind: 'intro' }) })
-        const json = await res.json()
-        if (!json.script) throw new Error(json.error ?? 'Generation failed')
+        const json = await postAI<{ script?: string }>('/api/ai/script', { episodeId: episode.id, showId: episode.showId, kind: 'intro' }, signal)
+        if (!json.script) throw new Error('Generation failed')
         return json
       })
-      setIntro(data.script)
+      setIntro(data.script as string)
     } catch (err) {
       if ((err as Error)?.name !== 'AbortError') toast.error(err instanceof Error ? err.message : 'Failed to generate')
     } finally { setLoading(false) }
