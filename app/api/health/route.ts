@@ -15,5 +15,8 @@ export async function GET() {
       googleId: present(process.env.AUTH_GOOGLE_ID),
       resend: present(process.env.RESEND_API_KEY),
     },
+    // Names only (never values) of any env var mentioning "anthrop" — reveals a
+    // misspelled key name. Empty array means no such variable reached the deploy.
+    anthropicVarNames: Object.keys(process.env).filter((k) => /anthrop/i.test(k)),
   })
 }
