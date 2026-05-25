@@ -129,3 +129,22 @@ export function chosenQuestionTexts(
   if (closingQuestion) out.push(closingQuestion)
   return out
 }
+
+// Selected questions (full objects, with context + go_deeper) grouped by section.
+// Used by the full-script generator. Sections with no selection are dropped.
+export function chosenQuestionsBySection(
+  generated: unknown,
+  selected: unknown,
+  sections: QSection[]
+): { name: string; questions: GenQuestion[] }[] {
+  const { map } = normalizeGenerated(generated)
+  const sel = (selected ?? null) as Record<string, number[]> | null
+  return sections
+    .map((s) => {
+      const qs = map[s.key] ?? []
+      const idxs = sel?.[s.key]
+      const chosen = idxs ? idxs.map((i) => qs[i]).filter(Boolean) : qs
+      return { name: s.name, questions: chosen }
+    })
+    .filter((s) => s.questions.length > 0)
+}

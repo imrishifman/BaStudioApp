@@ -4,6 +4,7 @@ import {
   resolveSections,
   normalizeGenerated,
   chosenQuestionTexts,
+  chosenQuestionsBySection,
   DEFAULT_CLOSING_QUESTION,
 } from '@/lib/questions'
 
@@ -169,7 +170,7 @@ Return ONLY the JSON object, e.g.:
 }
 
 export function buildScriptPrompt(
-  episode: Pick<Episode, 'guestName' | 'guestBio' | 'guestResearch' | 'introductionScript' | 'generatedQuestions' | 'selectedQuestions' | 'focusAnswers'>,
+  episode: Pick<Episode, 'guestName' | 'guestBio' | 'guestResearch' | 'introductionScript' | 'generatedQuestions' | 'selectedQuestions' | 'focusAnswers' | 'funFacts'>,
   show: Pick<Show, 'name' | 'hostName' | 'interviewStyle' | 'openingLine' | 'closingQuestion' | 'guestIntroStyle' | 'aiScriptInstructions' | 'hostEnergy' | 'humorLevel' | 'targetAudience' | 'episodeSections'> | null,
   kind: 'intro' | 'full'
 ) {
@@ -205,26 +206,51 @@ Format it as 3-4 short paragraphs, each prefixed with "HOST:" — written word-f
 Return JSON: { "script": "HOST: ...\\n\\nHOST: ...\\n\\nHOST: ..." }`
   }
 
-  return `Write a full interview script for ${hostName} interviewing ${episode.guestName} on ${showName}.
+  // Rich question block, grouped by section with context + go-deeper notes.
+  const bySection = chosenQuestionsBySection(episode.generatedQuestions, episode.selectedQuestions, sections)
+  const questionsBlock = bySection.length
+    ? bySection
+        .map((sec) =>
+          `### ${sec.name}\n` +
+          sec.questions
+            .map((q, i) => {
+              const ctx = q.context ? `\n   - Context: ${q.context}` : ''
+              const deeper = q.go_deeper?.length ? `\n   - Go deeper: ${q.go_deeper.join(' / ')}` : ''
+              return `${i + 1}. ${q.question}${ctx}${deeper}`
+            })
+            .join('\n')
+        )
+        .join('\n\n')
+    : questionTexts.map((t, i) => `${i + 1}. ${t}`).join('\n')
 
-Guest Bio: ${episode.guestBio ?? 'Not provided'}
-Research: ${episode.guestResearch ?? 'Not provided'}
-Interview style: ${show?.interviewStyle ?? 'conversational'}
+  const funFacts = (episode.funFacts as string[] | null) ?? []
 
-Questions to weave in:
-${questionTexts.map((t, i) => `${i + 1}. ${t}`).join('\n')}
+  return `Produce a complete, professional interview guide document for ${hostName} interviewing ${episode.guestName} on "${showName}". Output clean markdown.
 
-Closing question: ${closingQuestion}${customInstructions}
+SOURCE MATERIAL
+Guest bio: ${episode.guestBio ?? 'Not provided'}
+Fun facts (host background knowledge):
+${funFacts.length ? funFacts.map((f) => `- ${f}`).join('\n') : '- (none)'}
+Verbatim intro to use EXACTLY as written:
+"""
+${episode.introductionScript ?? '(no intro yet — write a short one)'}
+"""
+Selected questions by section (with notes):
+${questionsBlock}
 
-Write a full conversational script with:
-- Transitions between questions
-- Follow-up prompts marked with [FOLLOW-UP]
-- Natural segue phrases
-- The closing
+Closing question: ${closingQuestion}
+Interview style: ${show?.interviewStyle ?? 'conversational'}${customInstructions}
 
-Format as readable script the host can follow during the interview.
+Build the document with these sections in order:
+1. # Title — show, host, guest
+2. ## How to use this guide — 2-3 lines on running the interview
+3. ## Fun facts — the host's background knowledge (use the facts above)
+4. ## Intro (read word-for-word) — the verbatim intro above, unchanged
+5. ## Interview — every section as a "## " heading; under each, the questions in order, each with a short italic context note and any "Go deeper" follow-ups indented beneath
+6. ## Closing — the closing question, framed warmly
+7. ## Outro — a short scripted sign-off for the host to read
 
-Return JSON: { "script": "the full script text" }`
+Return JSON: { "script": "the full markdown document" }`
 }
 
 export function buildSocialPrompt(
