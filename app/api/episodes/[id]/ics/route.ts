@@ -24,7 +24,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 
   const ics = buildIcs({
     uid: `episode-${episode.id}@bastudio`,
-    title: `${episode.show?.name ?? 'Episode'} — ${episode.title ?? episode.guestName}`,
+    title: `${episode.show?.name ?? 'Episode'} - ${episode.title ?? episode.guestName}`,
     description: `Recording with ${episode.guestName}.`,
     start: new Date(episode.releaseDate),
     durationMinutes: 60,

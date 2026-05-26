@@ -63,10 +63,10 @@ export function buildResearchPrompt(input: ResearchInput): string {
   if (socialLinks.instagram) linkLines.push(`  Instagram: ${socialLinks.instagram}`)
   if (socialLinks.website) linkLines.push(`  Website: ${socialLinks.website}`)
   const linksBlock = linkLines.length
-    ? `\nPROFILE LINKS — use these to confirm you're researching the RIGHT person (disambiguation only, NOT your only sources):\n${linkLines.join('\n')}`
+    ? `\nPROFILE LINKS - use these to confirm you're researching the RIGHT person (disambiguation only, NOT your only sources):\n${linkLines.join('\n')}`
     : ''
   const bioBlock = knownBio?.trim()
-    ? `\nKNOWN BIO (pre-extracted from guest document — treat as ground truth):\n  ${knownBio.trim().replace(/\n/g, '\n  ')}`
+    ? `\nKNOWN BIO (pre-extracted from guest document - treat as ground truth):\n  ${knownBio.trim().replace(/\n/g, '\n  ')}`
     : ''
   const ctxBlock = extraContext?.trim()
     ? `\nADDITIONAL CONTEXT (from host's notes or uploaded document):\n  ${extraContext.trim().replace(/\n/g, '\n  ')}`
@@ -76,38 +76,41 @@ export function buildResearchPrompt(input: ResearchInput): string {
     ? `\nCustom instructions from the host: ${show.aiResearchInstructions}`
     : ''
 
-  // INITIAL pass — the foundational deep-research brief.
+  // INITIAL pass - the foundational deep-research brief.
   if (mode === 'initial') {
     return `You are a world-class podcast researcher with live web access. Research the following guest for a podcast interview.
 
 GUEST NAME: "${guestName}"${linksBlock}${bioBlock}${ctxBlock}${dnaBlock}${customInstructions}
 
-Research broadly on the internet using web_search. Run multiple searches across Google, news sites, official sites, podcasts, articles, Wikipedia — wherever the best information lives. Use the PROFILE LINKS above only to confirm you have the right person (cross-check identity), not as the only sources.
+Research broadly on the internet using web_search. Run multiple searches across Google, news sites, official sites, podcasts, articles, Wikipedia - wherever the best information lives. Use the PROFILE LINKS above only to confirm you have the right person (cross-check identity), not as the only sources.
 
 Return a single Markdown brief that covers:
 - Full name and current title/role
-- Professional background and career journey (4-6 sentences)
+- Professional background and full work history with dates (4-6 sentences)
 - Key achievements, awards, or recognition
 - Recent projects, books, companies, or news (last 2-3 years)
 - Core areas of expertise and thought leadership topics
-- Interesting personal background or origin story (if publicly known)
+- Personal journey: origin story, formative experiences, turning points
+- Family background (parents, upbringing, siblings, spouse/children) - only what is publicly known
+- Hobbies, passions, interests outside their work
 - Verified social media and website links
 - General web research that confirms this is the right person
 
 CRITICAL GUARDRAILS:
-- Research broadly across the internet — do NOT limit yourself to the profile links.
+- Research broadly across the internet. Do NOT limit yourself to the profile links.
 - Use the profile links to confirm identity and disambiguate from people with similar names.
 - Only include facts you can verify. If something is uncertain, omit it.
 - Do not fabricate achievements, dates, or quotes.
+- WRITING STYLE: never use em-dashes (-) in the output. Use hyphens, commas, or periods. Never apologize for missing information; just omit what you do not have.
 
-Return the brief text only — no preamble.`
+Return the brief text only, no preamble.`
   }
 
-  // DEEP pass — find ONLY new info across the 12 categories.
+  // DEEP pass - find ONLY new info across the 12 categories.
   const existing = (existingResearch ?? '').slice(0, 5000) || '(no prior research)'
   return `You are a world-class podcast researcher with live web access. You have already produced the brief below about ${guestName}. Do not repeat anything from it.
 
-We already know the following about this person — DO NOT repeat any of this:
+We already know the following about this person - DO NOT repeat any of this:
 """
 ${existing}
 """${linksBlock}${bioBlock}${ctxBlock}${dnaBlock}${customInstructions}
@@ -129,7 +132,7 @@ Find ONLY NEW information across these twelve categories, using web_search:
 CRITICAL GUARDRAILS:
 - Only include facts you can verify. If something is uncertain, omit it.
 - Do not fabricate achievements, dates, or quotes.
-- Be highly specific — include names, numbers, or dates wherever possible.
+- Be highly specific - include names, numbers, or dates wherever possible.
 
 Return the new findings only, as Markdown with one section per category that has new info. Omit categories with no verified new info.`
 }
@@ -143,34 +146,34 @@ export function buildBioPrompt(
   opts: { sentences?: '2-3' | '4-5'; punchy?: boolean; expanded?: boolean } = {}
 ) {
   const length = opts.sentences ?? '2-3'
-  // Universal tone rule — never apologize for gaps.
-  const tone = ` Write confidently and positively. Lead with what's distinctive, interesting, and impressive. NEVER say things like "couldn't find", "not enough information", "limited public details", or any other phrase that points out gaps — just work with what the research provides.`
+  // Universal tone rule - never apologize for gaps.
+  const tone = ` Write confidently and positively. Lead with what's distinctive, interesting, and impressive. NEVER say things like "couldn't find", "not enough information", "limited public details", or any other phrase that points out gaps - just work with what the research provides.`
 
-  // Default (initial pass) — spec wording.
+  // Default (initial pass) - spec wording.
   if (length === '2-3' && !opts.punchy) {
     return `Based ONLY on the verified research below, write a clear and accurate 2-3 sentence bio for ${guestName}. Focus on their current role, most notable achievement, and what makes them distinctive.${tone}
 
 Research:
 ${research}
 
-Return only the bio text — no preamble, no quotation marks.`
+Return only the bio text - no preamble, no quotation marks.`
   }
-  // "Regenerate Bio" — punchier 2-3 sentence, deliberately different.
+  // "Regenerate Bio" - punchier 2-3 sentence, deliberately different.
   if (length === '2-3' && opts.punchy) {
-    return `Based ONLY on the verified research below, write a NEW 2-3 sentence on-air bio for ${guestName} that's punchier and more exciting than a standard bio — and clearly different from a vanilla retelling. Tone: host energy ${show?.hostEnergy ?? 'warm_casual'}, audience ${show?.targetAudience ?? 'general'}.${tone}
+    return `Based ONLY on the verified research below, write a NEW 2-3 sentence on-air bio for ${guestName} that's punchier and more exciting than a standard bio - and clearly different from a vanilla retelling. Tone: host energy ${show?.hostEnergy ?? 'warm_casual'}, audience ${show?.targetAudience ?? 'general'}.${tone}
 
 Research:
 ${research}
 
-Return only the bio text — no preamble, no quotation marks.`
+Return only the bio text - no preamble, no quotation marks.`
   }
-  // Deep "expanded bio" — 4-5 sentences highlighting lesser-known details.
+  // Deep "expanded bio" - 4-5 sentences highlighting lesser-known details.
   return `Based ONLY on the verified research below, write an "expanded bio" for ${guestName}: 4-5 sentences that highlight lesser-known details and specific achievements with dates or numbers wherever the research supports them. Tone: host energy ${show?.hostEnergy ?? 'warm_casual'}, audience ${show?.targetAudience ?? 'general'}.${tone}
 
 Research:
 ${research}
 
-Return only the bio text — no preamble, no quotation marks.`
+Return only the bio text - no preamble, no quotation marks.`
 }
 
 // Per-interviewer style profile across the 7 dimensions. Saved as text and
@@ -178,15 +181,15 @@ Return only the bio text — no preamble, no quotation marks.`
 export function buildInfluencerProfilePrompt(name: string): string {
   return `Create a detailed interviewer personality profile for: "${name}".
 
-1. Questioning Philosophy — short punchy questions or long setup questions?
-2. Opening Style — small talk, direct dive, provocative opener?
-3. Silence & Pacing — how they handle silence and pauses
-4. Emotional Tone — warm / challenging / playful / reverent?
-5. What They Never Do — behaviors or approaches they avoid
-6. Signature Move — one distinctive thing they always do that makes their interviews stand out
-7. Example Question Formats — 3 specific question formats typical of their style
+1. Questioning Philosophy - short punchy questions or long setup questions?
+2. Opening Style - small talk, direct dive, provocative opener?
+3. Silence & Pacing - how they handle silence and pauses
+4. Emotional Tone - warm / challenging / playful / reverent?
+5. What They Never Do - behaviors or approaches they avoid
+6. Signature Move - one distinctive thing they always do that makes their interviews stand out
+7. Example Question Formats - 3 specific question formats typical of their style
 
-Be specific and actionable — this profile will be used to guide AI question generation.
+Be specific and actionable - this profile will be used to guide AI question generation.
 Return clean markdown with one section per item. No preamble.`
 }
 
@@ -195,10 +198,10 @@ export function buildShowFromUrlPrompt(url: string): string {
   return `Identify the podcast at this URL and research its interviewing style: "${url}"
 
 Approach (use web_search):
-1. Look at the URL — extract any show name, host name, or keywords visible in the domain or path.
+1. Look at the URL - extract any show name, host name, or keywords visible in the domain or path.
 2. Run web_search with the URL itself, plus a separate search for the extracted name/keywords + the word "podcast", to identify which show this is.
 3. Once identified, run 1-2 more searches to learn the host's interviewing style.
-4. If the URL clearly points to Apple Podcasts, Spotify, YouTube, or a podcast site, the show name is almost always derivable — don't give up too quickly.
+4. If the URL clearly points to Apple Podcasts, Spotify, YouTube, or a podcast site, the show name is almost always derivable - don't give up too quickly.
 
 Return JSON with:
 - show_name (string, or null only if you genuinely cannot identify the show after searching)
@@ -211,7 +214,7 @@ Return JSON with:
 - what_they_never_do
 - signature_move
 - example_question_formats (array of 3 format descriptions)
-- full_profile (rich paragraph combining all of the above — for use in AI prompts)
+- full_profile (rich paragraph combining all of the above - for use in AI prompts)
 
 Return ONLY the JSON object.`
 }
@@ -225,7 +228,7 @@ export function buildFunFactsPrompt(
   opts: { specific?: boolean } = {}
 ) {
   const specific = opts.specific
-    ? ' Each fact must be highly specific and surprising — include names, numbers, or dates wherever possible.'
+    ? ' Each fact must be highly specific and surprising - include names, numbers, or dates wherever possible.'
     : ''
   return `Based ONLY on the verified research below, extract ${count} interesting and accurate facts about ${guestName}. IMPORTANT: Only include facts explicitly supported by the research. Do not invent or infer.${specific}
 
@@ -255,14 +258,14 @@ export function buildQuestionsPrompt(
     : ''
 
   // Researched influencers contribute a full style profile; unresearched ones
-  // only contribute their name — so researched ones carry more weight.
+  // only contribute their name - so researched ones carry more weight.
   const influenceBlock = influences.length
     ? `\n\nINTERVIEW STYLE INFLUENCES:\nGenerate questions in the spirit of these interview styles:\n\n${influences
         .map((name) => {
           const profile = influenceProfiles[name]?.trim()
-          return profile ? `${name}:\n${profile}` : `${name}:\n(name only — style profile not researched)`
+          return profile ? `${name}:\n${profile}` : `${name}:\n(name only - style profile not researched)`
         })
-        .join('\n---\n')}\n\nDo not copy their questions — adopt their questioning instincts.`
+        .join('\n---\n')}\n\nDo not copy their questions - adopt their questioning instincts.`
     : ''
 
   const perSection = Math.max(3, Math.round(targetTotal / Math.max(1, sections.length)))
@@ -285,14 +288,14 @@ Podcast DNA:
 - Humor level: ${show?.humorLevel ?? 'light'}
 - Audience: ${show?.targetAudience ?? 'general'}${prevStr}${customInstructions}${influenceBlock}
 
-Generate roughly ${targetTotal} questions total — about ${perSection} per section (weight more toward the core/middle sections). Return a JSON object whose keys are EXACTLY these section keys (and nothing else):
+Generate roughly ${targetTotal} questions total - about ${perSection} per section (weight more toward the core/middle sections). Return a JSON object whose keys are EXACTLY these section keys (and nothing else):
 ${sections.map(s => `- "${s.key}"  (${s.name})`).join('\n')}
 
 For each section key, return an array of 4-6 question objects shaped like:
 { "question": "the question text", "strength_score": 8, "context": "what to listen for or why this lands", "go_deeper": ["a sharp follow-up", "another follow-up"] }
 
 - strength_score is 1-10 (10 = your strongest, most revealing question for that section).
-- Make every question specific to THIS guest and matched to the show's DNA above — never generic.
+- Make every question specific to THIS guest and matched to the show's DNA above - never generic.
 - Vary depth and style within each section.
 
 Return ONLY the JSON object, e.g.:
@@ -300,11 +303,12 @@ Return ONLY the JSON object, e.g.:
 }
 
 export function buildScriptPrompt(
-  episode: Pick<Episode, 'guestName' | 'guestBio' | 'guestResearch' | 'introductionScript' | 'generatedQuestions' | 'selectedQuestions' | 'focusAnswers' | 'funFacts'>,
+  episode: Pick<Episode, 'guestName' | 'guestBio' | 'guestResearch' | 'introductionScript' | 'generatedQuestions' | 'selectedQuestions' | 'focusAnswers' | 'funFacts' | 'hostName'>,
   show: Pick<Show, 'name' | 'hostName' | 'interviewStyle' | 'openingLine' | 'closingQuestion' | 'guestIntroStyle' | 'aiScriptInstructions' | 'hostEnergy' | 'humorLevel' | 'targetAudience' | 'episodeSections'> | null,
   kind: 'intro' | 'full'
 ) {
-  const hostName = show?.hostName ?? 'the host'
+  // Per-episode override takes precedence; otherwise the show's host name; finally a generic fallback.
+  const hostName = episode.hostName?.trim() || show?.hostName || 'the host'
   const showName = show?.name ?? 'the show'
 
   const { storedSections } = normalizeGenerated(episode.generatedQuestions)
@@ -331,10 +335,10 @@ Podcast DNA (match this voice):
 
 The intro should be specific to this guest, draw on the research, and match the show's DNA. The goal: make a listener who has never heard of the guest want to keep listening.
 
-Format it as 1-2 short paragraphs, each prefixed with "HOST:" — written word-for-word for the host to read on air.
+Format it as 1-2 short paragraphs, each prefixed with "HOST:" - written word-for-word for the host to read on air.
 
 Hard constraints:
-- MAXIMUM 750 characters total (count letters, not words). Be ruthless — cut every spare word.
+- MAXIMUM 750 characters total (count letters, not words). Be ruthless - cut every spare word.
 - Excited, high-energy, punchy delivery. Pack it tight; every sentence earns its spot.
 
 Return JSON: { "script": "HOST: ...\\n\\nHOST: ..." }`
@@ -367,7 +371,7 @@ Fun facts (host background knowledge):
 ${funFacts.length ? funFacts.map((f) => `- ${f}`).join('\n') : '- (none)'}
 Verbatim intro to use EXACTLY as written:
 """
-${episode.introductionScript ?? '(no intro yet — write a short one)'}
+${episode.introductionScript ?? '(no intro yet - write a short one)'}
 """
 Selected questions by section (with notes):
 ${questionsBlock}
@@ -376,13 +380,13 @@ Closing question: ${closingQuestion}
 Interview style: ${show?.interviewStyle ?? 'conversational'}${customInstructions}
 
 Build the document with these sections in order:
-1. # Title — show, host, guest
-2. ## How to use this guide — 2-3 lines on running the interview
-3. ## Fun facts — the host's background knowledge (use the facts above)
-4. ## Intro (read word-for-word) — the verbatim intro above, unchanged
-5. ## Interview — every section as a "## " heading; under each, the questions in order, each with a short italic context note and any "Go deeper" follow-ups indented beneath
-6. ## Closing — the closing question, framed warmly
-7. ## Outro — a short scripted sign-off for the host to read
+1. # Title - show, host, guest
+2. ## How to use this guide - 2-3 lines on running the interview
+3. ## Fun facts - the host's background knowledge (use the facts above)
+4. ## Intro (read word-for-word) - the verbatim intro above, unchanged
+5. ## Interview - every section as a "## " heading; under each, the questions in order, each with a short italic context note and any "Go deeper" follow-ups indented beneath
+6. ## Closing - the closing question, framed warmly
+7. ## Outro - a short scripted sign-off for the host to read
 
 Return JSON: { "script": "the full markdown document" }`
 }
@@ -427,7 +431,7 @@ export function buildChatPrompt(
     : ''
   const pageCtx = page ? `User is on page: ${page}` : ''
 
-  return `You are Ba-Studio's AI assistant — a knowledgeable, concise podcast production coach.
+  return `You are Ba-Studio's AI assistant - a knowledgeable, concise podcast production coach.
 ${ctx}
 ${pageCtx}
 

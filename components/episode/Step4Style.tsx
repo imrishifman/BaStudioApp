@@ -18,7 +18,7 @@ interface Props {
   userEmail: string
 }
 
-// The 16 built-in interviewers (per spec) — name + emoji + one-line description.
+// The 16 built-in interviewers (per spec) - name + emoji + one-line description.
 const INFLUENCERS: { name: string; emoji: string; desc: string }[] = [
   { name: 'Lex Fridman', emoji: '🎙', desc: 'Long-form, philosophical, deeply curious' },
   { name: "Conan O'Brien", emoji: '😂', desc: 'Playful, warm, comedic and disarming' },
@@ -59,7 +59,7 @@ export function Step4Style({ episode, onNext }: Props) {
       const isOn = prev.includes(name)
       if (isOn) return prev.filter((v) => v !== name)
       if (prev.length >= MAX) return prev
-      // Newly selected — silently research the style in the background so the
+      // Newly selected - silently research the style in the background so the
       // profile is ready for question generation. UI doesn't show the profile.
       if (!profiles[name] && !researching[name]) researchStyleSilently(name)
       return [...prev, name]
@@ -72,7 +72,7 @@ export function Step4Style({ episode, onNext }: Props) {
     try {
       const data = await postAI<{ profile?: string }>('/api/ai/influencer-profile', { episodeId: episode.id, name })
       if (data.profile) setProfiles((p) => ({ ...p, [name]: data.profile! }))
-    } catch { /* silent — questions still work with name-only */ } finally {
+    } catch { /* silent - questions still work with name-only */ } finally {
       setResearching((r) => ({ ...r, [name]: false }))
     }
   }

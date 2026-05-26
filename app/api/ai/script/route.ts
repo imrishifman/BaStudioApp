@@ -47,7 +47,7 @@ export async function POST(req: Request) {
     const { script } = extractJson<{ script: string }>(text)
 
     // Early auto-drafts (setStatus=false) save the text without advancing the
-    // pipeline status — the user is still earlier in the wizard.
+    // pipeline status - the user is still earlier in the wizard.
     const updateData =
       kind === 'intro'
         ? { introductionScript: script, ...(setStatus ? { status: 'script' as const } : {}) }

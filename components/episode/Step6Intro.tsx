@@ -17,9 +17,10 @@ interface Props {
   onNext: (patch?: Partial<Episode>) => Promise<void>; userEmail: string
 }
 
-export function Step6Intro({ episode, onNext }: Props) {
+export function Step6Intro({ episode, show, onNext }: Props) {
   const { runAI } = useAILoading()
   const [intro, setIntro] = useState(episode?.introductionScript ?? '')
+  const [hostName, setHostName] = useState(episode?.hostName ?? show?.hostName ?? '')
   const [loading, setLoading] = useState(false)
 
   useEffect(() => { if (!episode?.introductionScript) generate() }, [episode?.id])
@@ -28,6 +29,16 @@ export function Step6Intro({ episode, onNext }: Props) {
     if (!episode?.id) return
     setLoading(true)
     try {
+      // Persist the host name so it carries into the full-script step.
+      if (hostName.trim() && hostName !== episode.hostName) {
+        try {
+          await fetch(`/api/episodes/${episode.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ hostName: hostName.trim() }),
+          })
+        } catch { /* non-blocking */ }
+      }
       const data = await runAI('intro', async (signal) => {
         const json = await postAI<{ script?: string }>('/api/ai/script', { episodeId: episode.id, showId: episode.showId, kind: 'intro' }, signal)
         if (!json.script) throw new Error('Generation failed')
@@ -45,11 +56,25 @@ export function Step6Intro({ episode, onNext }: Props) {
         <div>
           <p className="eyebrow mb-1 text-[var(--ink-3)]">Step 6 of 10</p>
           <h2 className="display-sm text-[var(--ink-1)]">Intro script</h2>
-          <p className="body mt-1 text-[var(--ink-2)]">Your opening — edit to match your natural voice.</p>
+          <p className="body mt-1 text-[var(--ink-2)]">Your opening - edit to match your natural voice.</p>
         </div>
         <PillButton variant="secondary" size="sm" onClick={generate} disabled={loading}>
           <RefreshCw size={14} className={cn(loading && 'animate-spin')} /> Regenerate
         </PillButton>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="body-sm text-[var(--ink-2)]">
+          Host name {show?.hostName && <span className="text-[var(--ink-4)]">(from "{show.name}")</span>}
+        </label>
+        <input
+          value={hostName}
+          onChange={(e) => setHostName(e.target.value)}
+          placeholder={show?.hostName ?? "What's the host's name?"}
+          className="body-sm rounded-[var(--radius-sm)] px-3 py-2"
+          style={{ background: 'var(--bg-2)', border: '1px solid var(--line-2)', color: 'var(--ink-1)' }}
+        />
+        <p className="text-[11px] text-[var(--ink-4)]">Used in the intro and the full script. Regenerate to apply.</p>
       </div>
 
       {loading ? (
@@ -63,7 +88,14 @@ export function Step6Intro({ episode, onNext }: Props) {
         </motion.div>
       )}
 
-      {!loading && <PillButton onClick={() => onNext({ introductionScript: intro, status: 'script' })} disabled={!intro}>Next <ArrowRight size={14} /></PillButton>}
+      {!loading && (
+        <PillButton
+          onClick={() => onNext({ introductionScript: intro, hostName: hostName.trim() || null, status: 'script' })}
+          disabled={!intro}
+        >
+          Next <ArrowRight size={14} />
+        </PillButton>
+      )}
     </div>
   )
 }

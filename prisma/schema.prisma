@@ -274,6 +274,7 @@ model Episode {
   description           String?
   showId                String?
   show                  Show?         @relation(fields: [showId], references: [id])
+  hostName              String?
   guestName             String
   guestBio              String?
   guestResearch         String?

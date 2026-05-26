@@ -23,7 +23,7 @@ export async function POST(req: Request) {
       messages: [
         {
           role: 'user',
-          content: `Find ONE direct, public, professional photo URL for ${guestName} — a link that ends in .jpg, .jpeg, .png, or .webp, from Wikipedia/Wikimedia, a news site, or an official source. Use web_search. Return JSON: {"photoUrl":"https://...jpg"} or {"photoUrl":null} if you cannot find a directly-loadable image. Do not invent URLs.`,
+          content: `Find ONE direct, public, professional photo URL for ${guestName} - a link that ends in .jpg, .jpeg, .png, or .webp, from Wikipedia/Wikimedia, a news site, or an official source. Use web_search. Return JSON: {"photoUrl":"https://...jpg"} or {"photoUrl":null} if you cannot find a directly-loadable image. Do not invent URLs.`,
         },
       ],
     })

@@ -77,17 +77,8 @@ export function HeroCanvas() {
   // never triggers a React re-render of the <Canvas> subtree.
   const scrollProgressRef = useRef(0)
   const { scrollY } = useScroll()
-  const [isMobile, setIsMobile] = useState(false)
   // null = checking, true = WebGL usable, false = unavailable/lost → fallback
   const [webglOk, setWebglOk] = useState<boolean | null>(null)
-
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 720px)')
-    setIsMobile(mq.matches)
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches)
-    mq.addEventListener('change', handler)
-    return () => mq.removeEventListener('change', handler)
-  }, [])
 
   useEffect(() => {
     // Detect WebGL support once, up front, so an unsupported environment
@@ -109,16 +100,6 @@ export function HeroCanvas() {
     })
   }, [scrollY])
 
-  // Mobile: WebGL on phones is unreliable (context loss under memory pressure),
-  // so always show the static mic — it's guaranteed to display.
-  if (isMobile) {
-    return (
-      <div ref={canvasRef} className="relative h-full w-full">
-        <MicGraphic anchorTop />
-      </div>
-    )
-  }
-
   // No WebGL, still probing, or the context dropped → static mic.
   if (webglOk !== true) {
     return (
@@ -138,7 +119,7 @@ export function HeroCanvas() {
           style={{ background: 'transparent' }}
           onCreated={({ gl }) => {
             // If the GPU context drops, fall back to the static mic
-            // instead of leaving a frozen/blank canvas — and never crash.
+            // instead of leaving a frozen/blank canvas - and never crash.
             gl.domElement.addEventListener(
               'webglcontextlost',
               (e) => {

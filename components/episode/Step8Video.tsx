@@ -31,7 +31,7 @@ export function Step8Video({ episode, onNext }: Props) {
   return (
     <div className="space-y-6">
       <div>
-        <p className="eyebrow mb-1 text-[var(--ink-3)]">Step 8 — Optional</p>
+        <p className="eyebrow mb-1 text-[var(--ink-3)]">Step 8 - Optional</p>
         <h2 className="display-sm text-[var(--ink-1)]">Intro video</h2>
         <p className="body mt-1 text-[var(--ink-2)]">Upload a short video intro for your episode page.</p>
       </div>
@@ -46,7 +46,7 @@ export function Step8Video({ episode, onNext }: Props) {
           <Video size={36} className="text-[var(--ink-3)]" />
           <div>
             <p className="body text-[var(--ink-1)]">Upload intro video</p>
-            <p className="body-sm text-[var(--ink-3)]">MP4, MOV — max 100MB</p>
+            <p className="body-sm text-[var(--ink-3)]">MP4, MOV - max 100MB</p>
           </div>
           <label className="pill-secondary cursor-pointer">
             <Upload size={14} /> {uploading ? 'Uploading…' : 'Choose file'}

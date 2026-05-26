@@ -103,7 +103,7 @@ export function Step1GuestName({ episode, show, shows, onNext, onEpisodeCreated,
           >
             Recommended!
           </span>
-          <span className="body-sm text-[var(--ink-4)]">— the more sources, the sharper the research</span>
+          <span className="body-sm text-[var(--ink-4)]">- the more sources, the sharper the research</span>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <Input value={guestLinkedinUrl} onChange={e => setLinkedin(e.target.value)} placeholder="LinkedIn URL" className="bg-[var(--bg-2)] border-[var(--line-2)] text-[var(--ink-1)] placeholder:text-[var(--ink-4)]" />

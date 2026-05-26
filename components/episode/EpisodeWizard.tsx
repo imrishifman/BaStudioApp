@@ -224,7 +224,7 @@ export function EpisodeWizard({ episode: initialEpisode, shows, userEmail }: Pro
             </p>
           )}
         </div>
-        {/* Step renders its own Next button — this is just the default */}
+        {/* Step renders its own Next button - this is just the default */}
         {!['Questions', 'Intro', 'Script', 'Share', 'Promote'].includes(steps[currentStep - 1]?.label ?? '') && (
           <PillButton size="sm" onClick={() => goNext()}>
             Next <ArrowRight size={14} />

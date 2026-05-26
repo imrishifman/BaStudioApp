@@ -22,7 +22,7 @@ declare module 'next-auth' {
  * The middleware (proxy.ts) builds a NextAuth instance from this so it can
  * verify the JWT session on Vercel's edge runtime. The full config in
  * lib/auth.ts spreads this and adds the Prisma adapter, the Credentials
- * provider, and the DB-enriched session — all of which run only in Node.
+ * provider, and the DB-enriched session - all of which run only in Node.
  */
 export const authConfig = {
   // Trust the incoming host so session cookies + OAuth callbacks use the real

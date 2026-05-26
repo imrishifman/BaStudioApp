@@ -13,7 +13,7 @@ const STEPS: Step[] = [
   {
     sel: null,
     title: 'Welcome to Ba Studio 👋',
-    body: "Quick tour — I'll point out the key buttons and what each one does.",
+    body: "Quick tour - I'll point out the key buttons and what each one does.",
   },
   {
     sel: '[data-tour="new-episode"]',
@@ -63,7 +63,13 @@ export function ProductTour() {
       setRect(null)
       return
     }
-    const el = document.querySelector(s.sel)
+    // Same data-tour attribute may exist on both the desktop sidebar (hidden on
+    // mobile) and the mobile nav (hidden on desktop). Pick the visible one.
+    const matches = Array.from(document.querySelectorAll<HTMLElement>(s.sel))
+    const el = matches.find((e) => {
+      const r = e.getBoundingClientRect()
+      return r.width > 0 && r.height > 0 && e.offsetParent !== null
+    }) ?? matches[0]
     if (el) {
       el.scrollIntoView({ block: 'center', behavior: 'smooth' })
       setRect(el.getBoundingClientRect())

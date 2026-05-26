@@ -82,7 +82,7 @@ export async function POST(req: Request) {
       if (!research) return NextResponse.json({ error: 'No research to derive from' }, { status: 400 })
       const isDeep = mode === 'deep'
       const [bioMsg, factsMsg] = await Promise.all([
-        // Bio on Haiku — faster, and bio is short; keeps the function well under 60s.
+        // Bio on Haiku - faster, and bio is short; keeps the function well under 60s.
         anthropic.messages.create({
           model: 'claude-haiku-4-5-20251001',
           max_tokens: isDeep ? 600 : 400,

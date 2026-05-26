@@ -25,7 +25,7 @@ export function StreakCard({ streak, atRisk, publishedThisWeek, recent }: Streak
               style={{ color: atRisk ? 'var(--warning)' : 'var(--ink-3)' }}
             >
               {publishedThisWeek
-                ? "You've published this week — streak safe 🎉"
+                ? "You've published this week - streak safe 🎉"
                 : atRisk
                   ? 'Publish an episode this week to keep it alive.'
                   : 'Publish an episode this week to start a new streak.'}

@@ -72,6 +72,7 @@ export function MobileNav() {
             <Link
               key={item.href}
               href={item.href}
+              data-tour={item.href}
               className="flex flex-1 flex-col items-center justify-center gap-0.5"
               style={{ color: active ? 'var(--ink-1)' : 'var(--ink-3)' }}
             >
@@ -82,6 +83,8 @@ export function MobileNav() {
         })}
         <button
           onClick={() => setMoreOpen(true)}
+          data-tour="/team"
+          data-tour-alt="theme"
           className="flex flex-1 flex-col items-center justify-center gap-0.5"
           style={{ color: 'var(--ink-3)' }}
         >

@@ -6,8 +6,9 @@ import type { Episode } from '@prisma/client'
 import type { Session } from 'next-auth'
 import { GlassCard } from '@/components/common/GlassCard'
 import { PillButton } from '@/components/common/PillButton'
-import { Plus, ChevronRight } from 'lucide-react'
+import { Plus, ChevronRight, Pencil, Trash2, X, Check as CheckIcon } from 'lucide-react'
 import Link from 'next/link'
+import { toast } from 'sonner'
 import { formatDate } from '@/lib/utils'
 
 const STATUS_COLOR: Record<string, string> = {
@@ -30,6 +31,28 @@ interface Props {
 export function DashboardClient({ episodes, sessionUser }: Props) {
   const router = useRouter()
   const [filter, setFilter] = useState<'all' | 'active' | 'published'>('all')
+  const [editMode, setEditMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [deleting, setDeleting] = useState(false)
+
+  function toggleSelected(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  async function deleteSelected() {
+    if (selectedIds.size === 0) return
+    if (!confirm(`Delete ${selectedIds.size} episode${selectedIds.size > 1 ? 's' : ''}? This cannot be undone.`)) return
+    setDeleting(true)
+    try {
+      await Promise.all(Array.from(selectedIds).map(id => fetch(`/api/episodes/${id}`, { method: 'DELETE' })))
+      toast.success(`Deleted ${selectedIds.size}`)
+      setSelectedIds(new Set()); setEditMode(false); router.refresh()
+    } catch { toast.error('Could not delete some episodes') } finally { setDeleting(false) }
+  }
 
   const filtered = episodes.filter(ep => {
     if (filter === 'active') return !['published', 'approved'].includes(ep.status)
@@ -44,7 +67,34 @@ export function DashboardClient({ episodes, sessionUser }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="display-sm text-[var(--ink-1)]">Episodes</h1>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          {editMode ? (
+            <>
+              <button
+                onClick={deleteSelected}
+                disabled={deleting || selectedIds.size === 0}
+                className="body-sm flex items-center gap-1 rounded-full px-3 py-1 font-semibold disabled:opacity-50"
+                style={{ background: 'var(--error)', color: '#fff' }}
+              >
+                <Trash2 size={13} /> Delete{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
+              </button>
+              <button
+                onClick={() => { setEditMode(false); setSelectedIds(new Set()) }}
+                className="body-sm flex items-center gap-1 rounded-full border px-3 py-1 text-[var(--ink-2)]"
+                style={{ borderColor: 'var(--line-2)' }}
+              >
+                <X size={13} /> Cancel
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setEditMode(true)}
+              className="body-sm flex items-center gap-1 rounded-full border px-3 py-1 text-[var(--ink-2)] hover:text-[var(--ink-1)]"
+              style={{ borderColor: 'var(--line-2)' }}
+            >
+              <Pencil size={13} /> Edit
+            </button>
+          )}
           <PillButton variant="secondary" size="sm" onClick={() => router.push('/episodes/new')}>
             <Plus size={14} /> New episode
           </PillButton>
@@ -89,7 +139,14 @@ export function DashboardClient({ episodes, sessionUser }: Props) {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map(ep => (
-            <EpisodeCard key={ep.id} episode={ep} shared={ep.createdByEmail !== sessionUser.email} />
+            <EpisodeCard
+              key={ep.id}
+              episode={ep}
+              shared={ep.createdByEmail !== sessionUser.email}
+              editing={editMode}
+              selected={selectedIds.has(ep.id)}
+              onToggle={() => toggleSelected(ep.id)}
+            />
           ))}
         </div>
       )}
@@ -97,13 +154,29 @@ export function DashboardClient({ episodes, sessionUser }: Props) {
   )
 }
 
-function EpisodeCard({ episode, shared }: { episode: Episode; shared?: boolean }) {
+function EpisodeCard({
+  episode,
+  shared,
+  editing,
+  selected,
+  onToggle,
+}: {
+  episode: Episode
+  shared?: boolean
+  editing?: boolean
+  selected?: boolean
+  onToggle?: () => void
+}) {
   const stepLabels = ['', 'Guest', 'Bio', 'Focus', 'Style', 'Questions', 'Intro', 'Script', 'Video', 'Share', 'Promote']
   const currentStepLabel = stepLabels[episode.currentStep] ?? `Step ${episode.currentStep}`
 
-  return (
-    <Link href={`/episodes/${episode.id}`}>
-      <GlassCard hover className="flex flex-col gap-3 p-5">
+  const card = (
+    <GlassCard
+      hover={!editing}
+      onClick={editing ? onToggle : undefined}
+      className="flex flex-col gap-3 p-5"
+      style={selected ? { borderColor: 'var(--accent-violet)', background: 'rgba(167,139,250,0.06)' } : undefined}
+    >
         {/* Cover placeholder */}
         <div
           className="relative aspect-video rounded-[var(--radius-sm)]"
@@ -115,6 +188,14 @@ function EpisodeCard({ episode, shared }: { episode: Episode; shared?: boolean }
             <p className="text-2xl font-bold text-[var(--ink-4)]">
               {episode.guestName.slice(0, 2).toUpperCase()}
             </p>
+          )}
+          {editing && (
+            <span
+              className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full"
+              style={{ background: selected ? 'var(--accent-violet)' : 'rgba(0,0,0,0.5)', border: `1px solid ${selected ? 'var(--accent-violet)' : 'var(--line-2)'}` }}
+            >
+              {selected && <CheckIcon size={14} color="white" />}
+            </span>
           )}
           {shared && (
             <span
@@ -147,6 +228,6 @@ function EpisodeCard({ episode, shared }: { episode: Episode; shared?: boolean }
           </span>
         </div>
       </GlassCard>
-    </Link>
   )
+  return editing ? <div>{card}</div> : <Link href={`/episodes/${episode.id}`}>{card}</Link>
 }

@@ -49,7 +49,7 @@ export async function POST(req: Request) {
 
   try {
     const message = await anthropic.messages.create({
-      // Haiku is 2-3x faster than Sonnet — needed to fit the 60s function limit
+      // Haiku is 2-3x faster than Sonnet - needed to fit the 60s function limit
       // while generating 30 questions with context + go-deeper, and influence
       // profiles in the prompt.
       model: 'claude-haiku-4-5-20251001',

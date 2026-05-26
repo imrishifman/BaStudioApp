@@ -13,7 +13,7 @@ interface EpisodeGuestData {
 /**
  * Make sure an episode's guest exists in the Guest CRM. Creates a Warm
  * (confirmed) guest the first time, or links the episode to an existing one.
- * Never throws — guest sync must not block saving an episode.
+ * Never throws - guest sync must not block saving an episode.
  */
 export async function ensureGuestFromEpisode(
   ownerEmail: string,

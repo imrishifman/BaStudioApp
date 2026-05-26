@@ -515,7 +515,7 @@ export function ShowDnaClient({ show }: { show: Show }) {
           <Textarea
             className={inputCls}
             rows={6}
-            placeholder="e.g. Early-stage founders who care about craft over hype, mostly 25–40, technical but time-poor…"
+            placeholder="e.g. Early-stage founders who care about craft over hype, mostly 25-40, technical but time-poor…"
             value={fields.targetAudience ?? ''}
             onChange={(e) => setField('targetAudience', e.target.value)}
           />
@@ -532,7 +532,7 @@ export function ShowDnaClient({ show }: { show: Show }) {
             placeholder="e.g. Find the failure story, not the Wikipedia page."
             value={fields.aiResearchInstructions ?? ''} onChange={(v) => setField('aiResearchInstructions', v)} />
           <TextField label="Question instructions" multiline
-            placeholder="e.g. Never ask yes/no — always find the unexplored angle."
+            placeholder="e.g. Never ask yes/no - always find the unexplored angle."
             value={fields.aiQuestionInstructions ?? ''} onChange={(v) => setField('aiQuestionInstructions', v)} />
           <TextField label="Script instructions" multiline
             placeholder="Voice, tone, and structure preferences for the intro and full script."

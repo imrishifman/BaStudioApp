@@ -140,7 +140,7 @@ export function AILoadingScreen({ progress, onCancel }: Props) {
         </p>
       </div>
 
-      <p className="body-sm text-[var(--ink-3)]">This usually takes 10–30 seconds. Hang tight.</p>
+      <p className="body-sm text-[var(--ink-3)]">This usually takes 10-30 seconds. Hang tight.</p>
 
       {elapsed >= 45 && !done && (
         <div className="flex flex-col items-center gap-2">

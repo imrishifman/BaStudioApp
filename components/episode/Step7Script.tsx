@@ -85,7 +85,13 @@ export function Step7Script({ episode, onNext }: Props) {
 
   function exportDocx() {
     if (!script) return
-    downloadScriptDocx(`${episode?.guestName ?? 'episode'}-script`, script)
+    downloadScriptDocx(
+      {
+        title: `${episode?.guestName ?? 'Episode'} - Interview Script`,
+        subtitle: episode?.title ?? undefined,
+      },
+      script,
+    )
   }
 
   return (

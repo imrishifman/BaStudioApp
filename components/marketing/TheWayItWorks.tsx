@@ -45,7 +45,7 @@ export function TheWayItWorks() {
     offset: ['start start', 'end end'],
   })
 
-  // Which chapter is active (0–3)
+  // Which chapter is active (0-3)
   const chapterIndex = useTransform(scrollYProgress, [0, 0.25, 0.5, 0.75, 1], [0, 1, 2, 3, 3])
 
   return (
@@ -59,7 +59,7 @@ export function TheWayItWorks() {
           className="mx-auto grid w-full max-w-[1240px] grid-cols-1 gap-16 md:grid-cols-2"
           style={{ padding: '0 clamp(20px, 5vw, 80px)' }}
         >
-          {/* Left — text column */}
+          {/* Left - text column */}
           <div className="flex flex-col justify-center">
             <p className="eyebrow mb-10 text-[var(--ink-3)]">How it works</p>
 
@@ -73,7 +73,7 @@ export function TheWayItWorks() {
             ))}
           </div>
 
-          {/* Right — visual placeholder (WebGL state driven by scroll) */}
+          {/* Right - visual placeholder (WebGL state driven by scroll) */}
           <div className="hidden items-center justify-center md:flex">
             <motion.div
               className="relative flex h-[480px] w-[380px] items-center justify-center rounded-[var(--radius-xl)]"

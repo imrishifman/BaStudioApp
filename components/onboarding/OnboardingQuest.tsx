@@ -29,7 +29,7 @@ export function OnboardingQuest({
             Get started {doneCount === steps.length ? '🎉' : '🚀'}
           </p>
           <p className="body-sm text-[var(--ink-3)]">
-            {doneCount} of {steps.length} complete — finish setting up your studio.
+            {doneCount} of {steps.length} complete - finish setting up your studio.
           </p>
         </div>
         <button

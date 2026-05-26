@@ -9,17 +9,21 @@ import { FeatureLockModal } from '@/components/common/FeatureLockModal'
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard'
 import { OnboardingQuest, type QuestStep } from '@/components/onboarding/OnboardingQuest'
 import { ProductTour } from '@/components/onboarding/ProductTour'
+import { ShowCard } from '@/components/shows/ShowCard'
 import { StreakCard } from '@/components/studio/StreakCard'
 import { computeStreak } from '@/lib/streak'
 import { maxEpisodesPerMonth, episodesThisMonth } from '@/lib/plan-gating'
 import { formatDate } from '@/lib/utils'
-import { ArrowRight, Plus, Clock, CheckCircle2, Mic2, BookOpen } from 'lucide-react'
+import { ArrowRight, Plus, Clock, CheckCircle2, Mic2, BookOpen, Pencil, Trash2, X, Check as CheckIcon } from 'lucide-react'
 import Link from 'next/link'
+import { toast } from 'sonner'
 import type { Session } from 'next-auth'
+
+type ShowWithEpisodes = Show & { episodes: { status: string }[] }
 
 interface Props {
   episodes: Episode[]
-  shows: Show[]
+  shows: ShowWithEpisodes[]
   user: { fullName: string | null; plan: string; onboardingComplete: boolean; skippedDnaSetup: boolean; aiResearchCountThisMonth: number } | null
   guestCount: number
   publishedDates: string[]
@@ -45,8 +49,40 @@ export function StudioClient({ episodes, shows, user, guestCount, publishedDates
     !user?.onboardingComplete && !user?.skippedDnaSetup
   )
   const [questDismissed, setQuestDismissed] = useState(false)
+  const [editMode, setEditMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [deleting, setDeleting] = useState(false)
 
-  // Onboarding quest — computed from real data, reappears each sign-in until done
+  function toggleSelected(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  async function deleteSelected() {
+    if (selectedIds.size === 0) return
+    if (!confirm(`Delete ${selectedIds.size} episode${selectedIds.size > 1 ? 's' : ''}? This cannot be undone.`)) return
+    setDeleting(true)
+    try {
+      await Promise.all(
+        Array.from(selectedIds).map(id =>
+          fetch(`/api/episodes/${id}`, { method: 'DELETE' })
+        )
+      )
+      toast.success(`Deleted ${selectedIds.size}`)
+      setSelectedIds(new Set())
+      setEditMode(false)
+      router.refresh()
+    } catch {
+      toast.error('Could not delete some episodes')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  // Onboarding quest - computed from real data, reappears each sign-in until done
   const hasDna = shows.some(
     (s) =>
       !!(s.openingLine || s.closingQuestion || s.targetAudience || s.aiResearchInstructions) ||
@@ -175,24 +211,16 @@ export function StudioClient({ episodes, shows, user, guestCount, publishedDates
         </GlassCard>
       )}
 
-      {/* Shows strip */}
+      {/* Shows */}
       {shows.length > 0 && (
         <div>
           <div className="mb-4 flex items-center justify-between">
             <p className="body font-semibold text-[var(--ink-1)]">Your shows</p>
             <Link href="/shows" className="body-sm text-[var(--ink-3)] hover:text-[var(--ink-1)]">See all</Link>
           </div>
-          <div className="flex gap-4 overflow-x-auto pb-2">
-            {shows.map(show => (
-              <Link key={show.id} href={`/shows/${show.id}`}>
-                <GlassCard hover className="flex w-44 shrink-0 flex-col gap-2 p-4">
-                  <div
-                    className="mb-1 aspect-video rounded-[var(--radius-sm)]"
-                    style={{ background: show.coverImageUrl ? undefined : 'var(--bg-3)', backgroundImage: show.coverImageUrl ? `url(${show.coverImageUrl})` : undefined, backgroundSize: 'cover' }}
-                  />
-                  <p className="body-sm font-semibold text-[var(--ink-1)] line-clamp-1">{show.name}</p>
-                </GlassCard>
-              </Link>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {shows.slice(0, 3).map(show => (
+              <ShowCard key={show.id} show={show} />
             ))}
           </div>
         </div>
@@ -213,10 +241,45 @@ export function StudioClient({ episodes, shows, user, guestCount, publishedDates
       {/* In progress */}
       {inProgress.length > 0 && (
         <div>
-          <p className="body mb-3 font-semibold text-[var(--ink-1)]">In progress</p>
+          <div className="mb-3 flex items-center justify-between">
+            <p className="body font-semibold text-[var(--ink-1)]">In progress</p>
+            {editMode ? (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={deleteSelected}
+                  disabled={deleting || selectedIds.size === 0}
+                  className="body-sm flex items-center gap-1 rounded-full px-3 py-1 font-semibold disabled:opacity-50"
+                  style={{ background: 'var(--error)', color: '#fff' }}
+                >
+                  <Trash2 size={13} /> Delete{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
+                </button>
+                <button
+                  onClick={() => { setEditMode(false); setSelectedIds(new Set()) }}
+                  className="body-sm flex items-center gap-1 rounded-full border px-3 py-1 text-[var(--ink-2)]"
+                  style={{ borderColor: 'var(--line-2)' }}
+                >
+                  <X size={13} /> Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setEditMode(true)}
+                className="body-sm flex items-center gap-1 rounded-full border px-3 py-1 text-[var(--ink-2)] hover:text-[var(--ink-1)]"
+                style={{ borderColor: 'var(--line-2)' }}
+              >
+                <Pencil size={13} /> Edit
+              </button>
+            )}
+          </div>
           <div className="space-y-2">
             {inProgress.slice(0, 6).map(ep => (
-              <EpisodeRow key={ep.id} episode={ep} />
+              <EpisodeRow
+                key={ep.id}
+                episode={ep}
+                editing={editMode}
+                selected={selectedIds.has(ep.id)}
+                onToggle={() => toggleSelected(ep.id)}
+              />
             ))}
           </div>
         </div>
@@ -229,25 +292,47 @@ export function StudioClient({ episodes, shows, user, guestCount, publishedDates
   )
 }
 
-function EpisodeRow({ episode }: { episode: Episode }) {
-  return (
-    <Link href={`/episodes/${episode.id}`}>
-      <GlassCard hover className="flex items-center justify-between gap-4 p-4">
-        <div className="min-w-0">
-          <p className="body font-medium text-[var(--ink-1)] truncate">
-            {episode.title ?? episode.guestName}
-          </p>
-          <p className="body-sm text-[var(--ink-3)]">
-            {episode.guestName} · Updated {formatDate(episode.updatedAt)}
-          </p>
-        </div>
+function EpisodeRow({
+  episode,
+  editing,
+  selected,
+  onToggle,
+}: {
+  episode: Episode
+  editing?: boolean
+  selected?: boolean
+  onToggle?: () => void
+}) {
+  const inner = (
+    <GlassCard
+      hover={!editing}
+      onClick={editing ? onToggle : undefined}
+      className="flex items-center justify-between gap-4 p-4"
+      style={selected ? { borderColor: 'var(--accent-violet)', background: 'rgba(167,139,250,0.06)' } : undefined}
+    >
+      {editing && (
         <span
-          className="body-sm shrink-0 rounded-full px-2.5 py-1 font-semibold"
-          style={{ background: `${STATUS_COLOR[episode.status]}18`, color: STATUS_COLOR[episode.status] }}
+          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
+          style={{ background: selected ? 'var(--accent-violet)' : 'transparent', border: `1px solid ${selected ? 'var(--accent-violet)' : 'var(--line-2)'}` }}
         >
-          {STATUS_LABEL[episode.status]}
+          {selected && <CheckIcon size={12} color="white" />}
         </span>
-      </GlassCard>
-    </Link>
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="body font-medium text-[var(--ink-1)] truncate">
+          {episode.title ?? episode.guestName}
+        </p>
+        <p className="body-sm text-[var(--ink-3)]">
+          {episode.guestName} · Updated {formatDate(episode.updatedAt)}
+        </p>
+      </div>
+      <span
+        className="body-sm shrink-0 rounded-full px-2.5 py-1 font-semibold"
+        style={{ background: `${STATUS_COLOR[episode.status]}18`, color: STATUS_COLOR[episode.status] }}
+      >
+        {STATUS_LABEL[episode.status]}
+      </span>
+    </GlassCard>
   )
+  return editing ? <div>{inner}</div> : <Link href={`/episodes/${episode.id}`}>{inner}</Link>
 }

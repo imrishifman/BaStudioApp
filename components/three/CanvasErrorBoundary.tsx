@@ -25,7 +25,7 @@ export class CanvasErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: unknown) {
     if (process.env.NODE_ENV !== 'production') {
-      console.warn('Hero canvas failed — showing fallback:', error)
+      console.warn('Hero canvas failed - showing fallback:', error)
     }
   }
 

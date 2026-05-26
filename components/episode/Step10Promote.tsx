@@ -94,7 +94,7 @@ export function Step10Promote({ episode, onNext }: Props) {
       {!loading && (
         <div className="flex items-center gap-3">
           <PillButton onClick={handleDone}>
-            <CheckCircle2 size={14} /> Done — episode published
+            <CheckCircle2 size={14} /> Done - episode published
           </PillButton>
           <button onClick={() => onNext()} className="body-sm text-[var(--ink-3)] underline hover:text-[var(--ink-1)]">
             Skip

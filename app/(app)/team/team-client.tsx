@@ -101,7 +101,7 @@ function TeamsPanel({ teams, shows }: { teams: Team[]; shows: Show[] }) {
           </div>
           <p className="body font-semibold text-[var(--ink-1)]">No teams yet</p>
           <p className="body-sm text-[var(--ink-3)]">
-            Create a team, attach it to a show, and add members — it&apos;ll auto-attach to that show&apos;s new episodes.
+            Create a team, attach it to a show, and add members - it&apos;ll auto-attach to that show&apos;s new episodes.
           </p>
         </GlassCard>
       ) : (

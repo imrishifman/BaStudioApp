@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { PillButton } from '@/components/common/PillButton'
 import { ArrowRight } from 'lucide-react'
 
-// Celebratory bookend shown once the full script is generated — mirrors the
+// Celebratory bookend shown once the full script is generated - mirrors the
 // AI loading overlay's language (same orb), closing the loop on the journey.
 export function EpisodeReadyOverlay({ onContinue }: { onContinue: () => void }) {
   useEffect(() => {
@@ -36,7 +36,7 @@ export function EpisodeReadyOverlay({ onContinue }: { onContinue: () => void }) 
       <div className="text-center">
         <h2 className="display-sm text-[var(--ink-1)]">Your episode is ready</h2>
         <p className="body mt-2 max-w-sm text-[var(--ink-2)]">
-          Research, questions, intro, and script — all done. Take it from here.
+          Research, questions, intro, and script - all done. Take it from here.
         </p>
       </div>
       <PillButton onClick={onContinue}>

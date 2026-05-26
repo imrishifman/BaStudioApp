@@ -29,7 +29,7 @@ export async function POST(req: Request) {
   const existing = await prisma.user.findUnique({ where: { email } })
   if (existing) {
     return NextResponse.json(
-      { error: 'Email already registered — try signing in instead.' },
+      { error: 'Email already registered - try signing in instead.' },
       { status: 409 }
     )
   }

@@ -41,7 +41,7 @@ export async function POST(req: Request) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://bastudio.app'
   const ics = buildIcs({
     uid: `booking-${slot.id}-${Date.now()}@bastudio`,
-    title: `${show.name} — Recording with ${guestName.trim()}`,
+    title: `${show.name} - Recording with ${guestName.trim()}`,
     description: `Podcast recording for "${show.name}" with ${hostName} and ${guestName.trim()}.`,
     start,
     durationMinutes: 60,
@@ -74,13 +74,13 @@ export async function POST(req: Request) {
         from: FROM,
         to: guestEmail,
         subject: `You're booked: ${show.name}`,
-        html: `<p>Hi ${guestName.trim()},</p><p>Your recording slot for <strong>${show.name}</strong> is confirmed for <strong>${when} (UTC)</strong>. The calendar invite is attached — add it to your calendar.</p><p>See you then!</p>`,
+        html: `<p>Hi ${guestName.trim()},</p><p>Your recording slot for <strong>${show.name}</strong> is confirmed for <strong>${when} (UTC)</strong>. The calendar invite is attached - add it to your calendar.</p><p>See you then!</p>`,
         attachments,
       }),
       resend.emails.send({
         from: FROM,
         to: host.email,
-        subject: `New booking: ${guestName.trim()} — ${show.name}`,
+        subject: `New booking: ${guestName.trim()} - ${show.name}`,
         html: `<p>${guestName.trim()} (${guestEmail}) booked a recording slot for <strong>${show.name}</strong> on <strong>${when} (UTC)</strong>. The calendar invite is attached.</p>`,
         attachments,
       }),

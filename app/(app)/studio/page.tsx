@@ -16,6 +16,7 @@ export default async function StudioPage() {
     prisma.show.findMany({
       where: { ownerEmail: session.user.email },
       orderBy: { updatedAt: 'desc' },
+      include: { episodes: { select: { status: true } } },
     }),
     prisma.user.findUnique({
       where: { email: session.user.email },

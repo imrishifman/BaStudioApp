@@ -44,7 +44,7 @@ export function DNASection() {
   const [activeTab, setActiveTab] = useState<Tab>('Structure')
   const [paused, setPaused] = useState(false)
 
-  // Auto-advance through the tabs every 2 seconds — stops once the user clicks.
+  // Auto-advance through the tabs every 2 seconds - stops once the user clicks.
   useEffect(() => {
     if (paused) return
     const interval = setInterval(() => {

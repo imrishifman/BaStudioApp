@@ -18,7 +18,7 @@ export async function postAI<T = unknown>(
   try {
     data = raw ? JSON.parse(raw) : {}
   } catch {
-    // Non-JSON body — almost always a platform timeout or crash page.
+    // Non-JSON body - almost always a platform timeout or crash page.
     if (res.status === 504 || /timed?\s*out|timeout/i.test(raw)) {
       throw new Error('The AI took too long and timed out. Please try again.')
     }

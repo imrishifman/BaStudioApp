@@ -46,7 +46,7 @@ export function AppPricingClient({ currentPlan }: Props) {
 
   function handleUpgrade(planKey: Plan) {
     if (planKey === currentPlan) return
-    toast('Paid plans are coming soon — hang tight!')
+    toast('Paid plans are coming soon - hang tight!')
   }
 
   return (

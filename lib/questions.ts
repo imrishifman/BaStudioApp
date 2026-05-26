@@ -49,7 +49,7 @@ function normalizeQuestion(raw: unknown): GenQuestion | null {
 }
 
 // Accepts the new sectioned object, the legacy flat array ([{id,text,section}]),
-// or null — and always returns a clean section→questions map plus any stored
+// or null - and always returns a clean section→questions map plus any stored
 // section metadata.
 export function normalizeGenerated(generated: unknown): {
   map: GeneratedMap

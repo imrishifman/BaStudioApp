@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/providers'
+import { ScrollToTopOnNav } from '@/components/common/ScrollToTopOnNav'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -37,7 +38,10 @@ export default function RootLayout({
     >
       <body className="min-h-full antialiased">
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        <Providers>{children}</Providers>
+        <Providers>
+          <ScrollToTopOnNav />
+          {children}
+        </Providers>
       </body>
     </html>
   )

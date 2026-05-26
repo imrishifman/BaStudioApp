@@ -45,11 +45,11 @@
   --ink-3: rgba(245, 245, 247, 0.48);
   --ink-4: rgba(245, 245, 247, 0.24);
 
-  /* Lines — hairline, never thicker than 1px */
+  /* Lines - hairline, never thicker than 1px */
   --line-1: rgba(255, 255, 255, 0.08);
   --line-2: rgba(255, 255, 255, 0.14);
 
-  /* Vision Pro accent — used sparingly */
+  /* Vision Pro accent - used sparingly */
   --accent-violet: #a78bfa;
   --accent-cyan: #67e8f9;
   --accent-pink: #fba5c9;

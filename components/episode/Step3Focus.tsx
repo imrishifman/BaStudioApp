@@ -48,7 +48,7 @@ export function Step3Focus({ episode, onNext }: Props) {
         <p className="eyebrow mb-1 text-[var(--ink-3)]">Step 3 of 10</p>
         <h2 className="display-sm text-[var(--ink-1)]">Focus the interview</h2>
         <p className="body mt-1 text-[var(--ink-2)]">
-          These shape every question and the whole script. Answer at least two — more is better.
+          These shape every question and the whole script. Answer at least two - more is better.
         </p>
       </div>
 
