@@ -44,60 +44,125 @@ function buildDnaSection(show: DnaShow): string {
   return lines.length ? `\n\nPodcast DNA (shape everything to fit this show):\n${lines.join('\n')}` : ''
 }
 
-export function buildResearchPrompt(
-  guestName: string,
-  links: string[],
-  extraContext: string | null,
-  mode: 'initial' | 'deep',
-  show: DnaShow | null,
-  existingResearch?: string
-) {
-  const linksSection = links.length
-    ? `\nPrimary sources — check these first with web_search:\n${links.map((l) => `- ${l}`).join('\n')}`
-    : ''
-  const extra = extraContext ? `\nContext / bio from the host: ${extraContext}` : ''
-  const dna = show ? buildDnaSection(show) : ''
-  const depth = mode === 'deep'
-    ? 'Be exhaustive: run multiple searches across career timeline, publications, awards, quotes, companies, controversies, personal interests, and upcoming projects.'
-    : 'Run a few focused searches to verify the key facts.'
-  const customInstructions = show?.aiResearchInstructions ? `\nCustom instructions: ${show.aiResearchInstructions}` : ''
-  const deepDelta = mode === 'deep' && existingResearch
-    ? `\n\nYou already have the research below. Find ONLY NEW information not already covered here — do not repeat anything from it:\n"""\n${existingResearch.slice(0, 4000)}\n"""\nReturn just the NEW findings as additional markdown sections.`
-    : ''
-
-  return `You are a world-class podcast researcher with live web access. Research ${guestName} for a podcast interview.
-
-Use the web_search tool to verify facts from real sources. Treat the provided links as primary sources and check them first.${linksSection}${extra}${dna}${customInstructions}${deepDelta}
-
-${depth}
-
-IMPORTANT — accuracy over completeness: only include verifiable facts you actually found. Do NOT fabricate, invent, or infer details, dates, quotes, or achievements. If unsure, leave it out.
-
-Use the Podcast DNA above to decide what matters: surface the stories and angles that fit this show's audience and style.
-
-Write a structured research brief in markdown with these sections:
-## Background & origin story
-## Notable achievements
-## Recent work & current focus
-## Areas of expertise
-## Angles & stories worth exploring on this show
-
-Output ONLY the brief — no preamble, no closing remarks.`
+export interface ResearchInput {
+  guestName: string
+  socialLinks?: { linkedin?: string | null; twitter?: string | null; instagram?: string | null; website?: string | null }
+  knownBio?: string | null
+  extraContext?: string | null
+  mode: 'initial' | 'deep'
+  show: DnaShow | null
+  existingResearch?: string | null
 }
 
-// Distills the research brief into an on-air bio. Length + energy are tunable so
-// Step 2 can produce a richer "expanded bio" or a punchier regeneration.
+export function buildResearchPrompt(input: ResearchInput): string {
+  const { guestName, socialLinks = {}, knownBio, extraContext, mode, show, existingResearch } = input
+
+  const linkLines: string[] = []
+  if (socialLinks.linkedin) linkLines.push(`  LinkedIn: ${socialLinks.linkedin}`)
+  if (socialLinks.twitter) linkLines.push(`  Twitter/X: ${socialLinks.twitter}`)
+  if (socialLinks.instagram) linkLines.push(`  Instagram: ${socialLinks.instagram}`)
+  if (socialLinks.website) linkLines.push(`  Website: ${socialLinks.website}`)
+  const linksBlock = linkLines.length
+    ? `\nPROFILE LINKS (treat these as authoritative primary sources — visit them and use the content directly):\n${linkLines.join('\n')}`
+    : ''
+  const bioBlock = knownBio?.trim()
+    ? `\nKNOWN BIO (pre-extracted from guest document — treat as ground truth):\n  ${knownBio.trim().replace(/\n/g, '\n  ')}`
+    : ''
+  const ctxBlock = extraContext?.trim()
+    ? `\nADDITIONAL CONTEXT (from host's notes or uploaded document):\n  ${extraContext.trim().replace(/\n/g, '\n  ')}`
+    : ''
+  const dnaBlock = show ? buildDnaSection(show) : ''
+  const customInstructions = show?.aiResearchInstructions
+    ? `\nCustom instructions from the host: ${show.aiResearchInstructions}`
+    : ''
+
+  // INITIAL pass — the foundational deep-research brief.
+  if (mode === 'initial') {
+    return `You are a world-class podcast researcher with live web access. Research the following guest for a podcast interview.
+
+GUEST NAME: "${guestName}"${linksBlock}${bioBlock}${ctxBlock}${dnaBlock}${customInstructions}
+
+Use the web_search tool. VISIT those profile pages first and extract information directly from them, then run a few focused Google/web searches to fill in the rest.
+
+Return a single Markdown brief that covers:
+- Full name and current title/role
+- Professional background and career journey (4-6 sentences)
+- Key achievements, awards, or recognition
+- Recent projects, books, companies, or news (last 2-3 years)
+- Core areas of expertise and thought leadership topics
+- Interesting personal background or origin story (if publicly known)
+- Verified social media and website links
+- General web research that confirms this is the right person
+
+CRITICAL GUARDRAILS:
+- VISIT those pages first and extract information directly from them.
+- Do NOT confuse this person with others who share a similar name.
+- Only include facts you can verify. If something is uncertain, omit it.
+- Do not fabricate achievements, dates, or quotes.
+
+Return the brief text only — no preamble.`
+  }
+
+  // DEEP pass — find ONLY new info across the 12 categories.
+  const existing = (existingResearch ?? '').slice(0, 5000) || '(no prior research)'
+  return `You are a world-class podcast researcher with live web access. You have already produced the brief below about ${guestName}. Do not repeat anything from it.
+
+We already know the following about this person — DO NOT repeat any of this:
+"""
+${existing}
+"""${linksBlock}${bioBlock}${ctxBlock}${dnaBlock}${customInstructions}
+
+Find ONLY NEW information across these twelve categories, using web_search:
+1. Full career timeline with specific dates
+2. Every major publication, book, article, podcast appearance, or media feature
+3. Awards, recognitions, and accolades (with years)
+4. Key quotes and philosophies expressed publicly
+5. Business ventures, companies founded (with details)
+6. Educational background and mentors/influences
+7. Controversies or pivotal career moments
+8. Community involvement, charities, or causes
+9. Personal interests, hobbies, or passions (publicly known)
+10. Upcoming projects, announcements, or events
+11. Unique or contrarian views in their field
+12. What peers and industry leaders say about them
+
+CRITICAL GUARDRAILS:
+- Only include facts you can verify. If something is uncertain, omit it.
+- Do not fabricate achievements, dates, or quotes.
+- Be highly specific — include names, numbers, or dates wherever possible.
+
+Return the new findings only, as Markdown with one section per category that has new info. Omit categories with no verified new info.`
+}
+
+// Distills the research brief into an on-air bio. Mode/opts let Step 2 produce
+// either a punchier regeneration or a richer 4-5 sentence "expanded bio".
 export function buildBioPrompt(
   research: string,
   guestName: string,
   show: Pick<Show, 'hostEnergy' | 'targetAudience'> | null,
-  opts: { sentences?: string; punchy?: boolean } = {}
+  opts: { sentences?: '2-3' | '4-5'; punchy?: boolean; expanded?: boolean } = {}
 ) {
-  const length = opts.sentences ?? '2-3 sentences'
-  const punch = opts.punchy
-    ? ' Make this version punchier and more exciting than a standard bio — a different angle from anything generic.'
-    : ''
-  return `Using ONLY the research below, write a clean ${length} on-air bio for ${guestName}, focused on their current role and most notable achievement. Match the tone — host energy: ${show?.hostEnergy ?? 'warm_casual'}, audience: ${show?.targetAudience ?? 'general'}. Do not add anything not present in the research.${punch}
+  const length = opts.sentences ?? '2-3'
+  // Default (initial pass) — spec wording verbatim.
+  if (length === '2-3' && !opts.punchy) {
+    return `Based ONLY on the verified research below, write a clear and accurate 2-3 sentence bio for ${guestName}. Do not add anything that is not explicitly stated in the research. Focus on their current role, most notable achievement, and what makes them distinctive.
+
+Research:
+${research}
+
+Return only the bio text — no preamble, no quotation marks.`
+  }
+  // "Regenerate Bio" — punchier 2-3 sentence, deliberately different.
+  if (length === '2-3' && opts.punchy) {
+    return `Based ONLY on the verified research below, write a NEW 2-3 sentence on-air bio for ${guestName} that's punchier and more exciting than a standard bio — and clearly different from a vanilla retelling. Tone: host energy ${show?.hostEnergy ?? 'warm_casual'}, audience ${show?.targetAudience ?? 'general'}. Do not add anything not in the research.
+
+Research:
+${research}
+
+Return only the bio text — no preamble, no quotation marks.`
+  }
+  // Deep "expanded bio" — 4-5 sentences highlighting lesser-known details.
+  return `Based ONLY on the verified research below, write an "expanded bio" for ${guestName}: 4-5 sentences that highlight lesser-known details and specific achievements with dates or numbers wherever the research supports them. Tone: host energy ${show?.hostEnergy ?? 'warm_casual'}, audience ${show?.targetAudience ?? 'general'}. Do not add anything not present in the research.
 
 Research:
 ${research}
@@ -105,9 +170,58 @@ ${research}
 Return only the bio text — no preamble, no quotation marks.`
 }
 
-// Extracts verifiable fun facts from the research brief (count tunable).
-export function buildFunFactsPrompt(research: string, guestName: string, count = 5) {
-  return `From the research below about ${guestName}, extract ${count} accurate, verifiable, genuinely interesting facts. Use ONLY facts present in the research — do not invent or infer.
+// Per-interviewer style profile across the 7 dimensions. Saved as text and
+// later injected into question generation under INTERVIEW STYLE INFLUENCES.
+export function buildInfluencerProfilePrompt(name: string): string {
+  return `Create a detailed interviewer personality profile for: "${name}".
+
+1. Questioning Philosophy — short punchy questions or long setup questions?
+2. Opening Style — small talk, direct dive, provocative opener?
+3. Silence & Pacing — how they handle silence and pauses
+4. Emotional Tone — warm / challenging / playful / reverent?
+5. What They Never Do — behaviors or approaches they avoid
+6. Signature Move — one distinctive thing they always do that makes their interviews stand out
+7. Example Question Formats — 3 specific question formats typical of their style
+
+Be specific and actionable — this profile will be used to guide AI question generation.
+Return clean markdown with one section per item. No preamble.`
+}
+
+// URL-based show research → structured JSON profile.
+export function buildShowFromUrlPrompt(url: string): string {
+  return `Research the podcast at this URL: "${url}".
+
+If the URL is a podcast page (Apple Podcasts, Spotify, YouTube, or an episode link), use it to identify the show and research its interviewing style with web_search.
+
+Return JSON with:
+- show_name (string, or null if you cannot confidently identify the show)
+- host_name (string, or null)
+- vibe (one sentence overall vibe)
+- questioning_philosophy
+- opening_style
+- emotional_register (warm / cold / challenging / reverent / playful / investigative / etc.)
+- pacing
+- what_they_never_do
+- signature_move
+- example_question_formats (array of 3 format descriptions)
+- full_profile (rich paragraph combining all of the above — for use in AI prompts)
+
+If not enough public info exists, set show_name to null and leave the other fields empty.
+Return ONLY the JSON object.`
+}
+
+// Extracts verifiable fun facts from the research brief. Count + specificity
+// tunable so the Deep pass can request 10 highly-specific facts.
+export function buildFunFactsPrompt(
+  research: string,
+  guestName: string,
+  count = 5,
+  opts: { specific?: boolean } = {}
+) {
+  const specific = opts.specific
+    ? ' Each fact must be highly specific and surprising — include names, numbers, or dates wherever possible.'
+    : ''
+  return `Based ONLY on the verified research below, extract ${count} interesting and accurate facts about ${guestName}. IMPORTANT: Only include facts explicitly supported by the research. Do not invent or infer.${specific}
 
 Research:
 ${research}
@@ -121,6 +235,7 @@ export function buildQuestionsPrompt(
   sections: QSection[],
   previousQuestions: string[],
   influences: string[] = [],
+  influenceProfiles: Record<string, string> = {},
   // Capped to fit the 60s serverless function limit on Hobby (Sonnet can't
   // generate ~40 richly-annotated questions in time). Raise on Vercel Pro.
   targetTotal = 24
@@ -133,8 +248,15 @@ export function buildQuestionsPrompt(
     ? `\nAvoid repeating these previously-asked questions:\n${previousQuestions.slice(0, 20).join('\n')}`
     : ''
 
-  const influenceStr = influences.length
-    ? `\nInterview style influences — emulate how these hosts ask questions: ${influences.join(', ')}.`
+  // Researched influencers contribute a full style profile; unresearched ones
+  // only contribute their name — so researched ones carry more weight.
+  const influenceBlock = influences.length
+    ? `\n\nINTERVIEW STYLE INFLUENCES:\nGenerate questions in the spirit of these interview styles:\n\n${influences
+        .map((name) => {
+          const profile = influenceProfiles[name]?.trim()
+          return profile ? `${name}:\n${profile}` : `${name}:\n(name only — style profile not researched)`
+        })
+        .join('\n---\n')}\n\nDo not copy their questions — adopt their questioning instincts.`
     : ''
 
   const perSection = Math.max(3, Math.round(targetTotal / Math.max(1, sections.length)))
@@ -155,7 +277,7 @@ Podcast DNA:
 - Host energy: ${show?.hostEnergy ?? 'warm_casual'}
 - Pacing: ${show?.pacing ?? 'balanced'}
 - Humor level: ${show?.humorLevel ?? 'light'}
-- Audience: ${show?.targetAudience ?? 'general'}${influenceStr}${prevStr}${customInstructions}
+- Audience: ${show?.targetAudience ?? 'general'}${prevStr}${customInstructions}${influenceBlock}
 
 Generate roughly ${targetTotal} questions total — about ${perSection} per section (weight more toward the core/middle sections). Return a JSON object whose keys are EXACTLY these section keys (and nothing else):
 ${sections.map(s => `- "${s.key}"  (${s.name})`).join('\n')}

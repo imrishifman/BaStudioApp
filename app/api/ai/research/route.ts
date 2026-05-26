@@ -36,15 +36,17 @@ export async function POST(req: Request) {
   // Pull the guest's links + context + show DNA straight from the episode.
   let show = null
   let extraContext: string | null = null
-  let links: string[] = []
   const ep = episodeId
     ? await prisma.episode.findFirst({ where: { id: episodeId, createdByEmail: session.user.email } })
     : null
+  const socialLinks = {
+    linkedin: ep?.guestLinkedinUrl ?? null,
+    twitter: ep?.guestTwitterUrl ?? null,
+    instagram: ep?.guestInstagramUrl ?? null,
+    website: ep?.guestWebsiteUrl ?? null,
+  }
   if (ep) {
     extraContext = ep.guestExtraContext ?? null
-    links = [ep.guestLinkedinUrl, ep.guestTwitterUrl, ep.guestInstagramUrl, ep.guestWebsiteUrl].filter(
-      (l): l is string => !!l
-    )
     if (ep.showId) show = await prisma.show.findUnique({ where: { id: ep.showId } })
   }
 
@@ -68,7 +70,15 @@ export async function POST(req: Request) {
       model: 'claude-sonnet-4-6',
       max_tokens: 4000,
       tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: isDeep ? 4 : 3 }],
-      messages: [{ role: 'user', content: buildResearchPrompt(guestName, links, extraContext, mode, show, isDeep ? ep?.guestResearch ?? undefined : undefined) }],
+      messages: [{ role: 'user', content: buildResearchPrompt({
+        guestName,
+        socialLinks,
+        knownBio: null,
+        extraContext,
+        mode,
+        show,
+        existingResearch: isDeep ? ep?.guestResearch ?? null : null,
+      }) }],
     })
     const newResearch = allText(researchMsg)
     if (!newResearch) throw new Error('No research could be produced')
@@ -89,12 +99,12 @@ export async function POST(req: Request) {
       anthropic.messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: isDeep ? 600 : 400,
-        messages: [{ role: 'user', content: buildBioPrompt(research, guestName, show, isDeep ? { sentences: '4-5 sentences' } : {}) }],
+        messages: [{ role: 'user', content: buildBioPrompt(research, guestName, show, isDeep ? { sentences: '4-5' } : {}) }],
       }),
       anthropic.messages.create({
-        model: 'claude-sonnet-4-6',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: isDeep ? 900 : 600,
-        messages: [{ role: 'user', content: buildFunFactsPrompt(research, guestName, isDeep ? 10 : 5) }],
+        messages: [{ role: 'user', content: buildFunFactsPrompt(research, guestName, isDeep ? 10 : 5, { specific: isDeep }) }],
       }),
     ])
     const bio = allText(bioMsg)

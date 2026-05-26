@@ -4,7 +4,7 @@ import { useState } from 'react'
 import type { Episode, Show } from '@prisma/client'
 import { PillButton } from '@/components/common/PillButton'
 import { GlassCard } from '@/components/common/GlassCard'
-import { Sparkles, Check, Plus } from 'lucide-react'
+import { Sparkles, Check, Telescope, ChevronDown, Link as LinkIcon, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useAILoading } from './AILoadingContext'
@@ -18,41 +18,96 @@ interface Props {
   userEmail: string
 }
 
-// 16 well-known interviewers to emulate.
-const INFLUENCERS = [
-  'Lex Fridman', 'Tim Ferriss', 'Brené Brown', 'Joe Rogan',
-  'Oprah Winfrey', 'Howard Stern', 'Terry Gross', 'Marc Maron',
-  'Krista Tippett', 'Cal Fussman', 'Guy Raz', 'Dax Shepard',
-  'Trevor Noah', 'Conan O’Brien', 'Esther Perel', 'Ezra Klein',
+// The 16 built-in interviewers (per spec) — name + emoji + one-line description.
+const INFLUENCERS: { name: string; emoji: string; desc: string }[] = [
+  { name: 'Lex Fridman', emoji: '🎙', desc: 'Long-form, philosophical, deeply curious' },
+  { name: "Conan O'Brien", emoji: '😂', desc: 'Playful, warm, comedic and disarming' },
+  { name: 'Tim Ferriss', emoji: '💡', desc: 'Tactical, deconstructing success, habit-focused' },
+  { name: 'Andrew Huberman', emoji: '🧠', desc: 'Science-driven, educational, precise' },
+  { name: 'Brené Brown', emoji: '❤️', desc: 'Vulnerable, emotional, story-led' },
+  { name: 'How I Built This (Guy Raz)', emoji: '💼', desc: 'Founder journey, narrative arc, humble' },
+  { name: 'Diary of a CEO (Steven Bartlett)', emoji: '🔥', desc: 'Raw, personal, challenging assumptions' },
+  { name: 'Howard Stern', emoji: '🎤', desc: 'Provocative, deeply personal, nothing off-limits' },
+  { name: 'Armchair Expert (Dax Shepard)', emoji: '📖', desc: 'Conversational, honest, meandering in a good way' },
+  { name: 'Fresh Air (Terry Gross)', emoji: '🌍', desc: 'Literary, precise, culturally informed' },
+  { name: 'My First Million', emoji: '💰', desc: 'Business ideas, energetic, riff-based' },
+  { name: 'Rich Roll', emoji: '🧬', desc: 'Wellness, transformation, depth over entertainment' },
+  { name: 'Masters of Scale (Reid Hoffman)', emoji: '🎯', desc: 'Strategic, counterintuitive, big-picture' },
+  { name: 'SmartLess (Bateman/Arnett/Hayes)', emoji: '🌟', desc: 'Surprise-driven, fun, celebrity banter' },
+  { name: 'Hot Ones', emoji: '🎬', desc: 'Unexpected questions, disarming format, genuine moments' },
+  { name: 'This American Life', emoji: '📻', desc: 'Narrative storytelling, emotional truth, journalism' },
 ]
+const BUILTIN_NAMES = new Set(INFLUENCERS.map((i) => i.name))
 
 const MAX = 3
 
 export function Step4Style({ episode, onNext }: Props) {
   const { runAI } = useAILoading()
   const [selected, setSelected] = useState<string[]>(episode?.interviewInfluences ?? [])
-  const [custom, setCustom] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [profiles, setProfiles] = useState<Record<string, string>>(
+    () => ((episode?.influenceProfiles as Record<string, string> | null) ?? {})
+  )
+  // Custom cards from previous URL research / custom additions.
+  const [customDescs, setCustomDescs] = useState<Record<string, string>>({})
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+  const [researching, setResearching] = useState<Record<string, boolean>>({})
+  const [url, setUrl] = useState('')
+  const [urlLoading, setUrlLoading] = useState(false)
+  const [generating, setGenerating] = useState(false)
 
   function toggle(name: string) {
-    setSelected(prev =>
+    setSelected((prev) =>
       prev.includes(name)
-        ? prev.filter(v => v !== name)
+        ? prev.filter((v) => v !== name)
         : prev.length >= MAX ? prev : [...prev, name]
     )
   }
 
-  function addCustom() {
-    const name = custom.trim()
-    if (!name) return
-    if (selected.length >= MAX) { toast.error(`Pick up to ${MAX}`); return }
-    if (!selected.includes(name)) setSelected(prev => [...prev, name])
-    setCustom('')
+  async function researchStyle(name: string) {
+    if (!episode?.id || profiles[name]) return
+    setResearching((r) => ({ ...r, [name]: true }))
+    try {
+      const data = await postAI<{ profile?: string }>('/api/ai/influencer-profile', { episodeId: episode.id, name })
+      if (data.profile) {
+        setProfiles((p) => ({ ...p, [name]: data.profile! }))
+        setExpanded((e) => ({ ...e, [name]: true }))
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not research style')
+    } finally {
+      setResearching((r) => ({ ...r, [name]: false }))
+    }
+  }
+
+  async function researchUrl() {
+    if (!episode?.id || !url.trim()) return
+    setUrlLoading(true)
+    try {
+      const data = await postAI<{ found: boolean; name?: string; vibe?: string; profile?: string }>(
+        '/api/ai/influencer-from-url',
+        { episodeId: episode.id, url: url.trim() }
+      )
+      if (!data.found || !data.name) {
+        toast.error('Could not identify a show at that URL. Try adding by name.')
+        return
+      }
+      setProfiles((p) => ({ ...p, [data.name!]: data.profile ?? '' }))
+      setCustomDescs((d) => ({ ...d, [data.name!]: data.vibe ?? '' }))
+      // Auto-select the new card (within cap).
+      setSelected((prev) =>
+        prev.includes(data.name!) || prev.length >= MAX ? prev : [...prev, data.name!]
+      )
+      setUrl('')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not research that show')
+    } finally {
+      setUrlLoading(false)
+    }
   }
 
   async function generateQuestions() {
     if (!episode?.id) return
-    setLoading(true)
+    setGenerating(true)
     try {
       await runAI('questions', async (signal) =>
         postAI('/api/ai/questions', {
@@ -62,18 +117,26 @@ export function Step4Style({ episode, onNext }: Props) {
           influences: selected,
         }, signal)
       )
-      // Questions are saved server-side; advance to the selection step.
       await onNext({ interviewInfluences: selected, status: 'questions' })
     } catch (err) {
       if ((err as Error)?.name !== 'AbortError') {
         toast.error(err instanceof Error ? err.message : 'Could not generate questions')
       }
     } finally {
-      setLoading(false)
+      setGenerating(false)
     }
   }
 
-  const customSelected = selected.filter(s => !INFLUENCERS.includes(s))
+  // All cards to render = the 16 built-ins + any selected names that aren't built-in
+  // (custom additions from URL research or prior episodes).
+  const customNames = Array.from(
+    new Set([...selected, ...Object.keys(customDescs)])
+  ).filter((n) => !BUILTIN_NAMES.has(n))
+
+  const cards: { name: string; emoji: string; desc: string }[] = [
+    ...INFLUENCERS,
+    ...customNames.map((n) => ({ name: n, emoji: '🔍', desc: customDescs[n] ?? 'Custom influence' })),
+  ]
 
   return (
     <div className="space-y-6">
@@ -81,56 +144,92 @@ export function Step4Style({ episode, onNext }: Props) {
         <p className="eyebrow mb-1 text-[var(--ink-3)]">Step 4 of 10</p>
         <h2 className="display-sm text-[var(--ink-1)]">Interview style</h2>
         <p className="body mt-1 text-[var(--ink-2)]">
-          Pick up to {MAX} interviewers whose style should shape your questions ({selected.length}/{MAX}).
+          Pick up to {MAX} interviewers whose style should shape your questions ({selected.length}/{MAX}). Click <em>Research this style</em> on the ones you choose so the AI can truly emulate them.
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {INFLUENCERS.map(name => {
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {cards.map(({ name, emoji, desc }) => {
           const active = selected.includes(name)
+          const hasProfile = !!profiles[name]
+          const isResearching = !!researching[name]
           return (
             <GlassCard
               key={name}
-              onClick={() => toggle(name)}
-              className={cn('flex cursor-pointer items-center gap-2 p-3 transition-all')}
+              className={cn('flex flex-col gap-2 p-3 transition-all')}
               style={active ? { borderColor: 'var(--accent-violet)', background: 'rgba(167,139,250,0.06)' } : undefined}
             >
-              <span
-                className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full"
-                style={{ background: active ? 'var(--accent-violet)' : 'transparent', border: `1px solid ${active ? 'var(--accent-violet)' : 'var(--line-2)'}` }}
-              >
-                {active && <Check size={10} color="white" />}
-              </span>
-              <span className="body-sm text-[var(--ink-1)]">{name}</span>
+              <button onClick={() => toggle(name)} className="flex w-full items-start gap-2.5 text-left">
+                <span className="text-xl leading-none">{emoji}</span>
+                <span className="flex-1">
+                  <span className="body-sm block font-semibold text-[var(--ink-1)]">{name}</span>
+                  <span className="block text-[12px] text-[var(--ink-3)]">{desc}</span>
+                </span>
+                <span
+                  className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full"
+                  style={{ background: active ? 'var(--accent-violet)' : 'transparent', border: `1px solid ${active ? 'var(--accent-violet)' : 'var(--line-2)'}` }}
+                >
+                  {active && <Check size={10} color="white" />}
+                </span>
+              </button>
+
+              {active && (
+                <div className="border-t pt-2" style={{ borderColor: 'var(--line-1)' }}>
+                  {hasProfile ? (
+                    <div>
+                      <button
+                        onClick={() => setExpanded((e) => ({ ...e, [name]: !e[name] }))}
+                        className="flex items-center gap-1 text-[12px] font-semibold text-[var(--accent-violet)] hover:underline"
+                      >
+                        <ChevronDown size={12} className={cn('transition-transform', expanded[name] && 'rotate-180')} />
+                        Style profile
+                      </button>
+                      {expanded[name] && (
+                        <pre className="mt-2 whitespace-pre-wrap text-[11px] text-[var(--ink-2)]" style={{ fontFamily: 'inherit' }}>
+                          {profiles[name]}
+                        </pre>
+                      )}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => researchStyle(name)}
+                      disabled={isResearching}
+                      className="flex items-center gap-1 text-[12px] font-semibold text-[var(--accent-violet)] hover:underline disabled:opacity-50"
+                    >
+                      {isResearching ? <Loader2 size={12} className="animate-spin" /> : <Telescope size={12} />}
+                      {isResearching ? 'Researching style…' : 'Research this style →'}
+                    </button>
+                  )}
+                </div>
+              )}
             </GlassCard>
           )
         })}
       </div>
 
-      <div className="flex gap-2">
-        <input
-          value={custom}
-          onChange={e => setCustom(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom() } }}
-          placeholder="Add a custom name…"
-          className="body-sm flex-1 rounded-[var(--radius-sm)] px-3 py-2"
-          style={{ background: 'var(--bg-2)', border: '1px solid var(--line-2)', color: 'var(--ink-1)' }}
-        />
-        <PillButton variant="secondary" size="sm" onClick={addCustom}><Plus size={14} /> Add</PillButton>
+      {/* Paste a podcast URL */}
+      <div className="space-y-1.5">
+        <p className="eyebrow text-[var(--ink-3)]">Or paste a podcast URL</p>
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <LinkIcon size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--ink-4)]" />
+            <input
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); researchUrl() } }}
+              placeholder="Apple Podcasts, Spotify, YouTube, or episode link"
+              disabled={urlLoading}
+              className="body-sm w-full rounded-[var(--radius-sm)] py-2 pl-7 pr-3"
+              style={{ background: 'var(--bg-2)', border: '1px solid var(--line-2)', color: 'var(--ink-1)' }}
+            />
+          </div>
+          <PillButton variant="secondary" size="sm" onClick={researchUrl} disabled={urlLoading || !url.trim()}>
+            {urlLoading ? <><Loader2 size={13} className="animate-spin" /> Researching…</> : <><Telescope size={13} /> Research</>}
+          </PillButton>
+        </div>
       </div>
 
-      {customSelected.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {customSelected.map(s => (
-            <span key={s} className="body-sm rounded-full px-3 py-1" style={{ background: 'rgba(167,139,250,0.12)', color: 'var(--accent-violet)' }}>
-              {s}
-              <button onClick={() => toggle(s)} className="ml-2 opacity-70 hover:opacity-100">×</button>
-            </span>
-          ))}
-        </div>
-      )}
-
-      <PillButton onClick={generateQuestions} disabled={loading} size="lg">
+      <PillButton onClick={generateQuestions} disabled={generating || selected.length === 0} size="lg">
         <Sparkles size={16} /> Generate Questions
       </PillButton>
     </div>

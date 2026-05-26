@@ -37,12 +37,14 @@ export async function POST(req: Request) {
     return Object.values(map).flat().map(q => q.question)
   })
 
+  const profiles = (episode.influenceProfiles as Record<string, string> | null) ?? {}
   const prompt = buildQuestionsPrompt(
     { ...episode, focusAnswers: focusAnswers ?? episode.focusAnswers },
     show,
     sections,
     prevQs,
-    Array.isArray(influences) ? influences : (episode.interviewInfluences ?? [])
+    Array.isArray(influences) ? influences : (episode.interviewInfluences ?? []),
+    profiles
   )
 
   try {
