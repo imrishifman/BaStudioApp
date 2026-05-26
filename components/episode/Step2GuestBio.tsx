@@ -39,19 +39,29 @@ export function Step2GuestBio({ episode, onNext }: Props) {
     if (!episode?.id) return
     setLoading(true)
     try {
+      // Split into two phases so each Vercel function call fits in 60s:
+      //   1) research (web search) → saves guestResearch
+      //   2) derive  (bio + facts in parallel from saved research)
+      // Plus a best-effort intro draft on the initial pass.
       const data = await runAI('research', async (signal) => {
-        const json = await postAI<{ bio?: string; research?: string; funFacts?: string[] }>('/api/ai/research', {
+        const r = await postAI<{ research?: string }>('/api/ai/research', {
           episodeId: episode.id,
           guestName: episode.guestName,
           mode,
+          phase: 'research',
         }, signal)
-        // On the first pass, also draft a DNA-aware intro (best-effort, no status change).
+        const d = await postAI<{ bio?: string; funFacts?: string[] }>('/api/ai/research', {
+          episodeId: episode.id,
+          guestName: episode.guestName,
+          mode,
+          phase: 'derive',
+        }, signal)
         if (mode === 'initial' && !episode.introductionScript) {
           try {
             await postAI('/api/ai/script', { episodeId: episode.id, showId: episode.showId, kind: 'intro', setStatus: false }, signal)
-          } catch { /* the early intro draft is a bonus */ }
+          } catch { /* bonus */ }
         }
-        return json
+        return { ...r, ...d }
       })
       setBio(data.bio ?? bio)
       setResearch(data.research ?? research)

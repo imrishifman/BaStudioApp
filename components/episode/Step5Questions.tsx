@@ -6,7 +6,7 @@ import type { Episode, Show } from '@prisma/client'
 import { PillButton } from '@/components/common/PillButton'
 import { GlassCard } from '@/components/common/GlassCard'
 import { Textarea } from '@/components/ui/textarea'
-import { Sparkles, Star, RefreshCw, ArrowRight, Lock, Pencil, Check, X } from 'lucide-react'
+import { Sparkles, Star, RefreshCw, ArrowRight, Lock, Pencil, Check, X, CornerDownRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useAILoading } from './AILoadingContext'
@@ -221,7 +221,12 @@ export function Step5Questions({ episode, show, onNext }: Props) {
                             ) : (
                               <>
                                 <p className="body text-[var(--ink-1)]">{q.question}</p>
-                                {q.context && <p className="body-sm mt-1 text-[var(--ink-4)]">{q.context}</p>}
+                                {q.context && (
+                                  <div className="mt-2 flex items-start gap-1.5">
+                                    <CornerDownRight size={12} className="mt-0.5 shrink-0 text-[var(--accent-violet)]" />
+                                    <p className="body-sm text-[var(--ink-3)]">{q.context}</p>
+                                  </div>
+                                )}
                               </>
                             )}
                           </div>

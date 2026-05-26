@@ -143,9 +143,12 @@ export function buildBioPrompt(
   opts: { sentences?: '2-3' | '4-5'; punchy?: boolean; expanded?: boolean } = {}
 ) {
   const length = opts.sentences ?? '2-3'
-  // Default (initial pass) — spec wording verbatim.
+  // Universal tone rule — never apologize for gaps.
+  const tone = ` Write confidently and positively. Lead with what's distinctive, interesting, and impressive. NEVER say things like "couldn't find", "not enough information", "limited public details", or any other phrase that points out gaps — just work with what the research provides.`
+
+  // Default (initial pass) — spec wording.
   if (length === '2-3' && !opts.punchy) {
-    return `Based ONLY on the verified research below, write a clear and accurate 2-3 sentence bio for ${guestName}. Do not add anything that is not explicitly stated in the research. Focus on their current role, most notable achievement, and what makes them distinctive.
+    return `Based ONLY on the verified research below, write a clear and accurate 2-3 sentence bio for ${guestName}. Focus on their current role, most notable achievement, and what makes them distinctive.${tone}
 
 Research:
 ${research}
@@ -154,7 +157,7 @@ Return only the bio text — no preamble, no quotation marks.`
   }
   // "Regenerate Bio" — punchier 2-3 sentence, deliberately different.
   if (length === '2-3' && opts.punchy) {
-    return `Based ONLY on the verified research below, write a NEW 2-3 sentence on-air bio for ${guestName} that's punchier and more exciting than a standard bio — and clearly different from a vanilla retelling. Tone: host energy ${show?.hostEnergy ?? 'warm_casual'}, audience ${show?.targetAudience ?? 'general'}. Do not add anything not in the research.
+    return `Based ONLY on the verified research below, write a NEW 2-3 sentence on-air bio for ${guestName} that's punchier and more exciting than a standard bio — and clearly different from a vanilla retelling. Tone: host energy ${show?.hostEnergy ?? 'warm_casual'}, audience ${show?.targetAudience ?? 'general'}.${tone}
 
 Research:
 ${research}
@@ -162,7 +165,7 @@ ${research}
 Return only the bio text — no preamble, no quotation marks.`
   }
   // Deep "expanded bio" — 4-5 sentences highlighting lesser-known details.
-  return `Based ONLY on the verified research below, write an "expanded bio" for ${guestName}: 4-5 sentences that highlight lesser-known details and specific achievements with dates or numbers wherever the research supports them. Tone: host energy ${show?.hostEnergy ?? 'warm_casual'}, audience ${show?.targetAudience ?? 'general'}. Do not add anything not present in the research.
+  return `Based ONLY on the verified research below, write an "expanded bio" for ${guestName}: 4-5 sentences that highlight lesser-known details and specific achievements with dates or numbers wherever the research supports them. Tone: host energy ${show?.hostEnergy ?? 'warm_casual'}, audience ${show?.targetAudience ?? 'general'}.${tone}
 
 Research:
 ${research}
@@ -326,11 +329,15 @@ Podcast DNA (match this voice):
 - Intro style: ${show?.guestIntroStyle ?? 'host_reads_bio'}
 - Opening line template: ${show?.openingLine ?? 'none'}${customInstructions}
 
-The intro should be warm, specific to this guest, draw on the research, and match the show's DNA so it sounds like this host on this show. The goal: make a listener who has never heard of the guest want to keep listening.
+The intro should be specific to this guest, draw on the research, and match the show's DNA. The goal: make a listener who has never heard of the guest want to keep listening.
 
-Format it as 3-4 short paragraphs, each prefixed with "HOST:" — written word-for-word for the host to read on air.
+Format it as 1-2 short paragraphs, each prefixed with "HOST:" — written word-for-word for the host to read on air.
 
-Return JSON: { "script": "HOST: ...\\n\\nHOST: ...\\n\\nHOST: ..." }`
+Hard constraints:
+- MAXIMUM 750 characters total (count letters, not words). Be ruthless — cut every spare word.
+- Excited, high-energy, punchy delivery. Pack it tight; every sentence earns its spot.
+
+Return JSON: { "script": "HOST: ...\\n\\nHOST: ..." }`
   }
 
   // Rich question block, grouped by section with context + go-deeper notes.

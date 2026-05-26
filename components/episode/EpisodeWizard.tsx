@@ -115,6 +115,7 @@ export function EpisodeWizard({ episode: initialEpisode, shows, userEmail }: Pro
 
   async function goNext(patch?: Partial<Episode>) {
     const leavingLabel = steps[currentStep - 1]?.label
+    const isLastStep = currentStep >= steps.length
     setDir(1)
     if (patch) await createOrUpdateEpisode({ ...patch, currentStep: currentStep + 1 })
     else if (episode?.id) {
@@ -123,6 +124,11 @@ export function EpisodeWizard({ episode: initialEpisode, shows, userEmail }: Pro
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ currentStep: currentStep + 1 }),
       })
+    }
+    // Past the final step (Promote / Share) → head back to Studio home.
+    if (isLastStep) {
+      router.push('/studio')
+      return
     }
     setCurrentStep(s => Math.min(s + 1, steps.length))
     // Celebrate once the full script is done.

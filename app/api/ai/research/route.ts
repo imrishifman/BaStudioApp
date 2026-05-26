@@ -6,7 +6,8 @@ import { buildResearchPrompt, buildBioPrompt, buildFunFactsPrompt } from '@/lib/
 import { extractJson, aiErrorMessage } from '@/lib/ai/json'
 import { ensureGuestFromEpisode } from '@/lib/guest-sync'
 
-// Web-search research + two follow-up calls can take a while.
+// Each phase is its own serverless invocation, so each call fits in 60s even
+// when the deep research includes web search.
 export const maxDuration = 60
 
 // Concatenate the text blocks of a message (web-search responses also include
@@ -19,21 +20,32 @@ function allText(message: Anthropic.Message): string {
     .trim()
 }
 
+/**
+ * The research route is split into phases so each phase fits comfortably under
+ * the 60s function limit:
+ *
+ *  - phase 'research' (default) + mode 'initial' | 'deep': runs the web-search
+ *    research and saves guestResearch. Returns { research }. NO bio/facts here.
+ *  - phase 'derive': uses the existing guestResearch to write bio + fun facts
+ *    in parallel. Returns { bio, funFacts }.
+ *  - mode 'regenerate-bio': lightweight bio re-write from existing research.
+ *
+ * The client (Step 2) calls research → derive in sequence, behind one overlay.
+ */
 export async function POST(req: Request) {
   const anthropic = new Anthropic()
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { episodeId, guestName, mode = 'initial' } = await req.json()
+  const { episodeId, guestName, mode = 'initial', phase = 'research' } = await req.json()
 
-  // Plan limits — free plan: 1 research call ever (skip for the lightweight bio regen)
   const user = await prisma.user.findUnique({ where: { email: session.user.email } })
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 })
-  if (mode !== 'regenerate-bio' && user.plan === 'free' && user.aiResearchCountThisMonth >= 1) {
+  // Free-plan research limit only counts the heavy research phase.
+  if (phase === 'research' && mode !== 'regenerate-bio' && user.plan === 'free' && user.aiResearchCountThisMonth >= 1) {
     return NextResponse.json({ error: 'Research limit reached. Upgrade to continue.' }, { status: 403 })
   }
 
-  // Pull the guest's links + context + show DNA straight from the episode.
   let show = null
   let extraContext: string | null = null
   const ep = episodeId
@@ -51,7 +63,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    // Lightweight path: just regenerate a punchier bio from existing research.
+    // ── Lightweight: just regenerate a punchier bio from existing research ──
     if (mode === 'regenerate-bio') {
       const existing = ep?.guestResearch ?? ''
       const bioMsg = await anthropic.messages.create({
@@ -64,12 +76,42 @@ export async function POST(req: Request) {
       return NextResponse.json({ bio })
     }
 
+    // ── Phase 'derive': bio + fun facts from already-saved research ──
+    if (phase === 'derive') {
+      const research = ep?.guestResearch ?? ''
+      if (!research) return NextResponse.json({ error: 'No research to derive from' }, { status: 400 })
+      const isDeep = mode === 'deep'
+      const [bioMsg, factsMsg] = await Promise.all([
+        // Bio on Haiku — faster, and bio is short; keeps the function well under 60s.
+        anthropic.messages.create({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: isDeep ? 600 : 400,
+          messages: [{ role: 'user', content: buildBioPrompt(research, guestName, show, isDeep ? { sentences: '4-5' } : {}) }],
+        }),
+        anthropic.messages.create({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: isDeep ? 900 : 600,
+          messages: [{ role: 'user', content: buildFunFactsPrompt(research, guestName, isDeep ? 10 : 5, { specific: isDeep }) }],
+        }),
+      ])
+      const bio = allText(bioMsg)
+      let funFacts: string[] = []
+      try {
+        funFacts = extractJson<{ facts?: string[] }>(allText(factsMsg)).facts ?? []
+      } catch { funFacts = [] }
+      if (episodeId) {
+        const updated = await prisma.episode.update({ where: { id: episodeId }, data: { guestBio: bio, funFacts } })
+        await ensureGuestFromEpisode(session.user.email, updated)
+      }
+      return NextResponse.json({ bio, funFacts })
+    }
+
+    // ── Phase 'research' (default): web-search research only ──
     const isDeep = mode === 'deep'
-    // Call 1 — research with live web search. Deep mode finds ONLY new info.
     const researchMsg = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 4000,
-      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: isDeep ? 6 : 5 }],
+      max_tokens: isDeep ? 3000 : 3500,
+      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: isDeep ? 4 : 5 }],
       messages: [{ role: 'user', content: buildResearchPrompt({
         guestName,
         socialLinks,
@@ -86,49 +128,17 @@ export async function POST(req: Request) {
     const research = isDeep && ep?.guestResearch
       ? `${ep.guestResearch}\n\n---\n## Deep research (additional findings)\n${newResearch}`
       : newResearch
-
     if (episodeId) {
       await prisma.episode.updateMany({
         where: { id: episodeId, createdByEmail: session.user.email },
         data: { guestResearch: research },
       })
     }
-
-    // Calls 2 & 3 — bio + fun facts in parallel. Deep mode = richer bio + 10 facts.
-    const [bioMsg, factsMsg] = await Promise.all([
-      anthropic.messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: isDeep ? 600 : 400,
-        messages: [{ role: 'user', content: buildBioPrompt(research, guestName, show, isDeep ? { sentences: '4-5' } : {}) }],
-      }),
-      anthropic.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: isDeep ? 900 : 600,
-        messages: [{ role: 'user', content: buildFunFactsPrompt(research, guestName, isDeep ? 10 : 5, { specific: isDeep }) }],
-      }),
-    ])
-    const bio = allText(bioMsg)
-    let funFacts: string[] = []
-    try {
-      funFacts = extractJson<{ facts?: string[] }>(allText(factsMsg)).facts ?? []
-    } catch {
-      funFacts = []
-    }
-
-    if (episodeId) {
-      const updated = await prisma.episode.update({
-        where: { id: episodeId },
-        data: { guestBio: bio, funFacts },
-      })
-      // Guest CRM side-effect: create/link the guest as confirmed.
-      await ensureGuestFromEpisode(session.user.email, updated)
-    }
     await prisma.user.update({
       where: { email: session.user.email },
       data: { aiResearchCountThisMonth: { increment: 1 } },
     })
-
-    return NextResponse.json({ bio, research, funFacts })
+    return NextResponse.json({ research })
   } catch (err) {
     console.error('Research AI error:', err)
     const { message, status } = aiErrorMessage(err)
