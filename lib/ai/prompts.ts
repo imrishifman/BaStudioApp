@@ -63,7 +63,7 @@ export function buildResearchPrompt(input: ResearchInput): string {
   if (socialLinks.instagram) linkLines.push(`  Instagram: ${socialLinks.instagram}`)
   if (socialLinks.website) linkLines.push(`  Website: ${socialLinks.website}`)
   const linksBlock = linkLines.length
-    ? `\nPROFILE LINKS (treat these as authoritative primary sources — visit them and use the content directly):\n${linkLines.join('\n')}`
+    ? `\nPROFILE LINKS — use these to confirm you're researching the RIGHT person (disambiguation only, NOT your only sources):\n${linkLines.join('\n')}`
     : ''
   const bioBlock = knownBio?.trim()
     ? `\nKNOWN BIO (pre-extracted from guest document — treat as ground truth):\n  ${knownBio.trim().replace(/\n/g, '\n  ')}`
@@ -82,7 +82,7 @@ export function buildResearchPrompt(input: ResearchInput): string {
 
 GUEST NAME: "${guestName}"${linksBlock}${bioBlock}${ctxBlock}${dnaBlock}${customInstructions}
 
-Use the web_search tool. VISIT those profile pages first and extract information directly from them, then run a few focused Google/web searches to fill in the rest.
+Research broadly on the internet using web_search. Run multiple searches across Google, news sites, official sites, podcasts, articles, Wikipedia — wherever the best information lives. Use the PROFILE LINKS above only to confirm you have the right person (cross-check identity), not as the only sources.
 
 Return a single Markdown brief that covers:
 - Full name and current title/role
@@ -95,8 +95,8 @@ Return a single Markdown brief that covers:
 - General web research that confirms this is the right person
 
 CRITICAL GUARDRAILS:
-- VISIT those pages first and extract information directly from them.
-- Do NOT confuse this person with others who share a similar name.
+- Research broadly across the internet — do NOT limit yourself to the profile links.
+- Use the profile links to confirm identity and disambiguate from people with similar names.
 - Only include facts you can verify. If something is uncertain, omit it.
 - Do not fabricate achievements, dates, or quotes.
 
@@ -189,12 +189,16 @@ Return clean markdown with one section per item. No preamble.`
 
 // URL-based show research → structured JSON profile.
 export function buildShowFromUrlPrompt(url: string): string {
-  return `Research the podcast at this URL: "${url}".
+  return `Identify the podcast at this URL and research its interviewing style: "${url}"
 
-If the URL is a podcast page (Apple Podcasts, Spotify, YouTube, or an episode link), use it to identify the show and research its interviewing style with web_search.
+Approach (use web_search):
+1. Look at the URL — extract any show name, host name, or keywords visible in the domain or path.
+2. Run web_search with the URL itself, plus a separate search for the extracted name/keywords + the word "podcast", to identify which show this is.
+3. Once identified, run 1-2 more searches to learn the host's interviewing style.
+4. If the URL clearly points to Apple Podcasts, Spotify, YouTube, or a podcast site, the show name is almost always derivable — don't give up too quickly.
 
 Return JSON with:
-- show_name (string, or null if you cannot confidently identify the show)
+- show_name (string, or null only if you genuinely cannot identify the show after searching)
 - host_name (string, or null)
 - vibe (one sentence overall vibe)
 - questioning_philosophy
@@ -206,7 +210,6 @@ Return JSON with:
 - example_question_formats (array of 3 format descriptions)
 - full_profile (rich paragraph combining all of the above — for use in AI prompts)
 
-If not enough public info exists, set show_name to null and leave the other fields empty.
 Return ONLY the JSON object.`
 }
 
@@ -236,9 +239,9 @@ export function buildQuestionsPrompt(
   previousQuestions: string[],
   influences: string[] = [],
   influenceProfiles: Record<string, string> = {},
-  // Capped to fit the 60s serverless function limit on Hobby (Sonnet can't
-  // generate ~40 richly-annotated questions in time). Raise on Vercel Pro.
-  targetTotal = 24
+  // Capped to fit the 60s serverless function limit. With Haiku (2-3x faster
+  // than Sonnet) we can land ~30 richly-annotated questions in time.
+  targetTotal = 30
 ) {
   const focusStr = Array.isArray(episode.focusAnswers)
     ? (episode.focusAnswers as string[]).map((a, i) => `${i + 1}. ${a}`).join('\n')

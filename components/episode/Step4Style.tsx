@@ -4,7 +4,7 @@ import { useState } from 'react'
 import type { Episode, Show } from '@prisma/client'
 import { PillButton } from '@/components/common/PillButton'
 import { GlassCard } from '@/components/common/GlassCard'
-import { Sparkles, Check, Telescope, ChevronDown, Link as LinkIcon, Loader2 } from 'lucide-react'
+import { Sparkles, Check, Telescope, Link as LinkIcon, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useAILoading } from './AILoadingContext'
@@ -49,32 +49,30 @@ export function Step4Style({ episode, onNext }: Props) {
   )
   // Custom cards from previous URL research / custom additions.
   const [customDescs, setCustomDescs] = useState<Record<string, string>>({})
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [researching, setResearching] = useState<Record<string, boolean>>({})
   const [url, setUrl] = useState('')
   const [urlLoading, setUrlLoading] = useState(false)
   const [generating, setGenerating] = useState(false)
 
   function toggle(name: string) {
-    setSelected((prev) =>
-      prev.includes(name)
-        ? prev.filter((v) => v !== name)
-        : prev.length >= MAX ? prev : [...prev, name]
-    )
+    setSelected((prev) => {
+      const isOn = prev.includes(name)
+      if (isOn) return prev.filter((v) => v !== name)
+      if (prev.length >= MAX) return prev
+      // Newly selected — silently research the style in the background so the
+      // profile is ready for question generation. UI doesn't show the profile.
+      if (!profiles[name] && !researching[name]) researchStyleSilently(name)
+      return [...prev, name]
+    })
   }
 
-  async function researchStyle(name: string) {
+  async function researchStyleSilently(name: string) {
     if (!episode?.id || profiles[name]) return
     setResearching((r) => ({ ...r, [name]: true }))
     try {
       const data = await postAI<{ profile?: string }>('/api/ai/influencer-profile', { episodeId: episode.id, name })
-      if (data.profile) {
-        setProfiles((p) => ({ ...p, [name]: data.profile! }))
-        setExpanded((e) => ({ ...e, [name]: true }))
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not research style')
-    } finally {
+      if (data.profile) setProfiles((p) => ({ ...p, [name]: data.profile! }))
+    } catch { /* silent — questions still work with name-only */ } finally {
       setResearching((r) => ({ ...r, [name]: false }))
     }
   }
@@ -151,57 +149,28 @@ export function Step4Style({ episode, onNext }: Props) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {cards.map(({ name, emoji, desc }) => {
           const active = selected.includes(name)
-          const hasProfile = !!profiles[name]
           const isResearching = !!researching[name]
           return (
             <GlassCard
               key={name}
-              className={cn('flex flex-col gap-2 p-3 transition-all')}
+              onClick={() => toggle(name)}
+              className="flex cursor-pointer items-start gap-2.5 p-3 transition-all"
               style={active ? { borderColor: 'var(--accent-violet)', background: 'rgba(167,139,250,0.06)' } : undefined}
             >
-              <button onClick={() => toggle(name)} className="flex w-full items-start gap-2.5 text-left">
-                <span className="text-xl leading-none">{emoji}</span>
-                <span className="flex-1">
-                  <span className="body-sm block font-semibold text-[var(--ink-1)]">{name}</span>
-                  <span className="block text-[12px] text-[var(--ink-3)]">{desc}</span>
-                </span>
-                <span
-                  className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full"
-                  style={{ background: active ? 'var(--accent-violet)' : 'transparent', border: `1px solid ${active ? 'var(--accent-violet)' : 'var(--line-2)'}` }}
-                >
-                  {active && <Check size={10} color="white" />}
-                </span>
-              </button>
-
-              {active && (
-                <div className="border-t pt-2" style={{ borderColor: 'var(--line-1)' }}>
-                  {hasProfile ? (
-                    <div>
-                      <button
-                        onClick={() => setExpanded((e) => ({ ...e, [name]: !e[name] }))}
-                        className="flex items-center gap-1 text-[12px] font-semibold text-[var(--accent-violet)] hover:underline"
-                      >
-                        <ChevronDown size={12} className={cn('transition-transform', expanded[name] && 'rotate-180')} />
-                        Style profile
-                      </button>
-                      {expanded[name] && (
-                        <pre className="mt-2 whitespace-pre-wrap text-[11px] text-[var(--ink-2)]" style={{ fontFamily: 'inherit' }}>
-                          {profiles[name]}
-                        </pre>
-                      )}
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => researchStyle(name)}
-                      disabled={isResearching}
-                      className="flex items-center gap-1 text-[12px] font-semibold text-[var(--accent-violet)] hover:underline disabled:opacity-50"
-                    >
-                      {isResearching ? <Loader2 size={12} className="animate-spin" /> : <Telescope size={12} />}
-                      {isResearching ? 'Researching style…' : 'Research this style →'}
-                    </button>
-                  )}
-                </div>
+              <span className="text-xl leading-none">{emoji}</span>
+              <span className="flex-1">
+                <span className="body-sm block font-semibold text-[var(--ink-1)]">{name}</span>
+                <span className="block text-[12px] text-[var(--ink-3)]">{desc}</span>
+              </span>
+              {active && isResearching && (
+                <Loader2 size={12} className="mt-1 shrink-0 animate-spin text-[var(--ink-4)]" />
               )}
+              <span
+                className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full"
+                style={{ background: active ? 'var(--accent-violet)' : 'transparent', border: `1px solid ${active ? 'var(--accent-violet)' : 'var(--line-2)'}` }}
+              >
+                {active && <Check size={10} color="white" />}
+              </span>
             </GlassCard>
           )
         })}
