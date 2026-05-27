@@ -23,6 +23,14 @@ export async function GET(req: Request) {
     dbError = (e as Error)?.message?.slice(0, 160) ?? 'unknown error'
   }
 
+  // Fingerprint for the Google key: length + prefix + suffix only. NEVER the
+  // full value. Lets us confirm the runtime sees the right key vs an empty
+  // string vs a truncated paste.
+  const gk = process.env.GOOGLE_API_KEY ?? ''
+  const googleApiFingerprint = gk
+    ? `len=${gk.length} starts=${gk.slice(0, 4)} ends=${gk.slice(-3)}`
+    : '(missing or empty)'
+
   return NextResponse.json({
     ok: true,
     ts: new Date().toISOString(),
@@ -35,8 +43,11 @@ export async function GET(req: Request) {
       authSecret: present(process.env.AUTH_SECRET),
       authUrl: present(process.env.AUTH_URL),
       googleId: present(process.env.AUTH_GOOGLE_ID),
+      googleApi: present(process.env.GOOGLE_API_KEY),
       resend: present(process.env.RESEND_API_KEY),
     },
+    googleApiFingerprint,
+    googleVarNames: Object.keys(process.env).filter((k) => /goog/i.test(k)),
     anthropicVarNames: Object.keys(process.env).filter((k) => /anthrop/i.test(k)),
   })
 }
