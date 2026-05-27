@@ -188,9 +188,12 @@ model User {
   trialEndsAt                DateTime?
   stripeCustomerId           String?        @unique
   stripeSubscriptionId       String?        @unique
+  stripePriceId              String?
   subscriptionStart          DateTime?
   billingPeriod              BillingPeriod?
   subscriptionRenewedAt      DateTime?
+  currentPeriodEnd           DateTime?
+  cancelAtPeriodEnd          Boolean        @default(false)
   aiResearchCountThisMonth   Int            @default(0)
   brandColors                Json?
   brandLogoUrl               String?

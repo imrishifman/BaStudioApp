@@ -43,10 +43,32 @@ interface Props { currentPlan: Plan }
 
 export function AppPricingClient({ currentPlan }: Props) {
   const [annual, setAnnual] = useState(false)
+  const [pending, setPending] = useState<Plan | null>(null)
 
-  function handleUpgrade(planKey: Plan) {
+  async function handleUpgrade(planKey: Plan) {
     if (planKey === currentPlan) return
-    toast('Paid plans are coming soon - hang tight!')
+    if (planKey === 'free') {
+      toast('To downgrade, cancel your subscription from Account → Billing.')
+      return
+    }
+    setPending(planKey)
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: planKey, period: annual ? 'annual' : 'monthly' }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.url) {
+        toast.error(data.error ?? 'Could not start checkout')
+        return
+      }
+      window.location.href = data.url
+    } catch {
+      toast.error('Could not start checkout')
+    } finally {
+      setPending(null)
+    }
   }
 
   return (
@@ -102,9 +124,9 @@ export function AppPricingClient({ currentPlan }: Props) {
                     className="w-full"
                     variant={plan.recommended ? 'primary' : 'secondary'}
                     onClick={() => handleUpgrade(plan.key)}
-                    disabled={plan.key === 'free'}
+                    disabled={plan.key === 'free' || pending !== null}
                   >
-                    {plan.key === 'free' ? 'Downgrade' : `Upgrade to ${plan.name}`}
+                    {pending === plan.key ? 'Loading...' : plan.key === 'free' ? 'Downgrade' : `Upgrade to ${plan.name}`}
                   </PillButton>
                 )}
               </div>
