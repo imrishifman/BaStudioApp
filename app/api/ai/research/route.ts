@@ -2,7 +2,14 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import Anthropic from '@anthropic-ai/sdk'
-import { buildResearchPrompt, buildBioPrompt, buildFunFactsPrompt } from '@/lib/ai/prompts'
+import { GoogleGenAI } from '@google/genai'
+import {
+  buildResearchPrompt,
+  buildBioPrompt,
+  buildResearchPrefix,
+  buildBioInstruction,
+  buildFunFactsInstruction,
+} from '@/lib/ai/prompts'
 import { extractJson, aiErrorMessage } from '@/lib/ai/json'
 import { ensureGuestFromEpisode } from '@/lib/guest-sync'
 
@@ -81,17 +88,31 @@ export async function POST(req: Request) {
       const research = ep?.guestResearch ?? ''
       if (!research) return NextResponse.json({ error: 'No research to derive from' }, { status: 400 })
       const isDeep = mode === 'deep'
+      // Cached prefix is byte-identical across both parallel calls so the
+      // second hits Anthropic's ephemeral cache (~90% cheaper input read).
+      const prefix = buildResearchPrefix(research, guestName)
       const [bioMsg, factsMsg] = await Promise.all([
-        // Bio on Haiku - faster, and bio is short; keeps the function well under 60s.
         anthropic.messages.create({
           model: 'claude-haiku-4-5-20251001',
           max_tokens: isDeep ? 600 : 400,
-          messages: [{ role: 'user', content: buildBioPrompt(research, guestName, show, isDeep ? { sentences: '4-5' } : {}) }],
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'text', text: prefix, cache_control: { type: 'ephemeral' } },
+              { type: 'text', text: buildBioInstruction(guestName, show, isDeep ? { sentences: '4-5' } : {}) },
+            ],
+          }],
         }),
         anthropic.messages.create({
           model: 'claude-haiku-4-5-20251001',
           max_tokens: isDeep ? 900 : 600,
-          messages: [{ role: 'user', content: buildFunFactsPrompt(research, guestName, isDeep ? 10 : 5, { specific: isDeep }) }],
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'text', text: prefix, cache_control: { type: 'ephemeral' } },
+              { type: 'text', text: buildFunFactsInstruction(guestName, isDeep ? 10 : 5, { specific: isDeep }) },
+            ],
+          }],
         }),
       ])
       const bio = allText(bioMsg)
@@ -106,23 +127,56 @@ export async function POST(req: Request) {
       return NextResponse.json({ bio, funFacts })
     }
 
-    // ── Phase 'research' (default): web-search research only ──
+    // ── Phase 'research' (default): web-search research via Gemini 2.5 Flash ──
+    // Why Gemini here: Anthropic's web_search cannot read LinkedIn (LinkedIn
+    // blocks the bot). Gemini grounded via Google Search reads Google's indexed
+    // LinkedIn snippets, which is where most lesser-known guests' info lives.
+    // We keep Anthropic for everything downstream (bio, facts, questions,
+    // intro, script) - that's where Claude's writing quality earns its cost.
     const isDeep = mode === 'deep'
-    const researchMsg = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: isDeep ? 3000 : 3500,
-      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: isDeep ? 4 : 5 }],
-      messages: [{ role: 'user', content: buildResearchPrompt({
-        guestName,
-        socialLinks,
-        knownBio: null,
-        extraContext,
-        mode,
-        show,
-        existingResearch: isDeep ? ep?.guestResearch ?? null : null,
-      }) }],
+    if (!process.env.GOOGLE_API_KEY) {
+      throw new Error('GOOGLE_API_KEY is not configured')
+    }
+    const genai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY })
+    const researchPrompt = buildResearchPrompt({
+      guestName,
+      socialLinks,
+      knownBio: null,
+      extraContext,
+      mode,
+      show,
+      existingResearch: isDeep ? ep?.guestResearch ?? null : null,
     })
-    const newResearch = allText(researchMsg)
+    // Small retry loop: Gemini occasionally returns 503 UNAVAILABLE during
+    // demand spikes. Two short retries with backoff keep the user-visible
+    // failure rate near zero without blowing past the 60s function limit.
+    let geminiRes: Awaited<ReturnType<typeof genai.models.generateContent>> | null = null
+    let lastErr: unknown = null
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        geminiRes = await genai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: researchPrompt,
+          config: {
+            tools: [{ googleSearch: {} }],
+            maxOutputTokens: isDeep ? 3000 : 3500,
+            temperature: 0.4,
+          },
+        })
+        break
+      } catch (e) {
+        lastErr = e
+        const status = (e as { status?: number })?.status
+        // Only retry on transient server errors (503/429); fail fast on auth/billing.
+        if (status !== 503 && status !== 429) throw e
+        await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)))
+      }
+    }
+    if (!geminiRes) throw lastErr ?? new Error('Gemini call failed')
+    // Grounded responses put text in candidates[0].content.parts (the .text
+    // getter returns undefined when grounding metadata is attached).
+    const parts = geminiRes.candidates?.[0]?.content?.parts ?? []
+    const newResearch = parts.map((p) => p.text ?? '').join('').trim()
     if (!newResearch) throw new Error('No research could be produced')
     // Deep mode appends to the existing brief; initial replaces it.
     const research = isDeep && ep?.guestResearch

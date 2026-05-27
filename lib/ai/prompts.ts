@@ -63,7 +63,7 @@ export function buildResearchPrompt(input: ResearchInput): string {
   if (socialLinks.instagram) linkLines.push(`  Instagram: ${socialLinks.instagram}`)
   if (socialLinks.website) linkLines.push(`  Website: ${socialLinks.website}`)
   const linksBlock = linkLines.length
-    ? `\nPROFILE LINKS - use these to confirm you're researching the RIGHT person (disambiguation only, NOT your only sources):\n${linkLines.join('\n')}`
+    ? `\nPROFILE LINKS (PRIMARY SOURCES - extract content from these directly):\n${linkLines.join('\n')}\nUse these as primary sources. From LinkedIn specifically, extract: current role and employer, full work history with dates, education, languages, certifications, location, and any listed skills. Cross-reference and enrich with broader web search.`
     : ''
   const bioBlock = knownBio?.trim()
     ? `\nKNOWN BIO (pre-extracted from guest document - treat as ground truth):\n  ${knownBio.trim().replace(/\n/g, '\n  ')}`
@@ -82,7 +82,7 @@ export function buildResearchPrompt(input: ResearchInput): string {
 
 GUEST NAME: "${guestName}"${linksBlock}${bioBlock}${ctxBlock}${dnaBlock}${customInstructions}
 
-Research broadly on the internet using web_search. Run multiple searches across Google, news sites, official sites, podcasts, articles, Wikipedia - wherever the best information lives. Use the PROFILE LINKS above only to confirm you have the right person (cross-check identity), not as the only sources.
+Research broadly. Run multiple Google searches across news, official sites, podcasts, articles, Wikipedia, social media. If PROFILE LINKS are provided above, treat them as primary sources - especially LinkedIn, where you should pull role, employer, work history, education, and languages directly into the brief.
 
 Return a single Markdown brief that covers:
 - Full name and current title/role
@@ -97,11 +97,11 @@ Return a single Markdown brief that covers:
 - General web research that confirms this is the right person
 
 CRITICAL GUARDRAILS:
-- Research broadly across the internet. Do NOT limit yourself to the profile links.
-- Use the profile links to confirm identity and disambiguate from people with similar names.
+- Research broadly. Combine LinkedIn (if provided) with general web search.
+- Extract LinkedIn content directly: role, employer, work history with dates, education, languages.
 - Only include facts you can verify. If something is uncertain, omit it.
 - Do not fabricate achievements, dates, or quotes.
-- WRITING STYLE: never use em-dashes (-) in the output. Use hyphens, commas, or periods. Never apologize for missing information; just omit what you do not have.
+- WRITING STYLE: never use em-dashes (-) in the output. Use hyphens, commas, or periods. Never apologize for missing information; just write what you found, even if it's brief.
 
 Return the brief text only, no preamble.`
   }
@@ -139,6 +139,42 @@ Return the new findings only, as Markdown with one section per category that has
 
 // Distills the research brief into an on-air bio. Mode/opts let Step 2 produce
 // either a punchier regeneration or a richer 4-5 sentence "expanded bio".
+// Cacheable research prefix - kept byte-identical across bio + facts derive
+// calls so Anthropic's ephemeral prompt cache produces a hit on the 2nd call.
+export function buildResearchPrefix(research: string, guestName: string): string {
+  return `Guest: ${guestName}\n\nResearch (use ONLY this as ground truth):\n${research}`
+}
+
+// Bio instruction without the research blob - paired with buildResearchPrefix
+// as a separate (cached) content block at the call site.
+export function buildBioInstruction(
+  guestName: string,
+  show: Pick<Show, 'hostEnergy' | 'targetAudience'> | null,
+  opts: { sentences?: '2-3' | '4-5'; punchy?: boolean } = {}
+): string {
+  const tone = ` Write confidently and positively. Lead with what's distinctive, interesting, and impressive. NEVER apologize for missing info, NEVER say things like "couldn't find", "not enough information", "limited public details", "I cannot write", or any phrase pointing out gaps. If the research is thin, write a short factual bio of what IS known (even one sentence is fine) - never refuse, never explain what's missing.`
+  const length = opts.sentences ?? '2-3'
+  if (length === '2-3' && !opts.punchy) {
+    return `Write a clear and accurate 2-3 sentence bio for ${guestName} based ONLY on the research above. Focus on their current role, most notable achievement, and what makes them distinctive.${tone}\n\nReturn only the bio text - no preamble, no quotation marks.`
+  }
+  if (length === '2-3' && opts.punchy) {
+    return `Write a NEW 2-3 sentence on-air bio for ${guestName} based ONLY on the research above - punchier and more exciting than a standard bio, clearly different from a vanilla retelling. Tone: host energy ${show?.hostEnergy ?? 'warm_casual'}, audience ${show?.targetAudience ?? 'general'}.${tone}\n\nReturn only the bio text - no preamble, no quotation marks.`
+  }
+  return `Write an "expanded bio" for ${guestName} based ONLY on the research above: 4-5 sentences that highlight lesser-known details and specific achievements with dates or numbers wherever the research supports them. Tone: host energy ${show?.hostEnergy ?? 'warm_casual'}, audience ${show?.targetAudience ?? 'general'}.${tone}\n\nReturn only the bio text - no preamble, no quotation marks.`
+}
+
+// Fun-facts instruction without the research blob - paired with the cached prefix.
+export function buildFunFactsInstruction(
+  guestName: string,
+  count = 5,
+  opts: { specific?: boolean } = {}
+): string {
+  const specific = opts.specific
+    ? ' Each fact must be highly specific and surprising - include names, numbers, or dates wherever possible.'
+    : ''
+  return `Extract ${count} interesting and accurate facts about ${guestName} based ONLY on the research above. IMPORTANT: Only include facts explicitly supported by the research. Do not invent or infer.${specific}\n\nReturn JSON exactly in this shape: { "facts": ["fact 1", "fact 2", ...] } with ${count} items.`
+}
+
 export function buildBioPrompt(
   research: string,
   guestName: string,
@@ -147,7 +183,7 @@ export function buildBioPrompt(
 ) {
   const length = opts.sentences ?? '2-3'
   // Universal tone rule - never apologize for gaps.
-  const tone = ` Write confidently and positively. Lead with what's distinctive, interesting, and impressive. NEVER say things like "couldn't find", "not enough information", "limited public details", or any other phrase that points out gaps - just work with what the research provides.`
+  const tone = ` Write confidently and positively. Lead with what's distinctive, interesting, and impressive. NEVER apologize for missing info, NEVER say things like "couldn't find", "not enough information", "limited public details", "I cannot write", or any phrase pointing out gaps. If the research is thin, write a short factual bio of what IS known (even one sentence is fine) - never refuse, never explain what's missing.`
 
   // Default (initial pass) - spec wording.
   if (length === '2-3' && !opts.punchy) {
