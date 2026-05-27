@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { signOut } from 'next-auth/react'
+import Link from 'next/link'
 import type { User } from '@prisma/client'
 import { GlassCard } from '@/components/common/GlassCard'
 import { PillButton } from '@/components/common/PillButton'
@@ -10,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { formatDate } from '@/lib/utils'
+import { ArrowRight, MessageSquare } from 'lucide-react'
 
 interface Props { user: User }
 
@@ -65,7 +67,7 @@ export function AccountClient({ user }: Props) {
         <PillButton size="sm" onClick={saveProfile} disabled={saving}>{saving ? 'Saving…' : 'Save profile'}</PillButton>
       </GlassCard>
 
-      {/* Plan */}
+      {/* Plan + Billing link */}
       <GlassCard className="p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -74,14 +76,37 @@ export function AccountClient({ user }: Props) {
               <PlanBadge plan={user.plan} />
               <span className="body-sm text-[var(--ink-3)] capitalize">{user.planStatus}</span>
             </div>
-            {user.subscriptionRenewedAt && (
-              <p className="body-sm mt-1 text-[var(--ink-3)]">Renews {formatDate(user.subscriptionRenewedAt)}</p>
+            {user.currentPeriodEnd && (
+              <p className="body-sm mt-1 text-[var(--ink-3)]">
+                {user.cancelAtPeriodEnd ? 'Ends' : 'Renews'} {formatDate(user.currentPeriodEnd)}
+              </p>
             )}
             {user.appliedCouponCode && (
               <p className="body-sm mt-1 text-[var(--accent-violet)]">Coupon applied: {user.appliedCouponCode}</p>
             )}
           </div>
+          <Link
+            href="/account/billing"
+            className="body-sm flex shrink-0 items-center gap-1 rounded-full border px-4 py-2 font-semibold text-[var(--ink-2)] hover:text-[var(--ink-1)]"
+            style={{ borderColor: 'var(--line-2)' }}
+          >
+            Manage subscription <ArrowRight size={13} />
+          </Link>
         </div>
+      </GlassCard>
+
+      {/* Feedback CTA */}
+      <GlassCard className="flex items-center justify-between gap-4 p-5">
+        <div className="flex items-center gap-3">
+          <MessageSquare size={20} className="text-[var(--accent-violet)]" />
+          <div>
+            <p className="body font-semibold text-[var(--ink-1)]">Tell us how it&apos;s going</p>
+            <p className="body-sm text-[var(--ink-3)]">Share praise, gripes, or ideas. We read everything.</p>
+          </div>
+        </div>
+        <Link href="/review" className="pill-primary pill-primary-sm">
+          Leave feedback <ArrowRight size={13} />
+        </Link>
       </GlassCard>
 
       {/* Coupon */}

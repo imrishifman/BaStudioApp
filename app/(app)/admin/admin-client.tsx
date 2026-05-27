@@ -5,22 +5,42 @@ import { GlassCard } from '@/components/common/GlassCard'
 import { PillButton } from '@/components/common/PillButton'
 import { Input } from '@/components/ui/input'
 import { PlanBadge } from '@/components/common/PlanBadge'
-import { Users, Tag, BarChart2, Settings } from 'lucide-react'
+import { Users, Tag, BarChart2, Settings, MessageSquare, Heart, Lightbulb, AlertTriangle, Star } from 'lucide-react'
 import { toast } from 'sonner'
-import type { User, CouponCode } from '@prisma/client'
+import type { User, CouponCode, UserFeedback } from '@prisma/client'
 
 interface Props {
   users: User[]
   coupons: CouponCode[]
-  stats: { totalUsers: number; soloUsers: number; masterUsers: number; totalEpisodes: number }
+  feedback: UserFeedback[]
+  stats: {
+    totalUsers: number
+    soloUsers: number
+    masterUsers: number
+    activeThisWeek: number
+    totalEpisodes: number
+    publishedEpisodes: number
+    onboardingComplete: number
+    neverActivated: number
+    briefsSent: number
+    socialGenerated: number
+  }
 }
 
-type Tab = 'users' | 'coupons' | 'stats'
+type Tab = 'users' | 'coupons' | 'stats' | 'feedback'
 
-export function AdminClient({ users: initialUsers, coupons: initialCoupons, stats }: Props) {
+const FEEDBACK_META: Record<string, { color: string; icon: typeof Heart; label: string }> = {
+  praise:     { color: 'var(--success)',     icon: Heart,         label: 'Praise' },
+  review:     { color: 'var(--warning)',     icon: Star,          label: 'Review' },
+  suggestion: { color: 'var(--accent-cyan)', icon: Lightbulb,     label: 'Suggestion' },
+  complaint:  { color: 'var(--error)',       icon: AlertTriangle, label: 'Complaint' },
+}
+
+export function AdminClient({ users: initialUsers, coupons: initialCoupons, feedback, stats }: Props) {
   const [tab, setTab] = useState<Tab>('users')
   const [users, setUsers] = useState(initialUsers)
   const [coupons, setCoupons] = useState(initialCoupons)
+  const [feedbackFilter, setFeedbackFilter] = useState<string>('all')
   const [newCoupon, setNewCoupon] = useState({ code: '', applicablePlan: 'solo', discountValue: 100, maxUses: 1 })
   const [creating, setCreating] = useState(false)
 
@@ -64,8 +84,13 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, stat
   const TABS = [
     { key: 'users' as Tab, label: 'Users', icon: Users },
     { key: 'coupons' as Tab, label: 'Coupons', icon: Tag },
+    { key: 'feedback' as Tab, label: `Feedback${feedback.length ? ` (${feedback.length})` : ''}`, icon: MessageSquare },
     { key: 'stats' as Tab, label: 'Stats', icon: BarChart2 },
   ]
+
+  const filteredFeedback = feedbackFilter === 'all'
+    ? feedback
+    : feedback.filter((f) => f.type === feedbackFilter)
 
   return (
     <div className="p-6 lg:p-8">
@@ -200,14 +225,84 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, stat
         </div>
       )}
 
+      {/* Feedback */}
+      {tab === 'feedback' && (
+        <div className="space-y-4">
+          {/* Filter row */}
+          <div className="flex flex-wrap gap-2">
+            {(['all', 'praise', 'review', 'suggestion', 'complaint'] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFeedbackFilter(f)}
+                className="body-sm rounded-full px-3 py-1 font-semibold capitalize transition-colors"
+                style={feedbackFilter === f
+                  ? { background: 'var(--ink-1)', color: 'var(--bg-0)' }
+                  : { background: 'var(--bg-2)', color: 'var(--ink-3)' }}
+              >
+                {f === 'all' ? 'All' : f}
+              </button>
+            ))}
+          </div>
+
+          {filteredFeedback.length === 0 ? (
+            <GlassCard className="p-6 text-center">
+              <p className="body-sm text-[var(--ink-3)]">No feedback yet.</p>
+            </GlassCard>
+          ) : (
+            <div className="space-y-3">
+              {filteredFeedback.map((f) => {
+                const meta = f.type && FEEDBACK_META[f.type] ? FEEDBACK_META[f.type] : null
+                const Icon = meta?.icon ?? MessageSquare
+                const color = meta?.color ?? 'var(--ink-3)'
+                return (
+                  <GlassCard key={f.id} className="p-4" style={{ borderLeftColor: color, borderLeftWidth: 4 }}>
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <Icon size={14} style={{ color }} />
+                        <span className="body-sm font-semibold text-[var(--ink-1)]">
+                          {meta?.label ?? f.type ?? 'Feedback'}
+                        </span>
+                        {f.rating != null && (
+                          <span className="flex items-center gap-0.5">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <Star
+                                key={i}
+                                size={11}
+                                fill={i < (f.rating ?? 0) ? 'var(--warning)' : 'transparent'}
+                                style={{ color: 'var(--warning)' }}
+                              />
+                            ))}
+                          </span>
+                        )}
+                      </div>
+                      <span className="body-sm text-[var(--ink-4)]">
+                        {new Date(f.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="body text-[var(--ink-1)] whitespace-pre-wrap">{f.message}</p>
+                    <p className="body-sm mt-2 text-[var(--ink-3)]">
+                      {f.userEmail ?? 'Anonymous'} · {f.page ?? f.source ?? '-'}
+                    </p>
+                  </GlassCard>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Stats */}
       {tab === 'stats' && (
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {[
             { label: 'Total users', value: stats.totalUsers },
-            { label: 'Solo plan', value: stats.soloUsers },
-            { label: 'Master plan', value: stats.masterUsers },
-            { label: 'Total episodes', value: stats.totalEpisodes },
+            { label: 'Active this week', value: stats.activeThisWeek },
+            { label: 'Episodes created', value: stats.totalEpisodes },
+            { label: 'Published', value: stats.publishedEpisodes },
+            { label: 'Onboarding complete', value: stats.onboardingComplete },
+            { label: 'Never activated (>3d)', value: stats.neverActivated },
+            { label: 'Guest briefs sent', value: stats.briefsSent },
+            { label: 'Social content generated', value: stats.socialGenerated },
           ].map(stat => (
             <GlassCard key={stat.label} className="p-4">
               <p className="body-sm text-[var(--ink-3)]">{stat.label}</p>
