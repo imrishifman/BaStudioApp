@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import type { Episode, Show } from '@prisma/client'
 import { StepIndicator } from './StepIndicator'
 import { PillButton } from '@/components/common/PillButton'
+import { ShowPicker } from './ShowPicker'
 import { Step1GuestName } from './Step1GuestName'
 import { Step2GuestBio } from './Step2GuestBio'
 import { Step3Focus } from './Step3Focus'
@@ -175,13 +176,32 @@ export function EpisodeWizard({ episode: initialEpisode, shows, userEmail }: Pro
           currentStep={currentStep}
           onStepClick={s => { setDir(s > currentStep ? 1 : -1); setCurrentStep(s) }}
         />
-        <button
-          onClick={() => setExitOpen(true)}
-          className="text-[var(--ink-3)] transition-colors hover:text-[var(--ink-1)]"
-          aria-label="Exit wizard"
-        >
-          <X size={18} />
-        </button>
+        <div className="flex items-center gap-2">
+          {episode?.id && (
+            <ShowPicker
+              shows={shows}
+              currentShowId={episode.showId}
+              onChange={async (showId) => {
+                const res = await fetch(`/api/episodes/${episode.id}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ showId }),
+                })
+                if (!res.ok) { toast.error('Could not move episode'); return }
+                const updated = await res.json()
+                setEpisode(updated)
+                toast.success(showId ? 'Moved to show' : 'Removed from show')
+              }}
+            />
+          )}
+          <button
+            onClick={() => setExitOpen(true)}
+            className="text-[var(--ink-3)] transition-colors hover:text-[var(--ink-1)]"
+            aria-label="Exit wizard"
+          >
+            <X size={18} />
+          </button>
+        </div>
       </div>
 
       {/* Step content */}

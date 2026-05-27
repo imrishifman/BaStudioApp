@@ -106,6 +106,7 @@ export function StudioClient({ episodes, shows, user, guestCount, publishedDates
 
   const plan = (user?.plan ?? 'free') as 'free' | 'solo' | 'master'
   const inProgress = episodes.filter(ep => !['published', 'approved'].includes(ep.status))
+  const ready = episodes.filter(ep => ep.status === 'approved' || ep.status === 'published')
   const awaiting = episodes.filter(ep => ep.status === 'review' && !ep.managerApproved)
   const monthlyUsed = episodesThisMonth(episodes, sessionUser.email).length
   const maxPerMonth = maxEpisodesPerMonth(plan)
@@ -221,6 +222,21 @@ export function StudioClient({ episodes, shows, user, guestCount, publishedDates
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {shows.slice(0, 3).map(show => (
               <ShowCard key={show.id} show={show} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Ready (approved + published) */}
+      {ready.length > 0 && (
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <p className="body font-semibold text-[var(--ink-1)]">Ready episodes</p>
+            <Link href="/dashboard" className="body-sm text-[var(--ink-3)] hover:text-[var(--ink-1)]">See all</Link>
+          </div>
+          <div className="space-y-2">
+            {ready.slice(0, 6).map(ep => (
+              <EpisodeRow key={ep.id} episode={ep} />
             ))}
           </div>
         </div>
