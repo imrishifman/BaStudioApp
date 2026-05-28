@@ -21,6 +21,67 @@ async function findUser(customerId: string | null, fallbackUserId?: string | nul
   return null
 }
 
+// Create an InfluencerConversion row when an attributed user completes a
+// paid subscription. Idempotent: a unique-ish key of (influencerId,
+// subscriptionId, planPurchased) is enforced at the app layer because the
+// model has no compound unique constraint yet (kept loose for v1).
+async function recordInfluencerConversion(
+  userId: string,
+  sub: Stripe.Subscription,
+  user: { email: string },
+) {
+  const influencerId = (sub.metadata?.influencerId as string | undefined) ?? null
+  if (!influencerId) return
+
+  // Resolve plan + price from the subscription's first item.
+  const item = sub.items.data[0]
+  if (!item) return
+  const priceId = item.price.id
+  const map = getPriceMap()
+  const meta = map[priceId]
+  if (!meta) return // unknown price - skip
+  const revenueAmount = (item.price.unit_amount ?? 0) / 100
+
+  // Idempotency: skip if we've already recorded this subscription.
+  const existing = await prisma.influencerConversion.findFirst({
+    where: { influencerId, couponCodeUsed: sub.id },
+    select: { id: true },
+  })
+  if (existing) return
+
+  // Snapshot commission at conversion time so later edits to the influencer's
+  // commission rate don't retroactively change owed amounts.
+  const influencer = await prisma.influencer.findUnique({
+    where: { id: influencerId },
+    select: { commissionType: true, commissionValue: true, status: true, email: true },
+  })
+  if (!influencer || influencer.status !== 'active') return
+  // Anti-self: never credit the influencer for their own purchase.
+  if (influencer.email && influencer.email.toLowerCase() === user.email.toLowerCase()) return
+
+  let commissionEarned: number | null = null
+  if (influencer.commissionType === 'percentage' && influencer.commissionValue) {
+    commissionEarned = +(revenueAmount * (influencer.commissionValue / 100)).toFixed(2)
+  } else if (influencer.commissionType === 'fixed' && influencer.commissionValue) {
+    commissionEarned = influencer.commissionValue
+  }
+
+  await prisma.influencerConversion.create({
+    data: {
+      influencerId,
+      convertedUserEmail: user.email,
+      planPurchased: meta.plan,
+      revenueAmount,
+      commissionEarned,
+      // Re-using couponCodeUsed as the subscription anchor for idempotency.
+      // A dedicated stripeSubscriptionId column would be cleaner; deferring
+      // the schema change to keep this commit tight.
+      couponCodeUsed: sub.id,
+      notes: `auto · ${(sub.metadata?.attributionSource as string) ?? 'unknown'}`,
+    },
+  })
+}
+
 // Apply a subscription snapshot to the User row. Single source of truth for
 // every subscription-touching event.
 async function applySubscriptionToUser(userId: string, sub: Stripe.Subscription) {
@@ -89,6 +150,8 @@ export async function POST(req: Request) {
         if (typeof s.subscription === 'string') {
           const sub = await stripe.subscriptions.retrieve(s.subscription)
           await applySubscriptionToUser(userId, sub)
+          const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } })
+          if (user) await recordInfluencerConversion(userId, sub, user)
         }
         break
       }

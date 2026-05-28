@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/providers'
 import { ScrollToTopOnNav } from '@/components/common/ScrollToTopOnNav'
+import { ReferralTracker } from '@/components/common/ReferralTracker'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -40,6 +41,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <Providers>
           <ScrollToTopOnNav />
+          <ReferralTracker />
           {children}
         </Providers>
       </body>

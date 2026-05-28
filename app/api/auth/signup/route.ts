@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
+import { findInfluencerByRefCode } from '@/lib/referrals'
 
 const signupSchema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -43,6 +45,36 @@ export async function POST(req: Request) {
       fullName: fullName ?? null,
     },
   })
+
+  // Attribute the new user to an influencer if a referral cookie is present
+  // and active. Anti-self-referral: block when the new user's email matches
+  // the influencer's own email. Best-effort - signup must succeed even if
+  // attribution fails.
+  try {
+    const ck = await cookies()
+    const refCode = ck.get('bas_ref')?.value
+    const visitorId = ck.get('bas_vid')?.value
+    if (refCode && visitorId) {
+      const influencer = await findInfluencerByRefCode(refCode)
+      if (influencer && influencer.email?.toLowerCase() !== email) {
+        await prisma.referralAttribution.upsert({
+          where: { userEmail: email },
+          create: {
+            userEmail: email,
+            influencerId: influencer.id,
+            visitorId,
+            source: 'ref_link',
+            rawCode: refCode,
+            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          },
+          // First-touch wins - never overwrite an existing attribution.
+          update: {},
+        })
+      }
+    }
+  } catch (err) {
+    console.error('Referral attribution at signup failed:', err)
+  }
 
   return NextResponse.json({ ok: true })
 }

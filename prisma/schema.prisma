@@ -424,8 +424,65 @@ model Influencer {
   createdAt                 DateTime            @default(now())
   updatedAt                 DateTime            @updatedAt
 
-  conversions InfluencerConversion[]
-  payouts     PayoutLog[]
+  conversions   InfluencerConversion[]
+  payouts       PayoutLog[]
+  clicks        ReferralClick[]
+  attributions  ReferralAttribution[]
+}
+
+// Public-facing applications collected from the /partners page. Stays separate
+// from Influencer so we keep "applied" noise out of the real influencer roster
+// until an admin approves the application.
+model InfluencerApplication {
+  id                      String              @id @default(cuid())
+  name                    String
+  email                   String
+  handle                  String?
+  platform                InfluencerPlatform?
+  followersCount          Int?
+  socialLinks             Json?
+  audienceSize            String?
+  whyJoin                 String
+  status                  String              @default("pending")
+  rejectionReason         String?
+  reviewedAt              DateTime?
+  reviewedBy              String?
+  convertedToInfluencerId String?             @unique
+  ipAddress               String?
+  createdAt               DateTime            @default(now())
+}
+
+// Every visit that arrives via ?ref=<code>. One row per click for funnel analytics.
+model ReferralClick {
+  id           String     @id @default(cuid())
+  influencerId String
+  influencer   Influencer @relation(fields: [influencerId], references: [id])
+  visitorId    String
+  landingPath  String
+  userAgent    String?
+  referrer     String?
+  ipHash       String?
+  createdAt    DateTime   @default(now())
+
+  @@index([influencerId, createdAt])
+  @@index([visitorId])
+}
+
+// First-touch attribution that survives across sessions. Created at signup when
+// we see a bas_ref cookie, OR at checkout when an influencer's coupon is used.
+// One per user; first attribution wins.
+model ReferralAttribution {
+  id           String     @id @default(cuid())
+  userEmail    String     @unique
+  influencerId String
+  influencer   Influencer @relation(fields: [influencerId], references: [id])
+  visitorId    String
+  attributedAt DateTime   @default(now())
+  expiresAt    DateTime
+  source       String
+  rawCode      String?
+
+  @@index([influencerId])
 }
 
 model InfluencerConversion {
