@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { GlassCard } from '@/components/common/GlassCard'
 import { PillButton } from '@/components/common/PillButton'
 import { Input } from '@/components/ui/input'
-import { Users, DollarSign, TrendingUp, Link } from 'lucide-react'
+import { Users, DollarSign, TrendingUp, Link, Mail, CheckCircle2 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Influencer, InfluencerConversion, PayoutLog } from '@prisma/client'
 
@@ -21,7 +21,7 @@ type Tab = 'influencers' | 'conversions' | 'payouts'
 export function InfluencersAdminClient({ influencers: initial, conversions, payouts }: Props) {
   const [tab, setTab] = useState<Tab>('influencers')
   const [influencers, setInfluencers] = useState(initial)
-  const [form, setForm] = useState({ name: '', email: '', handle: '', commissionValue: 20 })
+  const [form, setForm] = useState({ name: '', email: '', handle: '', couponCode: '', commissionValue: 20 })
   const [creating, setCreating] = useState(false)
 
   async function createInfluencer() {
@@ -33,18 +33,37 @@ export function InfluencersAdminClient({ influencers: initial, conversions, payo
       body: JSON.stringify(form),
     })
     if (res.ok) {
-      const inf = await res.json()
+      const json = await res.json()
+      // Server returns the influencer plus { email: {sent, ...} }.
+      const inf = json as Influencer & { email?: { sent: boolean; reason?: string } }
       setInfluencers(prev => [inf, ...prev])
-      setForm({ name: '', email: '', handle: '', commissionValue: 20 })
-      toast.success('Influencer created')
+      setForm({ name: '', email: '', handle: '', couponCode: '', commissionValue: 20 })
+      if (inf.email?.sent) toast.success('Influencer created and invite emailed')
+      else toast.success('Influencer created (email not sent: ' + (inf.email?.reason ?? 'unknown') + ')')
+    } else {
+      const err = await res.json().catch(() => ({}))
+      toast.error(err.error ?? 'Could not create influencer')
     }
     setCreating(false)
   }
 
   function copyInviteLink(token: string) {
-    const url = `${window.location.origin}/influencer-onboarding?token=${token}`
+    // Same URL the email uses, so admins can hand-deliver if Resend fails.
+    const url = `${window.location.origin}/influencer-agreement?token=${token}`
     navigator.clipboard.writeText(url)
     toast.success('Invite link copied')
+  }
+
+  async function resendInvite(id: string) {
+    const res = await fetch('/api/influencers/connect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resend: true, influencerId: id }),
+    })
+    const data = await res.json()
+    if (res.ok && data?.email?.sent) toast.success('Invite re-sent')
+    else if (res.ok) toast.error('Sent but email failed: ' + (data?.email?.reason ?? 'unknown'))
+    else toast.error(data.error ?? 'Could not re-send')
   }
 
   const TABS = [
@@ -82,6 +101,7 @@ export function InfluencersAdminClient({ influencers: initial, conversions, payo
                 { label: 'Name', key: 'name', placeholder: 'Jane Doe' },
                 { label: 'Email', key: 'email', placeholder: 'jane@example.com' },
                 { label: 'Handle', key: 'handle', placeholder: '@janedoe' },
+                { label: 'Coupon code', key: 'couponCode', placeholder: 'JANE20' },
               ].map(f => (
                 <div key={f.key} className="space-y-1">
                   <label className="body-sm text-[var(--ink-3)]">{f.label}</label>
@@ -115,13 +135,31 @@ export function InfluencersAdminClient({ influencers: initial, conversions, payo
                 <div key={inf.id} className="flex items-center gap-4 px-4 py-3">
                   <div className="min-w-0 flex-1">
                     <p className="body-sm font-medium text-[var(--ink-1)]">{inf.name}</p>
-                    <p className="body-sm text-[var(--ink-3)]">{inf.email} · {inf.commissionValue}%</p>
+                    <p className="body-sm text-[var(--ink-3)]">
+                      {inf.email} · {inf.commissionValue}%
+                      {inf.couponCode && <> · <span className="font-mono">{inf.couponCode}</span></>}
+                    </p>
                   </div>
+                  {inf.agreementSigned ? (
+                    <span className="flex items-center gap-1 body-sm" style={{ color: 'var(--success)' }}>
+                      <CheckCircle2 size={12} /> Signed
+                    </span>
+                  ) : (
+                    <span className="body-sm text-[var(--ink-4)]">Pending signature</span>
+                  )}
+                  <button
+                    onClick={() => resendInvite(inf.id)}
+                    className="flex items-center gap-1.5 body-sm text-[var(--ink-3)] hover:text-[var(--ink-1)] transition-colors"
+                    title="Re-send invite email"
+                  >
+                    <Mail size={12} /> Re-send
+                  </button>
                   <button
                     onClick={() => copyInviteLink(inf.agreementSignatureToken ?? '')}
                     className="flex items-center gap-1.5 body-sm text-[var(--ink-3)] hover:text-[var(--ink-1)] transition-colors"
+                    title="Copy invite URL to clipboard"
                   >
-                    <Link size={12} /> Copy invite
+                    <Link size={12} /> Copy link
                   </button>
                 </div>
               ))}

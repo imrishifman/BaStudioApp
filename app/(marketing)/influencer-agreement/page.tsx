@@ -9,19 +9,45 @@ import { CheckCircle, FileText } from 'lucide-react'
 function AgreementContent() {
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
-  const [influencer, setInfluencer] = useState<{ name: string; commissionValue: number | null } | null>(null)
+  const [influencer, setInfluencer] = useState<{ name: string; commissionValue: number | null; agreementSigned?: boolean } | null>(null)
   const [signed, setSigned] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [signing, setSigning] = useState(false)
+  const [signError, setSignError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!token) { setLoading(false); return }
     fetch(`/api/influencers/connect?token=${token}`)
       .then(r => r.ok ? r.json() : null)
-      .then(data => { setInfluencer(data); setLoading(false) })
+      .then((data: { name: string; commissionValue: number | null; agreementSigned?: boolean } | null) => {
+        setInfluencer(data)
+        // Show the success state immediately if they've already signed.
+        if (data?.agreementSigned) setSigned(true)
+        setLoading(false)
+      })
   }, [token])
 
   async function handleSign() {
-    setSigned(true)
+    if (!token) return
+    setSigning(true)
+    setSignError(null)
+    try {
+      const res = await fetch('/api/influencers/sign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setSignError(data.error ?? 'Could not record signature')
+        return
+      }
+      setSigned(true)
+    } catch {
+      setSignError('Network error - please try again')
+    } finally {
+      setSigning(false)
+    }
   }
 
   if (loading) return <div className="flex items-center justify-center h-64"><p className="body text-[var(--ink-3)]">Loading…</p></div>
@@ -67,7 +93,12 @@ function AgreementContent() {
       </GlassCard>
 
       <div className="text-center">
-        <PillButton onClick={handleSign}>Sign agreement</PillButton>
+        <PillButton onClick={handleSign} disabled={signing}>
+          {signing ? 'Signing…' : 'Sign agreement'}
+        </PillButton>
+        {signError && (
+          <p className="body-sm mt-3" style={{ color: 'var(--error)' }}>{signError}</p>
+        )}
       </div>
     </div>
   )
