@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { GlassCard } from '@/components/common/GlassCard'
 import { PillButton } from '@/components/common/PillButton'
 import { Input } from '@/components/ui/input'
 import { PlanBadge } from '@/components/common/PlanBadge'
-import { Users, Tag, BarChart2, Settings, MessageSquare, Heart, Lightbulb, AlertTriangle, Star } from 'lucide-react'
+import { Users, Tag, BarChart2, Settings, MessageSquare, Heart, Lightbulb, AlertTriangle, Star, Activity, CheckCircle2, XCircle, DollarSign, Link2, GitBranch } from 'lucide-react'
 import { toast } from 'sonner'
 import type { User, CouponCode, UserFeedback } from '@prisma/client'
 
@@ -27,7 +27,26 @@ interface Props {
   }
 }
 
-type Tab = 'users' | 'coupons' | 'stats' | 'feedback'
+type Tab = 'users' | 'coupons' | 'stats' | 'feedback' | 'system'
+
+interface SystemStatus {
+  fetchedAt: string
+  subscriptions: { soloActive: number; masterActive: number; mrrDollars: number; arrDollars: number; canceledLast30: number }
+  affiliate: {
+    activeInfluencers: number
+    clicksLast24h: number
+    clicksTotal: number
+    attributionsTotal: number
+    conversionsThisMonth: number
+    unpaidCommissionDollars: number
+    topInfluencer: { name: string; conversions: number } | null
+  }
+  system: {
+    db: { ok: boolean; error: string | null }
+    env: Record<string, boolean>
+    deploy: { uid?: string; state?: string; createdAt?: number; meta?: { githubCommitSha?: string; githubCommitMessage?: string; githubCommitAuthorName?: string }; url?: string } | { error: string } | null
+  }
+}
 
 const FEEDBACK_META: Record<string, { color: string; icon: typeof Heart; label: string }> = {
   praise:     { color: 'var(--success)',     icon: Heart,         label: 'Praise' },
@@ -37,7 +56,7 @@ const FEEDBACK_META: Record<string, { color: string; icon: typeof Heart; label: 
 }
 
 export function AdminClient({ users: initialUsers, coupons: initialCoupons, feedback, stats }: Props) {
-  const [tab, setTab] = useState<Tab>('users')
+  const [tab, setTab] = useState<Tab>('system')
   const [users, setUsers] = useState(initialUsers)
   const [coupons, setCoupons] = useState(initialCoupons)
   const [feedbackFilter, setFeedbackFilter] = useState<string>('all')
@@ -82,11 +101,40 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
   }
 
   const TABS = [
+    { key: 'system' as Tab, label: 'System', icon: Activity },
     { key: 'users' as Tab, label: 'Users', icon: Users },
     { key: 'coupons' as Tab, label: 'Coupons', icon: Tag },
     { key: 'feedback' as Tab, label: `Feedback${feedback.length ? ` (${feedback.length})` : ''}`, icon: MessageSquare },
     { key: 'stats' as Tab, label: 'Stats', icon: BarChart2 },
   ]
+
+  // System polling: refetch /api/admin/system-status every 30s while the tab is open.
+  const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null)
+  const [secondsSinceFetch, setSecondsSinceFetch] = useState(0)
+  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const fetchRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    if (tab !== 'system') return
+    async function load() {
+      try {
+        const res = await fetch('/api/admin/system-status', { cache: 'no-store' })
+        if (!res.ok) return
+        const json = (await res.json()) as SystemStatus
+        setSystemStatus(json)
+        setSecondsSinceFetch(0)
+      } catch {
+        // Silent - we'll try again next tick.
+      }
+    }
+    load()
+    fetchRef.current = setInterval(load, 30_000)
+    tickRef.current = setInterval(() => setSecondsSinceFetch((s) => s + 1), 1_000)
+    return () => {
+      if (fetchRef.current) clearInterval(fetchRef.current)
+      if (tickRef.current) clearInterval(tickRef.current)
+    }
+  }, [tab])
 
   const filteredFeedback = feedbackFilter === 'all'
     ? feedback
@@ -117,6 +165,166 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
           )
         })}
       </div>
+
+      {/* System */}
+      {tab === 'system' && (
+        <div className="space-y-6">
+          {/* Refresh indicator */}
+          <div className="flex items-center justify-between">
+            <p className="body-sm text-[var(--ink-3)]">
+              {systemStatus
+                ? `Updated ${secondsSinceFetch}s ago · auto-refresh every 30s`
+                : 'Loading…'}
+            </p>
+            <button
+              onClick={async () => {
+                const res = await fetch('/api/admin/system-status', { cache: 'no-store' })
+                if (res.ok) { setSystemStatus(await res.json()); setSecondsSinceFetch(0) }
+              }}
+              className="body-sm rounded-full border px-3 py-1 text-[var(--ink-2)] hover:text-[var(--ink-1)]"
+              style={{ borderColor: 'var(--line-2)' }}
+            >
+              Refresh now
+            </button>
+          </div>
+
+          {systemStatus && (
+            <>
+              {/* Subscriptions + revenue */}
+              <div>
+                <p className="eyebrow mb-3 text-[var(--ink-3)]">Subscriptions & revenue</p>
+                <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+                  {[
+                    { label: 'Solo active', value: systemStatus.subscriptions.soloActive },
+                    { label: 'Master active', value: systemStatus.subscriptions.masterActive },
+                    { label: 'MRR', value: `$${systemStatus.subscriptions.mrrDollars.toLocaleString()}` },
+                    { label: 'ARR', value: `$${systemStatus.subscriptions.arrDollars.toLocaleString()}` },
+                    { label: 'Cancels (30d)', value: systemStatus.subscriptions.canceledLast30 },
+                  ].map((s) => (
+                    <GlassCard key={s.label} className="p-4">
+                      <p className="body-sm text-[var(--ink-3)]">{s.label}</p>
+                      <p className="display-sm mt-1 text-[var(--ink-1)]">{s.value}</p>
+                    </GlassCard>
+                  ))}
+                </div>
+              </div>
+
+              {/* Affiliate */}
+              <div>
+                <p className="eyebrow mb-3 text-[var(--ink-3)]">Affiliate · live</p>
+                <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                  {[
+                    { label: 'Active influencers', value: systemStatus.affiliate.activeInfluencers },
+                    { label: 'Clicks (24h)', value: systemStatus.affiliate.clicksLast24h },
+                    { label: 'Conversions this month', value: systemStatus.affiliate.conversionsThisMonth },
+                    { label: 'Unpaid commission', value: `$${systemStatus.affiliate.unpaidCommissionDollars.toLocaleString()}` },
+                  ].map((s) => (
+                    <GlassCard key={s.label} className="p-4">
+                      <p className="body-sm text-[var(--ink-3)]">{s.label}</p>
+                      <p className="display-sm mt-1 text-[var(--ink-1)]">{s.value}</p>
+                    </GlassCard>
+                  ))}
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-4 text-[var(--ink-3)]">
+                  <p className="body-sm">Clicks all-time: <span className="text-[var(--ink-1)] font-semibold">{systemStatus.affiliate.clicksTotal.toLocaleString()}</span></p>
+                  <p className="body-sm">Attributions: <span className="text-[var(--ink-1)] font-semibold">{systemStatus.affiliate.attributionsTotal.toLocaleString()}</span></p>
+                  {systemStatus.affiliate.topInfluencer && (
+                    <p className="body-sm">Top: <span className="text-[var(--ink-1)] font-semibold">{systemStatus.affiliate.topInfluencer.name}</span> ({systemStatus.affiliate.topInfluencer.conversions} conv.)</p>
+                  )}
+                </div>
+              </div>
+
+              {/* System health */}
+              <div>
+                <p className="eyebrow mb-3 text-[var(--ink-3)]">System health</p>
+                <div className="grid gap-4 lg:grid-cols-2">
+                  {/* DB + env */}
+                  <GlassCard className="p-5">
+                    <div className="mb-3 flex items-center gap-2">
+                      <Link2 size={14} className="text-[var(--ink-3)]" />
+                      <p className="body font-semibold text-[var(--ink-1)]">Database</p>
+                      {systemStatus.system.db.ok ? (
+                        <CheckCircle2 size={14} style={{ color: 'var(--success)' }} />
+                      ) : (
+                        <XCircle size={14} style={{ color: 'var(--error)' }} />
+                      )}
+                    </div>
+                    {systemStatus.system.db.error && (
+                      <p className="body-sm text-[var(--error)] mb-3">{systemStatus.system.db.error}</p>
+                    )}
+                    <p className="eyebrow mb-2 text-[var(--ink-4)]">Env vars</p>
+                    <div className="grid grid-cols-2 gap-1">
+                      {Object.entries(systemStatus.system.env).map(([k, v]) => (
+                        <div key={k} className="flex items-center gap-1.5 body-sm">
+                          {v ? (
+                            <CheckCircle2 size={12} style={{ color: 'var(--success)' }} />
+                          ) : (
+                            <XCircle size={12} style={{ color: 'var(--error)' }} />
+                          )}
+                          <span className={v ? 'text-[var(--ink-2)]' : 'text-[var(--ink-4)]'}>{k}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </GlassCard>
+
+                  {/* Deployment */}
+                  <GlassCard className="p-5">
+                    <div className="mb-3 flex items-center gap-2">
+                      <GitBranch size={14} className="text-[var(--ink-3)]" />
+                      <p className="body font-semibold text-[var(--ink-1)]">Latest deploy</p>
+                    </div>
+                    {systemStatus.system.deploy === null && (
+                      <p className="body-sm text-[var(--ink-3)]">
+                        Add <code className="text-[var(--ink-2)]">VERCEL_API_TOKEN</code> env var to enable.
+                      </p>
+                    )}
+                    {systemStatus.system.deploy && 'error' in systemStatus.system.deploy && (
+                      <p className="body-sm text-[var(--error)]">{systemStatus.system.deploy.error}</p>
+                    )}
+                    {systemStatus.system.deploy && 'state' in systemStatus.system.deploy && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="body-sm rounded-full px-2.5 py-0.5 font-semibold"
+                            style={{
+                              background: systemStatus.system.deploy.state === 'READY' ? 'rgba(48,209,88,0.15)'
+                                : systemStatus.system.deploy.state === 'ERROR' ? 'rgba(255,69,58,0.15)'
+                                : systemStatus.system.deploy.state === 'BUILDING' ? 'rgba(255,214,10,0.15)'
+                                : 'rgba(167,139,250,0.15)',
+                              color: systemStatus.system.deploy.state === 'READY' ? 'var(--success)'
+                                : systemStatus.system.deploy.state === 'ERROR' ? 'var(--error)'
+                                : systemStatus.system.deploy.state === 'BUILDING' ? 'var(--warning)'
+                                : 'var(--accent-violet)',
+                            }}
+                          >
+                            {systemStatus.system.deploy.state}
+                          </span>
+                          {systemStatus.system.deploy.createdAt && (
+                            <span className="body-sm text-[var(--ink-3)]">
+                              {new Date(systemStatus.system.deploy.createdAt).toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+                        {systemStatus.system.deploy.meta?.githubCommitMessage && (
+                          <p className="body-sm text-[var(--ink-2)]">
+                            {systemStatus.system.deploy.meta.githubCommitMessage}
+                          </p>
+                        )}
+                        {systemStatus.system.deploy.meta?.githubCommitSha && (
+                          <p className="body-sm text-[var(--ink-4)] font-mono">
+                            {systemStatus.system.deploy.meta.githubCommitSha.slice(0, 7)}
+                            {systemStatus.system.deploy.meta.githubCommitAuthorName && ` · ${systemStatus.system.deploy.meta.githubCommitAuthorName}`}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </GlassCard>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Users */}
       {tab === 'users' && (
