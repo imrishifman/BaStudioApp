@@ -79,6 +79,9 @@ async function sendInviteEmail(opts: {
   </div>
 </body></html>`
 
+  // Log the from/to so we can see in Vercel logs exactly what Resend was asked
+  // to send (helps diagnose silent drops due to unverified senders).
+  console.log(`[invite-email] from=${from} to=${opts.email} subject=invite`)
   try {
     const result = await resend.emails.send({
       from,
@@ -86,9 +89,21 @@ async function sendInviteEmail(opts: {
       subject: 'You\'re invited to Ba Studio\'s partner program',
       html,
     })
-    return { sent: true, id: result?.data?.id ?? null }
+    // CRITICAL: Resend's SDK does NOT throw when the API returns an error in
+    // the response body (e.g. unverified domain, invalid recipient). It
+    // returns { data: null, error: {...} }. Always inspect the error field.
+    if (result.error || !result.data?.id) {
+      console.error('[invite-email] Resend returned error:', JSON.stringify(result.error))
+      return {
+        sent: false,
+        reason: 'send-failed' as const,
+        error: result.error?.message ?? 'No id returned',
+      }
+    }
+    console.log(`[invite-email] sent successfully id=${result.data.id}`)
+    return { sent: true, id: result.data.id }
   } catch (err) {
-    console.error('Resend send error:', err)
+    console.error('[invite-email] Resend threw:', err)
     return { sent: false, reason: 'send-failed' as const, error: (err as Error).message }
   }
 }
