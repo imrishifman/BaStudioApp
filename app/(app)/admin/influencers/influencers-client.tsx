@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { GlassCard } from '@/components/common/GlassCard'
 import { PillButton } from '@/components/common/PillButton'
 import { Input } from '@/components/ui/input'
-import { Users, DollarSign, TrendingUp, Link, Mail, CheckCircle2 } from 'lucide-react'
+import { Users, DollarSign, TrendingUp, Link, Mail, CheckCircle2, Pencil, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Influencer, InfluencerConversion, PayoutLog } from '@prisma/client'
 
@@ -64,6 +64,64 @@ export function InfluencersAdminClient({ influencers: initial, conversions, payo
     if (res.ok && data?.email?.sent) toast.success('Invite re-sent')
     else if (res.ok) toast.error('Sent but email failed: ' + (data?.email?.reason ?? 'unknown'))
     else toast.error(data.error ?? 'Could not re-send')
+  }
+
+  // Edit drawer state. `editing` is the influencer being edited, or null.
+  const [editing, setEditing] = useState<Influencer | null>(null)
+  const [editForm, setEditForm] = useState<{ name: string; email: string; handle: string; couponCode: string; commissionValue: string; status: string }>({
+    name: '', email: '', handle: '', couponCode: '', commissionValue: '', status: 'active',
+  })
+  const [saving, setSaving] = useState(false)
+
+  function openEdit(inf: Influencer) {
+    setEditForm({
+      name: inf.name ?? '',
+      email: inf.email ?? '',
+      handle: inf.handle ?? '',
+      couponCode: inf.couponCode ?? '',
+      commissionValue: String(inf.commissionValue ?? ''),
+      status: inf.status ?? 'active',
+    })
+    setEditing(inf)
+  }
+
+  async function saveEdit() {
+    if (!editing) return
+    setSaving(true)
+    const res = await fetch(`/api/influencers/${editing.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: editForm.name,
+        email: editForm.email,
+        handle: editForm.handle || null,
+        couponCode: editForm.couponCode || null,
+        commissionValue: editForm.commissionValue ? Number(editForm.commissionValue) : null,
+        status: editForm.status,
+      }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      toast.error(data.error ?? 'Update failed')
+      setSaving(false)
+      return
+    }
+    setInfluencers(prev => prev.map(i => i.id === editing.id ? data : i))
+    toast.success('Saved')
+    setEditing(null)
+    setSaving(false)
+  }
+
+  async function deleteInfluencer(inf: Influencer) {
+    if (!confirm(`Delete ${inf.name}? This permanently removes the influencer plus all their conversions and payout records. This cannot be undone.`)) return
+    const res = await fetch(`/api/influencers/${inf.id}`, { method: 'DELETE' })
+    if (res.ok) {
+      setInfluencers(prev => prev.filter(i => i.id !== inf.id))
+      toast.success(`Deleted ${inf.name}`)
+    } else {
+      const data = await res.json().catch(() => ({}))
+      toast.error(data.error ?? 'Delete failed')
+    }
   }
 
   const TABS = [
@@ -161,6 +219,20 @@ export function InfluencersAdminClient({ influencers: initial, conversions, payo
                   >
                     <Link size={12} /> Copy link
                   </button>
+                  <button
+                    onClick={() => openEdit(inf)}
+                    className="flex items-center gap-1.5 body-sm text-[var(--ink-3)] hover:text-[var(--ink-1)] transition-colors"
+                    title="Edit influencer"
+                  >
+                    <Pencil size={12} /> Edit
+                  </button>
+                  <button
+                    onClick={() => deleteInfluencer(inf)}
+                    className="flex items-center gap-1.5 body-sm text-[var(--ink-3)] transition-colors hover:text-[var(--error)]"
+                    title="Delete influencer permanently"
+                  >
+                    <Trash2 size={12} />
+                  </button>
                 </div>
               ))}
             </div>
@@ -204,6 +276,86 @@ export function InfluencersAdminClient({ influencers: initial, conversions, payo
             ))}
           </div>
         </GlassCard>
+      )}
+
+      {/* Edit drawer */}
+      {editing && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
+          style={{ background: 'rgba(0,0,0,0.55)' }}
+          onClick={() => !saving && setEditing(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-t-[var(--radius-md)] sm:rounded-[var(--radius-md)]"
+            style={{ background: 'var(--bg-2)', border: '1px solid var(--line-1)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-5" style={{ borderBottom: '1px solid var(--line-1)' }}>
+              <h2 className="body font-semibold text-[var(--ink-1)]">Edit {editing.name}</h2>
+              <button onClick={() => setEditing(null)} className="text-[var(--ink-3)] hover:text-[var(--ink-1)]" aria-label="Close">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="grid gap-3 p-5 sm:grid-cols-2">
+              <div className="space-y-1">
+                <label className="body-sm text-[var(--ink-3)]">Name</label>
+                <Input value={editForm.name} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} className="bg-[var(--bg-3)] border-[var(--line-2)] text-[var(--ink-1)]" />
+              </div>
+              <div className="space-y-1">
+                <label className="body-sm text-[var(--ink-3)]">Email</label>
+                <Input value={editForm.email} onChange={e => setEditForm(p => ({ ...p, email: e.target.value }))} className="bg-[var(--bg-3)] border-[var(--line-2)] text-[var(--ink-1)]" />
+              </div>
+              <div className="space-y-1">
+                <label className="body-sm text-[var(--ink-3)]">Handle</label>
+                <Input value={editForm.handle} onChange={e => setEditForm(p => ({ ...p, handle: e.target.value }))} className="bg-[var(--bg-3)] border-[var(--line-2)] text-[var(--ink-1)]" />
+              </div>
+              <div className="space-y-1">
+                <label className="body-sm text-[var(--ink-3)]">Coupon code</label>
+                <Input
+                  value={editForm.couponCode}
+                  onChange={e => setEditForm(p => ({ ...p, couponCode: e.target.value.toUpperCase() }))}
+                  className="bg-[var(--bg-3)] border-[var(--line-2)] text-[var(--ink-1)] font-mono"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="body-sm text-[var(--ink-3)]">Commission %</label>
+                <Input
+                  type="number"
+                  value={editForm.commissionValue}
+                  onChange={e => setEditForm(p => ({ ...p, commissionValue: e.target.value }))}
+                  className="bg-[var(--bg-3)] border-[var(--line-2)] text-[var(--ink-1)]"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="body-sm text-[var(--ink-3)]">Status</label>
+                <select
+                  value={editForm.status}
+                  onChange={e => setEditForm(p => ({ ...p, status: e.target.value }))}
+                  className="h-9 w-full rounded-md px-3 body-sm"
+                  style={{ background: 'var(--bg-3)', border: '1px solid var(--line-2)', color: 'var(--ink-1)' }}
+                >
+                  <option value="pending">Pending</option>
+                  <option value="active">Active</option>
+                  <option value="paused">Paused</option>
+                  <option value="disabled">Disabled</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 p-5" style={{ borderTop: '1px solid var(--line-1)' }}>
+              <button
+                onClick={() => setEditing(null)}
+                disabled={saving}
+                className="body-sm rounded-full border px-4 py-1.5 text-[var(--ink-2)] disabled:opacity-50"
+                style={{ borderColor: 'var(--line-2)' }}
+              >
+                Cancel
+              </button>
+              <PillButton size="sm" onClick={saveEdit} disabled={saving || !editForm.name || !editForm.email}>
+                {saving ? 'Saving…' : 'Save changes'}
+              </PillButton>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
