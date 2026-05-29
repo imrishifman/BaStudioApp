@@ -54,7 +54,7 @@ export default auth((req) => {
   const { pathname } = req.nextUrl
   const isAuthed = !!req.auth
 
-  const protectedPrefixes = ['/studio', '/dashboard', '/shows', '/podcast-dna', '/episodes', '/guests', '/calendar', '/team', '/account', '/pricing', '/admin']
+  const protectedPrefixes = ['/studio', '/dashboard', '/shows', '/podcast-dna', '/episodes', '/guests', '/calendar', '/team', '/account', '/pricing', '/admin', '/partner']
   const isProtected = protectedPrefixes.some(p => pathname.startsWith(p))
 
   if (isProtected && !isAuthed) {
