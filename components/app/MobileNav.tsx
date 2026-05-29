@@ -13,6 +13,7 @@ import {
   Users,
   Settings,
   CreditCard,
+  Handshake,
   Menu,
   LogOut,
   X,
@@ -26,16 +27,18 @@ const PRIMARY = [
   { label: 'Calendar', href: '/calendar', icon: Calendar },
 ]
 
-const MORE = [
-  { label: 'Hub', href: '/team', icon: Users },
-  { label: 'Account', href: '/account', icon: Settings },
-  { label: 'Pricing', href: '/pricing', icon: CreditCard },
-]
-
-export function MobileNav() {
+export function MobileNav({ isPartner = false }: { isPartner?: boolean }) {
   const pathname = usePathname()
   const [moreOpen, setMoreOpen] = useState(false)
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
+
+  // Build the "More" list with Partner inserted next to Account when applicable.
+  const moreItems = [
+    { label: 'Hub', href: '/team', icon: Users },
+    { label: 'Account', href: '/account', icon: Settings },
+    ...(isPartner ? [{ label: 'Partner', href: '/partner', icon: Handshake }] : []),
+    { label: 'Pricing', href: '/pricing', icon: CreditCard },
+  ]
 
   return (
     <>
@@ -111,7 +114,7 @@ export function MobileNav() {
                 <X size={18} />
               </button>
             </div>
-            {MORE.map((item) => (
+            {moreItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}

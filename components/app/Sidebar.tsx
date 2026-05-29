@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   ChevronDown,
   LogOut,
+  Handshake,
   type LucideIcon,
 } from 'lucide-react'
 import { cn, initials } from '@/lib/utils'
@@ -49,6 +50,10 @@ const BOTTOM_ITEMS: NavItem[] = [
   { label: 'Pricing', href: '/pricing', icon: CreditCard },
 ]
 
+// Only rendered when the user is also an Influencer (matched server-side in
+// the (app) layout via email lookup and passed in as a prop).
+const PARTNER_ITEM: NavItem = { label: 'Partner', href: '/partner', icon: Handshake }
+
 const ADMIN_ITEMS: NavItem[] = [
   { label: 'Admin', href: '/admin', icon: ShieldCheck, adminOnly: true },
   { label: 'Influencers', href: '/admin/influencers', icon: Users, adminOnly: true },
@@ -56,7 +61,7 @@ const ADMIN_ITEMS: NavItem[] = [
 
 const PLAN_LABELS = { solo: 'Solo', master: 'Master' }
 
-export function Sidebar() {
+export function Sidebar({ isPartner = false }: { isPartner?: boolean }) {
   const pathname = usePathname()
   const { data: session } = useSession()
   const user = session?.user
@@ -113,6 +118,14 @@ export function Sidebar() {
             user={user}
           />
         ))}
+
+        {isPartner && (
+          <SidebarItem
+            item={PARTNER_ITEM}
+            active={isActive(PARTNER_ITEM.href)}
+            user={user}
+          />
+        )}
 
         {user && isAdmin(user) && (
           <>
