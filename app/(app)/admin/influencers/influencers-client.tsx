@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { GlassCard } from '@/components/common/GlassCard'
 import { PillButton } from '@/components/common/PillButton'
 import { Input } from '@/components/ui/input'
-import { Users, DollarSign, TrendingUp, Link, Mail, CheckCircle2, Pencil, Trash2, X } from 'lucide-react'
+import { Users, DollarSign, TrendingUp, Link, Mail, CheckCircle2, Pencil, Trash2, X, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Influencer, InfluencerConversion, PayoutLog } from '@prisma/client'
 
@@ -112,6 +112,30 @@ export function InfluencersAdminClient({ influencers: initial, conversions, payo
     toast.success('Saved')
     setEditing(null)
     setSaving(false)
+  }
+
+  // Re-mint the influencer's Stripe promo in this environment's Stripe mode and
+  // reconcile its active flag with their signed status. Fixes codes that read
+  // "invalid" at checkout (created against a different Stripe key) or that never
+  // got switched on after signing.
+  const [resyncingId, setResyncingId] = useState<string | null>(null)
+  async function resyncInfluencer(inf: Influencer) {
+    if (!inf.couponCode || !inf.customerDiscount) {
+      toast.error('Add a coupon code and customer discount % first')
+      return
+    }
+    setResyncingId(inf.id)
+    const res = await fetch(`/api/influencers/${inf.id}/resync`, { method: 'POST' })
+    const data = await res.json().catch(() => ({}))
+    if (res.ok) {
+      setInfluencers(prev => prev.map(i => (i.id === inf.id ? data : i)))
+      const mode = data.liveMode ? 'live' : 'test'
+      const state = data.active ? 'active' : 'inactive (signs to activate)'
+      toast.success(data.recreated ? `Re-created in Stripe ${mode} mode — ${state}` : `In sync (${mode} mode) — ${state}`)
+    } else {
+      toast.error(data.error ?? 'Re-sync failed')
+    }
+    setResyncingId(null)
   }
 
   async function deleteInfluencer(inf: Influencer) {
@@ -232,6 +256,16 @@ export function InfluencersAdminClient({ influencers: initial, conversions, payo
                   >
                     <Link size={12} /> Copy link
                   </button>
+                  {inf.couponCode && inf.customerDiscount ? (
+                    <button
+                      onClick={() => resyncInfluencer(inf)}
+                      disabled={resyncingId === inf.id}
+                      className="flex items-center gap-1.5 body-sm text-[var(--ink-3)] hover:text-[var(--ink-1)] transition-colors disabled:opacity-50"
+                      title="Re-create this code in Stripe for the current environment (fixes 'invalid code' at checkout)"
+                    >
+                      <RefreshCw size={12} className={resyncingId === inf.id ? 'animate-spin' : ''} /> Re-sync
+                    </button>
+                  ) : null}
                   <button
                     onClick={() => openEdit(inf)}
                     className="flex items-center gap-1.5 body-sm text-[var(--ink-3)] hover:text-[var(--ink-1)] transition-colors"

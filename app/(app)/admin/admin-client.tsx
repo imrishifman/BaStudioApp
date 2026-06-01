@@ -5,7 +5,7 @@ import { GlassCard } from '@/components/common/GlassCard'
 import { PillButton } from '@/components/common/PillButton'
 import { Input } from '@/components/ui/input'
 import { PlanBadge } from '@/components/common/PlanBadge'
-import { Users, Tag, BarChart2, Settings, MessageSquare, Heart, Lightbulb, AlertTriangle, Star, Activity, CheckCircle2, XCircle, DollarSign, Link2, GitBranch } from 'lucide-react'
+import { Users, Tag, BarChart2, Settings, MessageSquare, Heart, Lightbulb, AlertTriangle, Star, Activity, CheckCircle2, XCircle, DollarSign, Link2, GitBranch, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import type { User, CouponCode, UserFeedback } from '@prisma/client'
 
@@ -104,6 +104,24 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
       setCoupons(prev => prev.filter(c => c.id !== id))
       toast.success('Coupon deleted')
     }
+  }
+
+  // Re-mint the coupon's Stripe promo in whatever Stripe mode THIS environment
+  // runs in. Use on production if a code reads "invalid" at checkout because it
+  // was originally created against a test key.
+  const [resyncing, setResyncing] = useState<string | null>(null)
+  async function resyncCoupon(id: string) {
+    setResyncing(id)
+    const res = await fetch(`/api/admin/coupons/${id}/resync`, { method: 'POST' })
+    const data = await res.json().catch(() => ({}))
+    if (res.ok) {
+      setCoupons(prev => prev.map(c => (c.id === id ? { ...c, ...data } : c)))
+      const mode = data.liveMode ? 'live' : 'test'
+      toast.success(data.recreated ? `Re-created in Stripe ${mode} mode` : `Already in sync (${mode} mode)`)
+    } else {
+      toast.error(data.error ?? 'Re-sync failed')
+    }
+    setResyncing(null)
   }
 
   const TABS = [
@@ -431,6 +449,14 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
                     <p className="body-sm font-mono font-semibold text-[var(--ink-1)]">{coupon.code}</p>
                     <p className="body-sm text-[var(--ink-3)]">{coupon.applicablePlan} · {coupon.discountValue}% off · {coupon.usesSoFar}/{coupon.maxUses > 0 ? coupon.maxUses : '∞'} uses</p>
                   </div>
+                  <button
+                    onClick={() => resyncCoupon(coupon.id)}
+                    disabled={resyncing === coupon.id}
+                    className="flex items-center gap-1.5 body-sm text-[var(--ink-3)] hover:text-[var(--ink-1)] transition-colors disabled:opacity-50"
+                    title="Re-create this code in Stripe for the current environment (fixes 'invalid code' at checkout)"
+                  >
+                    <RefreshCw size={12} className={resyncing === coupon.id ? 'animate-spin' : ''} /> Re-sync
+                  </button>
                   <button
                     onClick={() => deleteCoupon(coupon.id)}
                     className="body-sm text-[var(--ink-4)] hover:text-red-400 transition-colors"
