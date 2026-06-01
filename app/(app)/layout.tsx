@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { Sidebar } from '@/components/app/Sidebar'
 import { MobileNav } from '@/components/app/MobileNav'
 import { UpgradeBanner } from '@/components/common/UpgradeBanner'
+import { FirstStepReview } from '@/components/common/FirstStepReview'
+import { MILESTONE_KEYS, type MilestoneKey } from '@/lib/milestones'
 
 export default async function AppLayout({
   children,
@@ -21,6 +23,28 @@ export default async function AppLayout({
   })
   const isPartner = !!partner
 
+  // First-time milestone detection. We compute completion from cheap counts on
+  // every app load (rather than instrumenting each action site) and surface the
+  // first not-yet-reviewed completed milestone as a one-time review prompt.
+  const email = session.user.email.toLowerCase()
+  const [user, showCount, dnaCount, episodeCount, publishedCount] = await Promise.all([
+    prisma.user.findUnique({ where: { email }, select: { reviewedMilestones: true } }),
+    prisma.show.count({ where: { ownerEmail: email } }),
+    prisma.show.count({ where: { ownerEmail: email, dnaConfigured: true } }),
+    prisma.episode.count({ where: { createdByEmail: email } }),
+    prisma.episode.count({ where: { createdByEmail: email, status: 'published' } }),
+  ])
+
+  const completed: Record<MilestoneKey, boolean> = {
+    first_show: showCount > 0,
+    first_dna: dnaCount > 0,
+    first_episode: episodeCount > 0,
+    first_published: publishedCount > 0,
+  }
+  const reviewed = new Set(user?.reviewedMilestones ?? [])
+  const pendingMilestone =
+    MILESTONE_KEYS.find((k) => completed[k] && !reviewed.has(k)) ?? null
+
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-0)' }}>
       <Sidebar isPartner={isPartner} />
@@ -31,6 +55,7 @@ export default async function AppLayout({
           {children}
         </main>
       </div>
+      <FirstStepReview pendingMilestone={pendingMilestone} />
     </div>
   )
 }

@@ -22,8 +22,10 @@ export const metadata: Metadata = {
   },
 }
 
-// Set the saved theme before paint to avoid a flash.
-const themeScript = `try{var t=localStorage.getItem('ba-theme')||'dark';document.documentElement.setAttribute('data-theme',t);}catch(e){}`
+// Set the saved theme before paint to avoid a flash. The landing page ('/') is
+// always dark — there is no light mode there. Every other route respects the
+// user's saved preference (defaulting to dark).
+const themeScript = `try{var p=location.pathname;var t=(p==='/')?'dark':(localStorage.getItem('ba-theme')||'dark');document.documentElement.setAttribute('data-theme',t);}catch(e){}`
 
 export default function RootLayout({
   children,

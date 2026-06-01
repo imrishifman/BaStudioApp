@@ -69,6 +69,23 @@ function SignInController() {
 }
 
 export default function LandingPage() {
+  // No light mode on the landing page. Force dark while mounted (covers client-side
+  // navigation onto '/'), and restore the user's saved preference on the way out.
+  useEffect(() => {
+    const root = document.documentElement
+    const previous = root.getAttribute('data-theme')
+    root.setAttribute('data-theme', 'dark')
+    return () => {
+      let saved = 'dark'
+      try {
+        saved = localStorage.getItem('ba-theme') || 'dark'
+      } catch {
+        saved = previous || 'dark'
+      }
+      root.setAttribute('data-theme', saved)
+    }
+  }, [])
+
   return (
     <>
       <Hero />

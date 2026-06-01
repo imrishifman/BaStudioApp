@@ -24,6 +24,7 @@ export async function POST(req: Request) {
   const rating = typeof body.rating === 'number' ? Math.min(5, Math.max(1, Math.round(body.rating))) : null
   const page = body.page ? String(body.page).slice(0, 200) : null
   const question = body.question ? String(body.question).slice(0, 200) : null
+  const source = body.source ? String(body.source).slice(0, 50) : 'review-page'
 
   const fb = await prisma.userFeedback.create({
     data: {
@@ -34,7 +35,7 @@ export async function POST(req: Request) {
       page,
       question,
       rating,
-      source: 'review-page',
+      source,
     },
   })
 

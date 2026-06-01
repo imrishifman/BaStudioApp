@@ -35,9 +35,12 @@ interface Props {
   onOpenChange: (v: boolean) => void
   show: Show | null
   onSaved: () => void
+  /** Fired only on create (show === null) with the newly created show. When
+   *  provided, it replaces the default onSaved() behaviour for the create path. */
+  onCreated?: (show: Show) => void
 }
 
-export function EditShowModal({ open, onOpenChange, show, onSaved }: Props) {
+export function EditShowModal({ open, onOpenChange, show, onSaved, onCreated }: Props) {
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
@@ -73,6 +76,13 @@ export function EditShowModal({ open, onOpenChange, show, onSaved }: Props) {
     })
     if (res.ok) {
       onOpenChange(false)
+      if (!show && onCreated) {
+        const created = (await res.json().catch(() => null)) as Show | null
+        if (created) {
+          onCreated(created)
+          return
+        }
+      }
       onSaved()
     }
   }

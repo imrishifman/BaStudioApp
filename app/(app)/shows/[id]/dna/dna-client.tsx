@@ -151,7 +151,7 @@ export function ShowDnaClient({ show }: { show: Show }) {
         const res = await fetch(`/api/shows/${show.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...fields, episodeSections: sections }),
+          body: JSON.stringify({ ...fields, episodeSections: sections, dnaConfigured: true }),
         })
         setStatus(res.ok ? 'saved' : 'idle')
       } catch {
