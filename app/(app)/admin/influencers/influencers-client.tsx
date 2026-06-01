@@ -21,7 +21,7 @@ type Tab = 'influencers' | 'conversions' | 'payouts'
 export function InfluencersAdminClient({ influencers: initial, conversions, payouts }: Props) {
   const [tab, setTab] = useState<Tab>('influencers')
   const [influencers, setInfluencers] = useState(initial)
-  const [form, setForm] = useState({ name: '', email: '', handle: '', couponCode: '', commissionValue: 20 })
+  const [form, setForm] = useState({ name: '', email: '', handle: '', couponCode: '', commissionValue: 20, customerDiscount: 0 })
   const [creating, setCreating] = useState(false)
 
   async function createInfluencer() {
@@ -37,7 +37,7 @@ export function InfluencersAdminClient({ influencers: initial, conversions, payo
       // Server returns the influencer plus { email: {sent, ...} }.
       const inf = json as Influencer & { email?: { sent: boolean; reason?: string } }
       setInfluencers(prev => [inf, ...prev])
-      setForm({ name: '', email: '', handle: '', couponCode: '', commissionValue: 20 })
+      setForm({ name: '', email: '', handle: '', couponCode: '', commissionValue: 20, customerDiscount: 0 })
       if (inf.email?.sent) toast.success('Influencer created and invite emailed')
       else toast.success('Influencer created (email not sent: ' + (inf.email?.reason ?? 'unknown') + ')')
     } else {
@@ -68,8 +68,8 @@ export function InfluencersAdminClient({ influencers: initial, conversions, payo
 
   // Edit drawer state. `editing` is the influencer being edited, or null.
   const [editing, setEditing] = useState<Influencer | null>(null)
-  const [editForm, setEditForm] = useState<{ name: string; email: string; handle: string; couponCode: string; commissionValue: string; status: string }>({
-    name: '', email: '', handle: '', couponCode: '', commissionValue: '', status: 'active',
+  const [editForm, setEditForm] = useState<{ name: string; email: string; handle: string; couponCode: string; commissionValue: string; customerDiscount: string; status: string }>({
+    name: '', email: '', handle: '', couponCode: '', commissionValue: '', customerDiscount: '', status: 'active',
   })
   const [saving, setSaving] = useState(false)
 
@@ -80,6 +80,7 @@ export function InfluencersAdminClient({ influencers: initial, conversions, payo
       handle: inf.handle ?? '',
       couponCode: inf.couponCode ?? '',
       commissionValue: String(inf.commissionValue ?? ''),
+      customerDiscount: inf.customerDiscount != null ? String(inf.customerDiscount) : '',
       status: inf.status ?? 'active',
     })
     setEditing(inf)
@@ -97,6 +98,7 @@ export function InfluencersAdminClient({ influencers: initial, conversions, payo
         handle: editForm.handle || null,
         couponCode: editForm.couponCode || null,
         commissionValue: editForm.commissionValue ? Number(editForm.commissionValue) : null,
+        customerDiscount: editForm.customerDiscount ? Number(editForm.customerDiscount) : null,
         status: editForm.status,
       }),
     })
@@ -180,6 +182,16 @@ export function InfluencersAdminClient({ influencers: initial, conversions, payo
                   className="w-20 bg-[var(--bg-3)] border-[var(--line-2)] text-[var(--ink-1)]"
                 />
               </div>
+              <div className="space-y-1">
+                <label className="body-sm text-[var(--ink-3)]">Customer discount %</label>
+                <Input
+                  type="number"
+                  value={form.customerDiscount}
+                  onChange={e => setForm(prev => ({ ...prev, customerDiscount: Number(e.target.value) }))}
+                  placeholder="0"
+                  className="w-20 bg-[var(--bg-3)] border-[var(--line-2)] text-[var(--ink-1)]"
+                />
+              </div>
               <PillButton size="sm" onClick={createInfluencer} disabled={creating || !form.name || !form.email}>
                 Add
               </PillButton>
@@ -194,8 +206,9 @@ export function InfluencersAdminClient({ influencers: initial, conversions, payo
                   <div className="min-w-0 flex-1">
                     <p className="body-sm font-medium text-[var(--ink-1)]">{inf.name}</p>
                     <p className="body-sm text-[var(--ink-3)]">
-                      {inf.email} · {inf.commissionValue}%
+                      {inf.email} · {inf.commissionValue}% commission
                       {inf.couponCode && <> · <span className="font-mono">{inf.couponCode}</span></>}
+                      {inf.customerDiscount ? <> · {inf.customerDiscount}% off</> : null}
                     </p>
                   </div>
                   {inf.agreementSigned ? (
@@ -323,6 +336,16 @@ export function InfluencersAdminClient({ influencers: initial, conversions, payo
                   type="number"
                   value={editForm.commissionValue}
                   onChange={e => setEditForm(p => ({ ...p, commissionValue: e.target.value }))}
+                  className="bg-[var(--bg-3)] border-[var(--line-2)] text-[var(--ink-1)]"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="body-sm text-[var(--ink-3)]">Customer discount %</label>
+                <Input
+                  type="number"
+                  value={editForm.customerDiscount}
+                  onChange={e => setEditForm(p => ({ ...p, customerDiscount: e.target.value }))}
+                  placeholder="0"
                   className="bg-[var(--bg-3)] border-[var(--line-2)] text-[var(--ink-1)]"
                 />
               </div>

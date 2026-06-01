@@ -408,6 +408,9 @@ model Influencer {
   referralLink              String?
   commissionType            CommissionType?
   commissionValue           Float?
+  customerDiscount          Float?
+  stripeCouponId            String?
+  stripePromotionCodeId     String?
   planAccess                String?
   status                    InfluencerStatus    @default(pending)
   notes                     String?
@@ -512,6 +515,8 @@ model CouponCode {
   createdByEmail     String?
   notes              String?
   linkedInfluencerId String?
+  stripeCouponId        String?
+  stripePromotionCodeId String?
   createdAt          DateTime  @default(now())
 }
 

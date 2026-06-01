@@ -12,7 +12,7 @@ export default async function AdminPage() {
   const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
   const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
 
-  const [users, coupons, feedback, totalEpisodes, publishedEpisodes, briefsSent, socialGenerated, activeUsersThisWeek, onboardingComplete, neverActivated] = await Promise.all([
+  const [users, coupons, feedback, totalEpisodes, publishedEpisodes, briefsSent, socialGenerated, activeUsersThisWeek, onboardingComplete, neverActivated, episodesByUser, publishedByUser, showsByUser] = await Promise.all([
     prisma.user.findMany({ orderBy: { createdAt: 'desc' } }),
     prisma.couponCode.findMany({ orderBy: { createdAt: 'desc' } }),
     prisma.userFeedback.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }),
@@ -27,7 +27,22 @@ export default async function AdminPage() {
     }),
     prisma.user.count({ where: { onboardingComplete: true } }),
     prisma.user.count({ where: { onboardingComplete: false, createdAt: { lt: threeDaysAgo } } }),
+    // Per-user activity: episodes created, episodes published, shows owned.
+    prisma.episode.groupBy({ by: ['createdByEmail'], _count: { _all: true } }),
+    prisma.episode.groupBy({ by: ['createdByEmail'], where: { status: 'published' }, _count: { _all: true } }),
+    prisma.show.groupBy({ by: ['ownerEmail'], _count: { _all: true } }),
   ])
+
+  // Build email -> count maps, then attach activity to each user row.
+  const episodeMap = new Map(episodesByUser.map((r) => [r.createdByEmail, r._count._all]))
+  const publishedMap = new Map(publishedByUser.map((r) => [r.createdByEmail, r._count._all]))
+  const showMap = new Map(showsByUser.map((r) => [r.ownerEmail, r._count._all]))
+  const usersWithActivity = users.map((u) => ({
+    ...u,
+    episodeCount: episodeMap.get(u.email) ?? 0,
+    publishedCount: publishedMap.get(u.email) ?? 0,
+    showCount: showMap.get(u.email) ?? 0,
+  }))
 
   const stats = {
     totalUsers: users.length,
@@ -44,7 +59,7 @@ export default async function AdminPage() {
 
   return (
     <AdminClient
-      users={JSON.parse(JSON.stringify(users))}
+      users={JSON.parse(JSON.stringify(usersWithActivity))}
       coupons={JSON.parse(JSON.stringify(coupons))}
       feedback={JSON.parse(JSON.stringify(feedback))}
       stats={stats}

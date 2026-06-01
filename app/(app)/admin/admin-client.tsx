@@ -9,8 +9,14 @@ import { Users, Tag, BarChart2, Settings, MessageSquare, Heart, Lightbulb, Alert
 import { toast } from 'sonner'
 import type { User, CouponCode, UserFeedback } from '@prisma/client'
 
+type UserWithActivity = User & {
+  episodeCount: number
+  publishedCount: number
+  showCount: number
+}
+
 interface Props {
-  users: User[]
+  users: UserWithActivity[]
   coupons: CouponCode[]
   feedback: UserFeedback[]
   stats: {
@@ -339,6 +345,11 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
                   <p className="body-sm font-medium text-[var(--ink-1)] truncate">{user.fullName ?? user.email}</p>
                   <p className="body-sm text-[var(--ink-3)] truncate">{user.email}</p>
                 </div>
+                <div className="hidden sm:flex items-center gap-4 shrink-0">
+                  <ActivityStat label="Episodes" value={user.episodeCount} />
+                  <ActivityStat label="Published" value={user.publishedCount} />
+                  <ActivityStat label="Shows" value={user.showCount} />
+                </div>
                 <PlanBadge plan={user.plan} />
                 <div className="flex gap-1">
                   {(['free', 'solo', 'master'] as const).filter(p => p !== user.plan).map(p => (
@@ -519,6 +530,15 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+function ActivityStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="text-center">
+      <p className="body-sm font-semibold text-[var(--ink-1)] leading-none">{value}</p>
+      <p className="text-[10px] uppercase tracking-wide text-[var(--ink-4)] mt-0.5">{label}</p>
     </div>
   )
 }

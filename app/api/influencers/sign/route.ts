@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { Resend } from 'resend'
 import { prisma } from '@/lib/prisma'
+import { setStripePromoActive } from '@/lib/stripe-coupons'
 
 export const runtime = 'nodejs'
 export const maxDuration = 20
@@ -25,6 +26,7 @@ export async function POST(req: Request) {
       commissionValue: true,
       agreementSigned: true,
       status: true,
+      stripePromotionCodeId: true,
     },
   })
   if (!influencer) return NextResponse.json({ error: 'Invalid token' }, { status: 404 })
@@ -48,6 +50,14 @@ export async function POST(req: Request) {
       onboardingStep: 'agreement_signed',
     },
   })
+
+  // Now that they've signed, activate their Stripe promo code so the discount
+  // works at checkout (best-effort - signature still succeeds if Stripe fails).
+  if (influencer.stripePromotionCodeId) {
+    void setStripePromoActive(influencer.stripePromotionCodeId, true).catch((err) => {
+      console.error('[influencer-coupon] activate-on-sign failed:', err)
+    })
+  }
 
   // Send confirmation email (best-effort - signature still succeeds if email fails).
   void sendSignedConfirmation(influencer, req).catch((err) => {

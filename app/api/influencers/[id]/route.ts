@@ -3,13 +3,14 @@ import { Prisma } from '@prisma/client'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { isAdmin } from '@/lib/admin'
+import { createStripePromo, deleteStripePromo } from '@/lib/stripe-coupons'
 
 // Editable fields. Tightened to a small allowlist so a malformed PATCH body
 // can't, say, flip agreementSigned or stripeAccountId from the admin UI.
 const ALLOWED_FIELDS = new Set([
   'name', 'email', 'handle', 'couponCode', 'platform', 'followersCount',
-  'commissionType', 'commissionValue', 'planAccess', 'status', 'notes',
-  'couponActive',
+  'commissionType', 'commissionValue', 'customerDiscount', 'planAccess',
+  'status', 'notes', 'couponActive',
 ])
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -31,13 +32,41 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (typeof data.email === 'string') {
     data.email = data.email.toLowerCase().trim()
   }
+  if (data.customerDiscount != null) {
+    const n = Number(data.customerDiscount)
+    data.customerDiscount = Number.isFinite(n) && n > 0 ? n : null
+  }
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: 'No editable fields supplied' }, { status: 400 })
   }
 
   try {
     const updated = await prisma.influencer.update({ where: { id }, data: data as Prisma.InfluencerUpdateInput })
-    return NextResponse.json(updated)
+
+    // Backfill: if the influencer now has a code + customer discount but no
+    // Stripe promo yet, create one. Active only if they've already signed
+    // (otherwise it stays dormant until /api/influencers/sign activates it).
+    let couponWarning: string | null = null
+    if (updated.couponCode && updated.customerDiscount && !updated.stripePromotionCodeId) {
+      try {
+        const promo = await createStripePromo({
+          code: updated.couponCode,
+          percentOff: updated.customerDiscount,
+          active: updated.agreementSigned,
+        })
+        await prisma.influencer.update({
+          where: { id },
+          data: { stripeCouponId: promo.stripeCouponId, stripePromotionCodeId: promo.stripePromotionCodeId },
+        })
+        updated.stripeCouponId = promo.stripeCouponId
+        updated.stripePromotionCodeId = promo.stripePromotionCodeId
+      } catch (err) {
+        couponWarning = err instanceof Error ? err.message : 'Stripe coupon sync failed'
+        console.error('[influencer-coupon] backfill failed:', err)
+      }
+    }
+
+    return NextResponse.json({ ...updated, couponWarning })
   } catch (err) {
     // Unique constraint violation on email or couponCode is the common case.
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
@@ -58,6 +87,14 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
+
+  // Tear down the Stripe promo (best-effort) so a deleted influencer's code
+  // stops discounting at checkout.
+  const inf = await prisma.influencer.findUnique({
+    where: { id },
+    select: { stripeCouponId: true, stripePromotionCodeId: true },
+  })
+  if (inf) await deleteStripePromo(inf)
 
   // Hard delete cascades to ReferralClick + ReferralAttribution via FK onDelete:Cascade.
   // Conversions + payouts have no cascade rule, so we delete them explicitly to keep
