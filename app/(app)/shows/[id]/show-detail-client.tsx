@@ -165,12 +165,24 @@ export function ShowDetailClient({
         <div className="space-y-2">
           {list.map((ep) => (
             <GlassCard key={ep.id} className="flex items-center justify-between gap-3 p-4">
-              <Link href={`/episodes/${ep.id}`} className="min-w-0 flex-1">
-                <p className="body truncate font-medium text-[var(--ink-1)]">{ep.title ?? ep.guestName}</p>
-                <p className="body-sm text-[var(--ink-3)]">
-                  {ep.guestName}
-                  {ep.releaseDate && ` · Airs ${formatDate(ep.releaseDate)}`}
-                </p>
+              <Link href={`/episodes/${ep.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+                <span
+                  className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-sm)]"
+                  style={{ background: 'var(--bg-3)' }}
+                >
+                  {(ep.coverImageUrl ?? ep.guestPhotoUrl) ? (
+                    <img src={ep.coverImageUrl ?? ep.guestPhotoUrl ?? ''} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="body-sm font-bold text-[var(--ink-4)]">{ep.guestName.slice(0, 2).toUpperCase()}</span>
+                  )}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <p className="body truncate font-medium text-[var(--ink-1)]">{ep.title ?? ep.guestName}</p>
+                  <p className="body-sm text-[var(--ink-3)]">
+                    {ep.guestName}
+                    {ep.releaseDate && ` · Airs ${formatDate(ep.releaseDate)}`}
+                  </p>
+                </span>
               </Link>
 
               <div className="flex shrink-0 items-center gap-2">

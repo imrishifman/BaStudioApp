@@ -190,8 +190,8 @@ function EpisodeCard({
           className="relative aspect-video rounded-[var(--radius-sm)]"
           style={{ background: 'var(--bg-3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
-          {episode.guestPhotoUrl ? (
-            <img src={episode.guestPhotoUrl} alt="" className="h-full w-full rounded-[var(--radius-sm)] object-cover" />
+          {episode.coverImageUrl ?? episode.guestPhotoUrl ? (
+            <img src={episode.coverImageUrl ?? episode.guestPhotoUrl ?? ''} alt="" className="h-full w-full rounded-[var(--radius-sm)] object-cover" />
           ) : (
             <p className="text-2xl font-bold text-[var(--ink-4)]">
               {episode.guestName.slice(0, 2).toUpperCase()}

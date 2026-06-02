@@ -26,29 +26,38 @@ export async function POST() {
     return NextResponse.json({ error: 'Sign the partner agreement first' }, { status: 400 })
   }
 
-  let accountId = influencer.stripeAccountId
-  if (!accountId) {
-    const account = await stripe.accounts.create({
-      type: 'express',
-      email: influencer.email ?? undefined,
-      business_type: 'individual',
-      capabilities: { transfers: { requested: true } },
-      metadata: { influencerId: influencer.id },
+  // All Stripe calls are wrapped so the partner sees the real reason (e.g.
+  // "Connect is not enabled on this account") instead of a generic network
+  // error from an unhandled 500 with a non-JSON body.
+  try {
+    let accountId = influencer.stripeAccountId
+    if (!accountId) {
+      const account = await stripe.accounts.create({
+        type: 'express',
+        email: influencer.email ?? undefined,
+        business_type: 'individual',
+        capabilities: { transfers: { requested: true } },
+        metadata: { influencerId: influencer.id },
+      })
+      accountId = account.id
+      await prisma.influencer.update({
+        where: { id: influencer.id },
+        data: { stripeAccountId: accountId, stripeOnboardingSent: true },
+      })
+    }
+
+    const base = process.env.NEXT_PUBLIC_APP_URL ?? 'https://bastudiopodcast.com'
+    const link = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: `${base}/api/stripe/connect/return?refresh=1`,
+      return_url: `${base}/api/stripe/connect/return`,
+      type: 'account_onboarding',
     })
-    accountId = account.id
-    await prisma.influencer.update({
-      where: { id: influencer.id },
-      data: { stripeAccountId: accountId, stripeOnboardingSent: true },
-    })
+
+    return NextResponse.json({ url: link.url })
+  } catch (err) {
+    console.error('Stripe Connect onboarding failed:', err)
+    const message = err instanceof Error ? err.message : 'Could not start Stripe onboarding'
+    return NextResponse.json({ error: message }, { status: 502 })
   }
-
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? 'https://bastudiopodcast.com'
-  const link = await stripe.accountLinks.create({
-    account: accountId,
-    refresh_url: `${base}/api/stripe/connect/return?refresh=1`,
-    return_url: `${base}/api/stripe/connect/return`,
-    type: 'account_onboarding',
-  })
-
-  return NextResponse.json({ url: link.url })
 }

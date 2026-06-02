@@ -154,8 +154,8 @@ export function StudioClient({ episodes, shows, user, guestCount, publishedDates
         aria-label="Create a new episode"
         className="group block w-full rounded-[var(--radius-lg)] px-8 py-7 text-center text-white transition-transform duration-200 hover:scale-[1.01] active:scale-[0.99]"
         style={{
-          background: 'linear-gradient(180deg, #2f9e80 0%, #1d7a61 100%)',
-          boxShadow: '0 6px 0 0 #14583f, 0 16px 32px -10px rgba(20,88,63,0.6)',
+          background: 'linear-gradient(180deg, #a78bfa 0%, #7c5cff 100%)',
+          boxShadow: '0 6px 0 0 #6b3fd4, 0 16px 32px -10px rgba(124,92,255,0.55)',
         }}
       >
         <Plus size={28} strokeWidth={3} className="mx-auto" />
@@ -350,6 +350,7 @@ function EpisodeRow({
           {selected && <CheckIcon size={12} color="white" />}
         </span>
       )}
+      <EpisodeThumb episode={episode} />
       <div className="min-w-0 flex-1">
         <p className="body font-medium text-[var(--ink-1)] truncate">
           {episode.title ?? episode.guestName}
@@ -367,4 +368,22 @@ function EpisodeRow({
     </GlassCard>
   )
   return editing ? <div>{inner}</div> : <Link href={`/episodes/${episode.id}`}>{inner}</Link>
+}
+
+function EpisodeThumb({ episode }: { episode: Episode }) {
+  const src = episode.coverImageUrl ?? episode.guestPhotoUrl
+  return (
+    <span
+      className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-sm)]"
+      style={{ background: 'var(--bg-3)' }}
+    >
+      {src ? (
+        <img src={src} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <span className="body-sm font-bold text-[var(--ink-4)]">
+          {episode.guestName.slice(0, 2).toUpperCase()}
+        </span>
+      )}
+    </span>
+  )
 }
