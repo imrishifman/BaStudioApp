@@ -6,6 +6,7 @@ import type { Episode } from '@prisma/client'
 import type { Session } from 'next-auth'
 import { GlassCard } from '@/components/common/GlassCard'
 import { PillButton } from '@/components/common/PillButton'
+import { useConfirm } from '@/components/common/ConfirmDialog'
 import { Plus, ChevronRight, Pencil, Trash2, X, Check as CheckIcon } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -30,6 +31,7 @@ interface Props {
 
 export function DashboardClient({ episodes, sessionUser }: Props) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [filter, setFilter] = useState<'all' | 'active' | 'published'>('all')
   const [editMode, setEditMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -45,7 +47,13 @@ export function DashboardClient({ episodes, sessionUser }: Props) {
 
   async function deleteSelected() {
     if (selectedIds.size === 0) return
-    if (!confirm(`Delete ${selectedIds.size} episode${selectedIds.size > 1 ? 's' : ''}? This cannot be undone.`)) return
+    const ok = await confirm({
+      title: 'Delete episodes?',
+      message: `Delete ${selectedIds.size} episode${selectedIds.size > 1 ? 's' : ''}? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      destructive: true,
+    })
+    if (!ok) return
     setDeleting(true)
     try {
       await Promise.all(Array.from(selectedIds).map(id => fetch(`/api/episodes/${id}`, { method: 'DELETE' })))

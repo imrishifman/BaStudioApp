@@ -103,8 +103,9 @@ function AgreementContent() {
       body: (
         <>
           <p>
-            Partner earns <strong>{commissionLabel}</strong> of net revenue (gross revenue
-            minus payment processing fees, refunds, and chargebacks) for each customer
+            Partner earns <strong>{commissionLabel}</strong> of net profit (gross revenue
+            minus payment processing fees and Ba Studio&apos;s cost to serve the customer,
+            and net of refunds and chargebacks) for each customer
             who subscribes to a paid Ba Studio plan using Partner&apos;s unique coupon code
             <code className="mx-1 rounded bg-[var(--bg-3)] px-1.5 py-0.5 font-mono">
               {influencer.couponCode ?? 'YOURCODE'}

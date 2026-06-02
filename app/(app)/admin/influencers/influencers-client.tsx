@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { GlassCard } from '@/components/common/GlassCard'
 import { PillButton } from '@/components/common/PillButton'
+import { useConfirm } from '@/components/common/ConfirmDialog'
 import { Input } from '@/components/ui/input'
 import { Users, DollarSign, TrendingUp, Link, Mail, CheckCircle2, Pencil, Trash2, X, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
@@ -19,6 +20,7 @@ interface Props {
 type Tab = 'influencers' | 'conversions' | 'payouts'
 
 export function InfluencersAdminClient({ influencers: initial, conversions, payouts }: Props) {
+  const confirm = useConfirm()
   const [tab, setTab] = useState<Tab>('influencers')
   const [influencers, setInfluencers] = useState(initial)
   const [form, setForm] = useState({ name: '', email: '', handle: '', couponCode: '', commissionValue: 20, customerDiscount: 0 })
@@ -139,7 +141,13 @@ export function InfluencersAdminClient({ influencers: initial, conversions, payo
   }
 
   async function deleteInfluencer(inf: Influencer) {
-    if (!confirm(`Delete ${inf.name}? This permanently removes the influencer plus all their conversions and payout records. This cannot be undone.`)) return
+    const ok = await confirm({
+      title: `Delete ${inf.name}?`,
+      message: 'This permanently removes the influencer plus all their conversions and payout records. This cannot be undone.',
+      confirmLabel: 'Delete',
+      destructive: true,
+    })
+    if (!ok) return
     const res = await fetch(`/api/influencers/${inf.id}`, { method: 'DELETE' })
     if (res.ok) {
       setInfluencers(prev => prev.filter(i => i.id !== inf.id))
@@ -148,6 +156,34 @@ export function InfluencersAdminClient({ influencers: initial, conversions, payo
       const data = await res.json().catch(() => ({}))
       toast.error(data.error ?? 'Delete failed')
     }
+  }
+
+  // Unpaid commission owed per influencer, summed from their conversions.
+  const unpaidByInfluencer = conversions.reduce<Record<string, number>>((acc, c) => {
+    if (!c.commissionPaid && c.commissionEarned) {
+      acc[c.influencerId] = +(((acc[c.influencerId] ?? 0) + c.commissionEarned)).toFixed(2)
+    }
+    return acc
+  }, {})
+
+  const [payingId, setPayingId] = useState<string | null>(null)
+  async function payoutInfluencer(inf: Influencer) {
+    const owed = unpaidByInfluencer[inf.id] ?? 0
+    const ok = await confirm({
+      title: `Pay ${inf.name}?`,
+      message: `Send $${owed.toFixed(2)} to ${inf.name} via Stripe now? This transfers real funds and cannot be undone.`,
+      confirmLabel: `Send $${owed.toFixed(2)}`,
+    })
+    if (!ok) return
+    setPayingId(inf.id)
+    const res = await fetch(`/api/influencers/${inf.id}/payout`, { method: 'POST' })
+    const data = await res.json().catch(() => ({}))
+    if (res.ok) {
+      toast.success(`Paid ${inf.name} $${(data.amount ?? owed).toFixed(2)}`)
+    } else {
+      toast.error(data.error ?? 'Payout failed')
+    }
+    setPayingId(null)
   }
 
   const TABS = [
@@ -264,6 +300,17 @@ export function InfluencersAdminClient({ influencers: initial, conversions, payo
                       title="Re-create this code in Stripe for the current environment (fixes 'invalid code' at checkout)"
                     >
                       <RefreshCw size={12} className={resyncingId === inf.id ? 'animate-spin' : ''} /> Re-sync
+                    </button>
+                  ) : null}
+                  {inf.stripeOnboardingCompleted && (unpaidByInfluencer[inf.id] ?? 0) > 0 ? (
+                    <button
+                      onClick={() => payoutInfluencer(inf)}
+                      disabled={payingId === inf.id}
+                      className="flex items-center gap-1.5 body-sm font-semibold transition-colors disabled:opacity-50"
+                      style={{ color: 'var(--success)' }}
+                      title="Send unpaid commission to this partner via Stripe"
+                    >
+                      <DollarSign size={12} /> {payingId === inf.id ? 'Sending…' : `Pay $${(unpaidByInfluencer[inf.id] ?? 0).toFixed(2)}`}
                     </button>
                   ) : null}
                   <button

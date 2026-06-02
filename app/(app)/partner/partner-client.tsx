@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import type { Influencer, InfluencerConversion, PayoutLog } from '@prisma/client'
 import { GlassCard } from '@/components/common/GlassCard'
+import { PillButton } from '@/components/common/PillButton'
 import {
   BarChart2, DollarSign, Link as LinkIcon, MousePointerClick, TrendingUp,
   Copy, CheckCircle2, AlertCircle, Settings, History, FileText,
@@ -55,6 +56,24 @@ function CopyButton({ value, label }: { value: string; label?: string }) {
 
 export function PartnerClient({ influencer, conversions, payouts, stats, referralUrl }: Props) {
   const [tab, setTab] = useState<Tab>('overview')
+  const [connecting, setConnecting] = useState(false)
+
+  async function connectStripe() {
+    setConnecting(true)
+    try {
+      const res = await fetch('/api/stripe/connect', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok && data.url) {
+        window.location.href = data.url
+        return
+      }
+      toast.error(data.error ?? 'Could not start Stripe onboarding')
+    } catch {
+      toast.error('Network error')
+    } finally {
+      setConnecting(false)
+    }
+  }
 
   const TABS: { key: Tab; label: string; icon: typeof BarChart2 }[] = [
     { key: 'overview', label: 'Overview', icon: BarChart2 },
@@ -97,14 +116,17 @@ export function PartnerClient({ influencer, conversions, payouts, stats, referra
 
       {/* Pending Stripe banner */}
       {influencer.agreementSigned && !influencer.stripeOnboardingCompleted && (
-        <GlassCard className="flex items-center gap-3 p-4" style={{ borderColor: 'rgba(167,139,250,0.4)' }}>
-          <AlertCircle size={18} style={{ color: 'var(--accent-violet)' }} />
+        <GlassCard className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center" style={{ borderColor: 'rgba(167,139,250,0.4)' }}>
+          <AlertCircle size={18} style={{ color: 'var(--accent-violet)' }} className="shrink-0" />
           <div className="flex-1">
             <p className="body font-semibold text-[var(--ink-1)]">Connect Stripe to receive payouts</p>
             <p className="body-sm text-[var(--ink-3)]">
-              Your commissions are being tracked. You&apos;ll start receiving payouts every Monday once Stripe is connected.
+              Your commissions are being tracked. Connect Stripe to start receiving payouts. You can sign up as an individual, no registered business required.
             </p>
           </div>
+          <PillButton size="sm" onClick={connectStripe} disabled={connecting} className="shrink-0">
+            {connecting ? 'Opening…' : (influencer.stripeAccountId ? 'Finish Stripe setup' : 'Connect Stripe')}
+          </PillButton>
         </GlassCard>
       )}
 

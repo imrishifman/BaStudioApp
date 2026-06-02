@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import { GlassCard } from '@/components/common/GlassCard'
 import { PillButton } from '@/components/common/PillButton'
+import { useConfirm } from '@/components/common/ConfirmDialog'
 import { CreditCard, ArrowRight, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import type { Plan, PlanStatus, BillingPeriod } from '@prisma/client'
 
@@ -29,6 +30,7 @@ function formatDate(iso: string | null) {
 
 export function BillingClient({ user }: { user: BillingUser | null }) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [busy, setBusy] = useState<string | null>(null)
 
   async function call(action: 'cancel' | 'resume' | 'portal-card') {
@@ -148,8 +150,15 @@ export function BillingClient({ user }: { user: BillingUser | null }) {
             </p>
           </div>
           <button
-            onClick={() => {
-              if (confirm('Cancel your subscription at the end of the current period?')) call('cancel')
+            onClick={async () => {
+              const ok = await confirm({
+                title: 'Cancel subscription?',
+                message: 'Cancel your subscription at the end of the current period?',
+                confirmLabel: 'Cancel subscription',
+                cancelLabel: 'Keep plan',
+                destructive: true,
+              })
+              if (ok) call('cancel')
             }}
             disabled={busy === 'cancel'}
             className="body-sm rounded-full border px-4 py-2 font-semibold text-[var(--error)] hover:bg-[rgba(255,69,58,0.08)] disabled:opacity-50"

@@ -6,6 +6,7 @@ import type { Episode, Show } from '@prisma/client'
 import { GlassCard } from '@/components/common/GlassCard'
 import { PillButton } from '@/components/common/PillButton'
 import { FeatureLockModal } from '@/components/common/FeatureLockModal'
+import { useConfirm } from '@/components/common/ConfirmDialog'
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard'
 import { OnboardingQuest, type QuestStep } from '@/components/onboarding/OnboardingQuest'
 import { ProductTour } from '@/components/onboarding/ProductTour'
@@ -44,6 +45,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 export function StudioClient({ episodes, shows, user, guestCount, publishedDates, sessionUser }: Props) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [lockOpen, setLockOpen] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(
     !user?.onboardingComplete && !user?.skippedDnaSetup
@@ -63,7 +65,13 @@ export function StudioClient({ episodes, shows, user, guestCount, publishedDates
 
   async function deleteSelected() {
     if (selectedIds.size === 0) return
-    if (!confirm(`Delete ${selectedIds.size} episode${selectedIds.size > 1 ? 's' : ''}? This cannot be undone.`)) return
+    const ok = await confirm({
+      title: 'Delete episodes?',
+      message: `Delete ${selectedIds.size} episode${selectedIds.size > 1 ? 's' : ''}? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      destructive: true,
+    })
+    if (!ok) return
     setDeleting(true)
     try {
       await Promise.all(
@@ -129,22 +137,30 @@ export function StudioClient({ episodes, shows, user, guestCount, publishedDates
   return (
     <div className="mx-auto max-w-5xl space-y-8 p-6 lg:p-8">
       {/* Header */}
-      <div className="flex items-end justify-between">
-        <div>
-          <p className="eyebrow mb-1 text-[var(--ink-3)]">{greeting}, {name}</p>
-          <h1 className="display-sm text-[var(--ink-1)]">Studio.</h1>
-          {inProgressCount > 0 && (
-            <p className="body mt-1 text-[var(--ink-2)]">
-              You have {inProgressCount} episode{inProgressCount !== 1 ? 's' : ''} in progress.
-            </p>
-          )}
-        </div>
-        <div data-tour="new-episode">
-          <PillButton onClick={handleNewEpisode} size="lg" className="!font-bold !text-[18px]">
-            <Plus size={20} strokeWidth={2.75} /> New episode
-          </PillButton>
-        </div>
+      <div>
+        <p className="eyebrow mb-1 text-[var(--ink-3)]">{greeting}, {name}</p>
+        <h1 className="display-sm text-[var(--ink-1)]">Studio.</h1>
+        {inProgressCount > 0 && (
+          <p className="body mt-1 text-[var(--ink-2)]">
+            You have {inProgressCount} episode{inProgressCount !== 1 ? 's' : ''} in progress.
+          </p>
+        )}
       </div>
+
+      {/* New episode — promotional banner */}
+      <button
+        data-tour="new-episode"
+        onClick={handleNewEpisode}
+        aria-label="Create a new episode"
+        className="group block w-full rounded-[var(--radius-lg)] px-8 py-7 text-center text-white transition-transform duration-200 hover:scale-[1.01] active:scale-[0.99]"
+        style={{
+          background: 'linear-gradient(180deg, #2f9e80 0%, #1d7a61 100%)',
+          boxShadow: '0 6px 0 0 #14583f, 0 16px 32px -10px rgba(20,88,63,0.6)',
+        }}
+      >
+        <Plus size={28} strokeWidth={3} className="mx-auto" />
+        <span className="mt-1.5 block text-[22px] font-bold tracking-tight">New Episode</span>
+      </button>
 
       {/* Onboarding quest */}
       {showQuest && (

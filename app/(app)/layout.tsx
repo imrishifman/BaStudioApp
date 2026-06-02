@@ -5,6 +5,7 @@ import { Sidebar } from '@/components/app/Sidebar'
 import { MobileNav } from '@/components/app/MobileNav'
 import { UpgradeBanner } from '@/components/common/UpgradeBanner'
 import { FirstStepReview } from '@/components/common/FirstStepReview'
+import { ConfirmProvider } from '@/components/common/ConfirmDialog'
 import { MILESTONE_KEYS, type MilestoneKey } from '@/lib/milestones'
 
 export default async function AppLayout({
@@ -46,16 +47,18 @@ export default async function AppLayout({
     MILESTONE_KEYS.find((k) => completed[k] && !reviewed.has(k)) ?? null
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-0)' }}>
-      <Sidebar isPartner={isPartner} />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <MobileNav isPartner={isPartner} />
-        <UpgradeBanner />
-        <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">
-          {children}
-        </main>
+    <ConfirmProvider>
+      <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-0)' }}>
+        <Sidebar isPartner={isPartner} />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <MobileNav isPartner={isPartner} />
+          <UpgradeBanner />
+          <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">
+            {children}
+          </main>
+        </div>
+        <FirstStepReview pendingMilestone={pendingMilestone} />
       </div>
-      <FirstStepReview pendingMilestone={pendingMilestone} />
-    </div>
+    </ConfirmProvider>
   )
 }

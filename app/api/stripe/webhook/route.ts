@@ -3,6 +3,7 @@ import type Stripe from 'stripe'
 import { prisma } from '@/lib/prisma'
 import { stripe } from '@/lib/stripe'
 import { getPriceMap, mapStripeStatus } from '@/lib/stripe-config'
+import { estimateProfit } from '@/lib/influencer-economics'
 
 export const maxDuration = 30
 // Webhook handlers MUST read the raw request body to verify the signature,
@@ -59,9 +60,12 @@ async function recordInfluencerConversion(
   // Anti-self: never credit the influencer for their own purchase.
   if (influencer.email && influencer.email.toLowerCase() === user.email.toLowerCase()) return
 
+  // Commission is paid on PROFIT (revenue minus Stripe fees and our estimated
+  // cost to serve), not on gross revenue.
+  const profitAmount = estimateProfit(meta.plan, meta.period, revenueAmount)
   let commissionEarned: number | null = null
   if (influencer.commissionType === 'percentage' && influencer.commissionValue) {
-    commissionEarned = +(revenueAmount * (influencer.commissionValue / 100)).toFixed(2)
+    commissionEarned = +(profitAmount * (influencer.commissionValue / 100)).toFixed(2)
   } else if (influencer.commissionType === 'fixed' && influencer.commissionValue) {
     commissionEarned = influencer.commissionValue
   }
