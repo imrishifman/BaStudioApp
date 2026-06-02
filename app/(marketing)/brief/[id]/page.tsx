@@ -27,6 +27,14 @@ export default async function BriefPage({ params }: { params: Promise<{ id: stri
   return (
     <div className="mx-auto max-w-2xl px-6 py-16">
       <div className="mb-8 text-center">
+        {episode.coverImageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={episode.coverImageUrl}
+            alt={episode.title ?? episode.guestName}
+            className="mx-auto mb-6 aspect-square w-40 rounded-[var(--radius-md)] object-cover"
+          />
+        )}
         <p className="eyebrow text-[var(--ink-3)] mb-2">Guest Brief</p>
         <h1 className="display-sm text-[var(--ink-1)]">Welcome, {episode.guestName}</h1>
         <p className="body text-[var(--ink-2)] mt-2">Here's everything you need to know before we record.</p>

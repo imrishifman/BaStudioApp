@@ -7,6 +7,11 @@ import {
   chosenQuestionsBySection,
   DEFAULT_CLOSING_QUESTION,
 } from '@/lib/questions'
+import { formatFocusAnswers } from '@/lib/focus-questions'
+
+// Shared writing rule appended to every generation prompt. The product voice
+// never uses em dashes, in AI output as well as the UI.
+const NO_EM_DASH = 'WRITING STYLE: never use em dashes (—) anywhere in the output. Use commas, periods, or hyphens instead.'
 
 type DnaShow = Pick<
   Show,
@@ -152,7 +157,7 @@ export function buildBioInstruction(
   show: Pick<Show, 'hostEnergy' | 'targetAudience'> | null,
   opts: { sentences?: '2-3' | '4-5'; punchy?: boolean } = {}
 ): string {
-  const tone = ` Write confidently and positively. Lead with what's distinctive, interesting, and impressive. NEVER apologize for missing info, NEVER say things like "couldn't find", "not enough information", "limited public details", "I cannot write", or any phrase pointing out gaps. If the research is thin, write a short factual bio of what IS known (even one sentence is fine) - never refuse, never explain what's missing.`
+  const tone = ` Write confidently and positively. Lead with what's distinctive, interesting, and impressive. NEVER apologize for missing info, NEVER say things like "couldn't find", "not enough information", "limited public details", "I cannot write", or any phrase pointing out gaps. If the research is thin, write a short factual bio of what IS known (even one sentence is fine) - never refuse, never explain what's missing. Never use em dashes (—); use commas, periods, or hyphens instead.`
   const length = opts.sentences ?? '2-3'
   if (length === '2-3' && !opts.punchy) {
     return `Write a clear and accurate 2-3 sentence bio for ${guestName} based ONLY on the research above. Focus on their current role, most notable achievement, and what makes them distinctive.${tone}\n\nReturn only the bio text - no preamble, no quotation marks.`
@@ -183,7 +188,7 @@ export function buildBioPrompt(
 ) {
   const length = opts.sentences ?? '2-3'
   // Universal tone rule - never apologize for gaps.
-  const tone = ` Write confidently and positively. Lead with what's distinctive, interesting, and impressive. NEVER apologize for missing info, NEVER say things like "couldn't find", "not enough information", "limited public details", "I cannot write", or any phrase pointing out gaps. If the research is thin, write a short factual bio of what IS known (even one sentence is fine) - never refuse, never explain what's missing.`
+  const tone = ` Write confidently and positively. Lead with what's distinctive, interesting, and impressive. NEVER apologize for missing info, NEVER say things like "couldn't find", "not enough information", "limited public details", "I cannot write", or any phrase pointing out gaps. If the research is thin, write a short factual bio of what IS known (even one sentence is fine) - never refuse, never explain what's missing. Never use em dashes (—); use commas, periods, or hyphens instead.`
 
   // Default (initial pass) - spec wording.
   if (length === '2-3' && !opts.punchy) {
@@ -285,9 +290,9 @@ export function buildQuestionsPrompt(
   // than Sonnet) we can land ~30 richly-annotated questions in time.
   targetTotal = 30
 ) {
-  const focusStr = Array.isArray(episode.focusAnswers)
-    ? (episode.focusAnswers as string[]).map((a, i) => `${i + 1}. ${a}`).join('\n')
-    : ''
+  // Label each answer with the question it responds to, so the model can use
+  // context like "I'm interviewing my wife" to personalise the questions.
+  const focusStr = formatFocusAnswers(episode.focusAnswers)
 
   const prevStr = previousQuestions.length
     ? `\nAvoid repeating these previously-asked questions:\n${previousQuestions.slice(0, 20).join('\n')}`
@@ -314,8 +319,8 @@ Guest: ${episode.guestName}
 Bio: ${episode.guestBio ?? 'Not provided'}
 Research: ${episode.guestResearch ?? 'Not provided'}
 
-Episode focus:
-${focusStr}
+Episode focus (the host's own words about THIS guest and episode - weave this context into the questions; if they mention a personal relationship, occasion, or specific angle, reflect it):
+${focusStr || '(none provided)'}
 
 Podcast DNA:
 - Interview style: ${show?.interviewStyle ?? 'conversational'}
@@ -323,6 +328,8 @@ Podcast DNA:
 - Pacing: ${show?.pacing ?? 'balanced'}
 - Humor level: ${show?.humorLevel ?? 'light'}
 - Audience: ${show?.targetAudience ?? 'general'}${prevStr}${customInstructions}${influenceBlock}
+
+${NO_EM_DASH}
 
 Generate roughly ${targetTotal} questions total - about ${perSection} per section (weight more toward the core/middle sections). Return a JSON object whose keys are EXACTLY these section keys (and nothing else):
 ${sections.map(s => `- "${s.key}"  (${s.name})`).join('\n')}
@@ -356,11 +363,16 @@ export function buildScriptPrompt(
 
   const customInstructions = show?.aiScriptInstructions ? `\nCustom instructions: ${show.aiScriptInstructions}` : ''
 
+  const introFocus = formatFocusAnswers(episode.focusAnswers)
+
   if (kind === 'intro') {
+    const focusBlock = introFocus
+      ? `\n\nHost's notes about this guest and episode (weave this in - if they mention a personal relationship, occasion, or angle, reflect it naturally):\n${introFocus}`
+      : ''
     return `Write a compelling podcast intro script for ${hostName} introducing ${episode.guestName} on ${showName}.
 
 Bio to work from: ${episode.guestBio ?? 'Not provided'}
-Research: ${episode.guestResearch?.slice(0, 800) ?? 'Not provided'}
+Research: ${episode.guestResearch?.slice(0, 800) ?? 'Not provided'}${focusBlock}
 
 Podcast DNA (match this voice):
 - Audience: ${show?.targetAudience ?? 'general'}
@@ -369,13 +381,14 @@ Podcast DNA (match this voice):
 - Intro style: ${show?.guestIntroStyle ?? 'host_reads_bio'}
 - Opening line template: ${show?.openingLine ?? 'none'}${customInstructions}
 
-The intro should be specific to this guest, draw on the research, and match the show's DNA. The goal: make a listener who has never heard of the guest want to keep listening.
+The intro should be specific to this guest, draw on the research and the host's notes, and match the show's DNA. The goal: make a listener who has never heard of the guest want to keep listening.
 
 Format it as 1-2 short paragraphs, each prefixed with "HOST:" - written word-for-word for the host to read on air.
 
 Hard constraints:
 - MAXIMUM 750 characters total (count letters, not words). Be ruthless - cut every spare word.
 - Excited, high-energy, punchy delivery. Pack it tight; every sentence earns its spot.
+- ${NO_EM_DASH}
 
 Return JSON: { "script": "HOST: ...\\n\\nHOST: ..." }`
   }
@@ -413,7 +426,9 @@ Selected questions by section (with notes):
 ${questionsBlock}
 
 Closing question: ${closingQuestion}
-Interview style: ${show?.interviewStyle ?? 'conversational'}${customInstructions}
+Interview style: ${show?.interviewStyle ?? 'conversational'}${customInstructions}${introFocus ? `\n\nHost's notes about this guest and episode (reflect this context throughout):\n${introFocus}` : ''}
+
+${NO_EM_DASH}
 
 Build the document with these sections in order:
 1. # Title - show, host, guest
@@ -454,6 +469,8 @@ Generate all four of these:
 
 4. episode_description: A podcast show-notes description (150-200 words) suitable for RSS and podcast directories.
 
+${NO_EM_DASH}
+
 Return JSON with keys: linkedin_post, twitter_thread, instagram_caption, episode_description`
 }
 
@@ -474,5 +491,6 @@ ${pageCtx}
 User message: ${message}
 
 Respond helpfully and concisely. If they're working on an episode, give specific, actionable advice.
-Keep responses under 200 words unless a longer answer is genuinely needed.`
+Keep responses under 200 words unless a longer answer is genuinely needed.
+${NO_EM_DASH}`
 }

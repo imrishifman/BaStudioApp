@@ -27,12 +27,12 @@ export const MILESTONE_COPY: Record<MilestoneKey, MilestoneCopy> = {
   first_show: {
     title: 'Your first show',
     prompt:
-      'I see you just created your first show 🎙️ How was that experience? Tell us what felt smooth — or what got in the way — and help us improve.',
+      'I see you just created your first show 🎙️ How was that experience? Tell us what felt smooth, or what got in the way, and help us improve.',
   },
   first_dna: {
     title: 'Your first Show DNA',
     prompt:
-      "I see you just set your first Show DNA — that's the difference between a good show and a professional one. How was setting it up? Help us improve.",
+      "I see you just set your first Show DNA. That's the difference between a good show and a professional one. How was setting it up? Help us improve.",
   },
   first_episode: {
     title: 'Your first episode',

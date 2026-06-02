@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { PillButton } from '@/components/common/PillButton'
+import { ImageUpload } from '@/components/common/ImageUpload'
 import type { Show } from '@prisma/client'
 
 const schema = z.object({
@@ -44,6 +45,7 @@ export function EditShowModal({ open, onOpenChange, show, onSaved, onCreated }: 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
+  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null)
 
   useEffect(() => {
     reset({
@@ -54,6 +56,7 @@ export function EditShowModal({ open, onOpenChange, show, onSaved, onCreated }: 
       hostName: show?.hostName ?? '',
       targetAudience: show?.targetAudience ?? '',
     })
+    setCoverImageUrl(show?.coverImageUrl ?? null)
   }, [show, reset])
 
   async function onSubmit(data: FormData) {
@@ -62,6 +65,7 @@ export function EditShowModal({ open, onOpenChange, show, onSaved, onCreated }: 
       description: data.description,
       hostName: data.hostName,
       targetAudience: data.targetAudience,
+      coverImageUrl: coverImageUrl ?? null,
     }
     // Only send enum fields when set (empty string is invalid for the enum).
     if (data.category) payload.category = data.category
@@ -101,6 +105,13 @@ export function EditShowModal({ open, onOpenChange, show, onSaved, onCreated }: 
             <Input {...register('name')} className={fieldCls} />
             {errors.name && <p className="body-sm text-[var(--error)]">{errors.name.message}</p>}
           </div>
+
+          <ImageUpload
+            value={coverImageUrl}
+            onChange={setCoverImageUrl}
+            label="Show picture"
+            hint="Cover art shown on the show card. Square works best."
+          />
 
           <div className="flex flex-col gap-1.5">
             <Label className="body-sm text-[var(--ink-2)]">Description</Label>

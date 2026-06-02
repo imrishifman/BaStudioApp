@@ -5,6 +5,7 @@ import type { Episode, Show } from '@prisma/client'
 import { Textarea } from '@/components/ui/textarea'
 import { PillButton } from '@/components/common/PillButton'
 import { ArrowRight } from 'lucide-react'
+import { FOCUS_QUESTIONS } from '@/lib/focus-questions'
 
 interface Props {
   episode: Episode | null
@@ -13,16 +14,6 @@ interface Props {
   onNext: (patch?: Partial<Episode>) => Promise<void>
   userEmail: string
 }
-
-// Five guided prompts that define the episode's editorial angle. These answers
-// are injected directly into question generation in Step 4.
-const FOCUS_QUESTIONS = [
-  { emoji: '❤️', label: 'What do you like about this person?', placeholder: 'What draws you to them…' },
-  { emoji: '🤔', label: 'What are you most curious to ask?', placeholder: 'The core thing you want to explore…' },
-  { emoji: '😬', label: 'Any concerns or topics to avoid?', placeholder: 'Guardrails for the AI…' },
-  { emoji: '🎯', label: 'What vibe do you want?', placeholder: 'Playful, deep, fast-paced…' },
-  { emoji: '👥', label: 'What should listeners take away?', placeholder: "The episode's purpose…" },
-]
 
 export function Step3Focus({ episode, onNext }: Props) {
   const initialAnswers = (episode?.focusAnswers as string[] | null) ?? ['', '', '', '', '']

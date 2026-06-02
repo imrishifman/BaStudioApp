@@ -123,7 +123,7 @@ export function FirstStepReview({ pendingMilestone }: { pendingMilestone: Milest
               <div className="space-y-2 py-4 text-center">
                 <MessageSquare size={26} className="mx-auto text-[var(--accent-violet)]" />
                 <p className="body font-semibold text-[var(--ink-1)]">Thank you</p>
-                <p className="body-sm text-[var(--ink-3)]">We read every message — this shapes what we build next.</p>
+                <p className="body-sm text-[var(--ink-3)]">We read every message, and it shapes what we build next.</p>
               </div>
             ) : (
               <>

@@ -131,7 +131,7 @@ export function InfluencersAdminClient({ influencers: initial, conversions, payo
       setInfluencers(prev => prev.map(i => (i.id === inf.id ? data : i)))
       const mode = data.liveMode ? 'live' : 'test'
       const state = data.active ? 'active' : 'inactive (signs to activate)'
-      toast.success(data.recreated ? `Re-created in Stripe ${mode} mode — ${state}` : `In sync (${mode} mode) — ${state}`)
+      toast.success(data.recreated ? `Re-created in Stripe ${mode} mode: ${state}` : `In sync (${mode} mode): ${state}`)
     } else {
       toast.error(data.error ?? 'Re-sync failed')
     }

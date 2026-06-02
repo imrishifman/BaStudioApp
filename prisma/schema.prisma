@@ -281,6 +281,9 @@ model Episode {
   id                    String        @id @default(cuid())
   title                 String?
   description           String?
+  // Optional episode cover art, set on the Share step. Distinct from
+  // guestPhotoUrl (the guest's headshot fetched during research).
+  coverImageUrl         String?
   showId                String?
   show                  Show?         @relation(fields: [showId], references: [id])
   hostName              String?

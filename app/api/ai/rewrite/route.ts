@@ -31,7 +31,7 @@ export async function POST(req: Request) {
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 1500,
       system:
-        'You are an expert editor. Return ONLY the rewritten text - no preamble, quotation marks, or explanation.',
+        'You are an expert editor. Return ONLY the rewritten text - no preamble, quotation marks, or explanation. Never use em dashes (—); use commas, periods, or hyphens instead.',
       messages: [{ role: 'user', content: `${INSTRUCTIONS[action]}\n\nText:\n${text}` }],
     })
     const out = message.content[0].type === 'text' ? message.content[0].text.trim() : ''

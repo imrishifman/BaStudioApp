@@ -4,8 +4,9 @@ import { useState } from 'react'
 import type { Episode, Show } from '@prisma/client'
 import { PillButton } from '@/components/common/PillButton'
 import { GlassCard } from '@/components/common/GlassCard'
+import { ImageUpload } from '@/components/common/ImageUpload'
 import { Input } from '@/components/ui/input'
-import { ArrowRight, Link2, Mail, Copy, CheckCheck } from 'lucide-react'
+import { ArrowRight, Mail, Copy, CheckCheck } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Props {
@@ -18,6 +19,7 @@ export function Step9Share({ episode, onNext }: Props) {
   const [guestEmail, setGuestEmail] = useState('')
   const [sending, setSending] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(episode?.coverImageUrl ?? null)
 
   async function copyLink() {
     await navigator.clipboard.writeText(briefUrl)
@@ -42,6 +44,15 @@ export function Step9Share({ episode, onNext }: Props) {
         <h2 className="display-sm text-[var(--ink-1)]">Share with your guest</h2>
         <p className="body mt-1 text-[var(--ink-2)]">Send a public brief link so your guest knows what to expect.</p>
       </div>
+
+      <GlassCard className="p-6">
+        <ImageUpload
+          value={coverImageUrl}
+          onChange={setCoverImageUrl}
+          label="Episode picture"
+          hint="Cover art for this episode's page and listings. Square works best."
+        />
+      </GlassCard>
 
       <GlassCard className="p-6 space-y-4">
         <div>
@@ -75,10 +86,10 @@ export function Step9Share({ episode, onNext }: Props) {
       </GlassCard>
 
       <div className="flex gap-3">
-        <PillButton onClick={() => onNext({ briefUrl, status: 'approved' })}>
+        <PillButton onClick={() => onNext({ briefUrl, coverImageUrl: coverImageUrl ?? null, status: 'approved' })}>
           Next <ArrowRight size={14} />
         </PillButton>
-        <PillButton variant="secondary" onClick={() => onNext({ briefUrl })}>Skip</PillButton>
+        <PillButton variant="secondary" onClick={() => onNext({ briefUrl, coverImageUrl: coverImageUrl ?? null })}>Skip</PillButton>
       </div>
     </div>
   )
