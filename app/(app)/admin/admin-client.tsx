@@ -37,7 +37,7 @@ type Tab = 'users' | 'coupons' | 'stats' | 'feedback' | 'system'
 
 interface SystemStatus {
   fetchedAt: string
-  subscriptions: { soloActive: number; masterActive: number; mrrDollars: number; arrDollars: number; canceledLast30: number }
+  subscriptions: { paidMembers: number; soloActive: number; masterActive: number; mrrDollars: number; arrDollars: number; canceledLast30: number; stripeError: string | null }
   affiliate: {
     activeInfluencers: number
     clicksLast24h: number
@@ -217,8 +217,9 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
               {/* Subscriptions + revenue */}
               <div>
                 <p className="eyebrow mb-3 text-[var(--ink-3)]">Subscriptions & revenue</p>
-                <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+                <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
                   {[
+                    { label: 'Paid members', value: systemStatus.subscriptions.paidMembers },
                     { label: 'Solo active', value: systemStatus.subscriptions.soloActive },
                     { label: 'Master active', value: systemStatus.subscriptions.masterActive },
                     { label: 'MRR', value: `$${systemStatus.subscriptions.mrrDollars.toLocaleString()}` },
@@ -231,6 +232,11 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
                     </GlassCard>
                   ))}
                 </div>
+                {systemStatus.subscriptions.stripeError && (
+                  <p className="body-sm mt-2 text-[var(--accent-rose,#fb7185)]">
+                    Stripe: {systemStatus.subscriptions.stripeError}
+                  </p>
+                )}
               </div>
 
               {/* Affiliate */}

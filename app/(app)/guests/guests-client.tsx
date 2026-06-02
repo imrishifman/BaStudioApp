@@ -9,6 +9,7 @@ import {
   type DropResult,
 } from '@hello-pangea/dnd'
 import { GlassCard } from '@/components/common/GlassCard'
+import { useConfirm } from '@/components/common/ConfirmDialog'
 import { initials } from '@/lib/utils'
 
 type ColumnKey = 'cold' | 'warm' | 'recorded' | 'published'
@@ -63,9 +64,29 @@ export function GuestsClient({
   embedded?: boolean
 }) {
   const [guests, setGuests] = useState(initialGuests)
+  const confirm = useConfirm()
 
   function columnOf(g: Guest): ColumnKey {
     return COLUMNS.find((c) => c.statuses.includes(g.pipelineStatus))?.key ?? 'cold'
+  }
+
+  async function deleteGuest(guest: Guest) {
+    const ok = await confirm({
+      title: 'Remove guest?',
+      message: `Remove ${guest.name} from your pipeline? This can't be undone.`,
+      confirmLabel: 'Remove',
+      destructive: true,
+    })
+    if (!ok) return
+
+    const prev = guests
+    setGuests((gs) => gs.filter((g) => g.id !== guest.id))
+    try {
+      const res = await fetch(`/api/guests/${guest.id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('delete failed')
+    } catch {
+      setGuests(prev) // roll back on failure
+    }
   }
 
   async function onDragEnd(result: DropResult) {
@@ -188,6 +209,32 @@ export function GuestsClient({
                                       </p>
                                     )}
                                   </div>
+                                  <button
+                                    type="button"
+                                    aria-label={`Remove ${guest.name}`}
+                                    title="Remove guest"
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      void deleteGuest(guest)
+                                    }}
+                                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[var(--ink-4)] transition-colors hover:bg-[var(--bg-3)] hover:text-[var(--error)]"
+                                  >
+                                    <svg
+                                      width="14"
+                                      height="14"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    >
+                                      <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                                      <line x1="10" y1="11" x2="10" y2="17" />
+                                      <line x1="14" y1="11" x2="14" y2="17" />
+                                    </svg>
+                                  </button>
                                 </div>
                                 {guest.topics && guest.topics.length > 0 && (
                                   <div className="mt-2 flex flex-wrap gap-1">

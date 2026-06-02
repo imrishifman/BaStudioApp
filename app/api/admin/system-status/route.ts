@@ -2,21 +2,118 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { isAdmin } from '@/lib/admin'
+import { stripe } from '@/lib/stripe'
+import type Stripe from 'stripe'
 
 export const maxDuration = 20
 export const runtime = 'nodejs'
 // Always fetch fresh data; polling endpoint should never be cached.
 export const dynamic = 'force-dynamic'
 
-// MRR contribution of each price ID. Reads from the same env vars that drive
-// Stripe checkout - so live vs test pricing both work automatically.
-function priceMonthlyDollars(priceId: string | null): number {
-  if (!priceId) return 0
-  if (priceId === process.env.STRIPE_PRICE_SOLO_MONTHLY) return 19.99
-  if (priceId === process.env.STRIPE_PRICE_SOLO_ANNUAL) return 191.88 / 12
-  if (priceId === process.env.STRIPE_PRICE_MASTER_MONTHLY) return 29.99
-  if (priceId === process.env.STRIPE_PRICE_MASTER_ANNUAL) return 287.88 / 12
-  return 0
+// Normalize a recurring price to a per-month dollar amount, whatever its
+// billing interval (year/month/week/day) and interval_count.
+function priceToMonthly(price: Stripe.Price | null | undefined, quantity = 1): number {
+  if (!price?.unit_amount || !price.recurring) return 0
+  const amount = (price.unit_amount / 100) * quantity
+  const count = price.recurring.interval_count || 1
+  switch (price.recurring.interval) {
+    case 'year': return amount / (12 * count)
+    case 'month': return amount / count
+    case 'week': return (amount * 52) / 12 / count
+    case 'day': return (amount * 365) / 12 / count
+    default: return 0
+  }
+}
+
+// Apply any subscription-level discounts (coupon percent_off / amount_off) so a
+// 100%-off comp subscription nets $0 and is NOT counted as a paid member.
+function applyDiscounts(monthlyGross: number, sub: Stripe.Subscription): number {
+  // Newer API exposes `discounts` (array); older exposes a single `discount`.
+  // Newer Discount holds its coupon at `source.coupon`; legacy at `.coupon`.
+  const raw = (sub.discounts as unknown[] | undefined) ?? []
+  const legacy = (sub as unknown as { discount?: unknown }).discount
+  const discounts = [...raw, ...(legacy ? [legacy] : [])]
+  let net = monthlyGross
+  for (const d of discounts) {
+    if (typeof d !== 'object' || d === null) continue
+    const obj = d as { coupon?: unknown; source?: { coupon?: unknown } }
+    const rawCoupon = obj.source?.coupon ?? obj.coupon
+    const coupon =
+      typeof rawCoupon === 'object' && rawCoupon !== null ? (rawCoupon as Stripe.Coupon) : null
+    if (!coupon) continue
+    if (coupon.percent_off) net *= 1 - coupon.percent_off / 100
+    else if (coupon.amount_off) net = Math.max(0, net - coupon.amount_off / 100)
+  }
+  return net
+}
+
+interface StripeSubsSummary {
+  paidMembers: number
+  soloActive: number
+  masterActive: number
+  mrr: number
+  error: string | null
+}
+
+// Source of truth for revenue: live Stripe subscriptions, NOT the local DB.
+// Only subscriptions Stripe reports as `active` AND that net more than $0 after
+// discounts count as paid members. Paginates so we never miss anyone.
+async function computeStripeSubscriptions(): Promise<StripeSubsSummary> {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return { paidMembers: 0, soloActive: 0, masterActive: 0, mrr: 0, error: 'Stripe not configured' }
+  }
+  const soloPrices = new Set(
+    [process.env.STRIPE_PRICE_SOLO_MONTHLY, process.env.STRIPE_PRICE_SOLO_ANNUAL].filter(Boolean),
+  )
+  const masterPrices = new Set(
+    [process.env.STRIPE_PRICE_MASTER_MONTHLY, process.env.STRIPE_PRICE_MASTER_ANNUAL].filter(Boolean),
+  )
+
+  let paidMembers = 0
+  let soloActive = 0
+  let masterActive = 0
+  let mrr = 0
+  let startingAfter: string | undefined
+
+  try {
+    // Cap pages defensively so a runaway loop can't stall the polling cycle.
+    for (let page = 0; page < 20; page++) {
+      const res = await stripe.subscriptions.list({
+        status: 'active',
+        limit: 100,
+        expand: ['data.discounts.source.coupon'],
+        ...(startingAfter ? { starting_after: startingAfter } : {}),
+      })
+
+      for (const sub of res.data) {
+        let gross = 0
+        let plan: 'solo' | 'master' | null = null
+        for (const item of sub.items.data) {
+          gross += priceToMonthly(item.price, item.quantity ?? 1)
+          if (soloPrices.has(item.price.id)) plan = 'solo'
+          else if (masterPrices.has(item.price.id)) plan = 'master'
+        }
+        const net = applyDiscounts(gross, sub)
+        if (net <= 0.001) continue // free / fully-comped — not a paid member
+        paidMembers++
+        mrr += net
+        if (plan === 'solo') soloActive++
+        else if (plan === 'master') masterActive++
+      }
+
+      if (!res.has_more) break
+      startingAfter = res.data[res.data.length - 1]?.id
+    }
+    return { paidMembers, soloActive, masterActive, mrr, error: null }
+  } catch (err) {
+    return {
+      paidMembers: 0,
+      soloActive: 0,
+      masterActive: 0,
+      mrr: 0,
+      error: err instanceof Error ? err.message : 'Stripe subscription lookup failed',
+    }
+  }
 }
 
 interface VercelDeployment {
@@ -63,7 +160,7 @@ export async function GET() {
   // Run all queries in parallel — total endpoint latency = slowest single query,
   // not sum of all queries.
   const [
-    activePaidUsers,
+    stripeSubs,
     canceledLast30,
     clicksLast24h,
     clicksTotal,
@@ -75,12 +172,10 @@ export async function GET() {
     dbPingResult,
     deploy,
   ] = await Promise.all([
-    // Subscriptions + revenue (active paid only - cancelAtPeriodEnd is still
-    // active until period ends; counted as active until churned via webhook).
-    prisma.user.findMany({
-      where: { plan: { in: ['solo', 'master'] }, planStatus: 'active' },
-      select: { plan: true, stripePriceId: true },
-    }),
+    // Subscriptions + revenue: live Stripe is the source of truth. Only counts
+    // subscriptions Stripe reports as `active` that net more than $0 after
+    // discounts as paid members (so 100%-off comps don't inflate MRR).
+    computeStripeSubscriptions(),
     prisma.user.count({
       where: {
         OR: [
@@ -111,11 +206,6 @@ export async function GET() {
     fetchLatestVercelDeploy(),
   ])
 
-  // Compute MRR from the active subs we just pulled.
-  const soloActive = activePaidUsers.filter((u) => u.plan === 'solo').length
-  const masterActive = activePaidUsers.filter((u) => u.plan === 'master').length
-  const mrr = activePaidUsers.reduce((sum, u) => sum + priceMonthlyDollars(u.stripePriceId), 0)
-
   // Resolve top influencer name if there is one.
   let topInfluencerName: string | null = null
   let topInfluencerConversions = 0
@@ -144,11 +234,13 @@ export async function GET() {
   return NextResponse.json({
     fetchedAt: now.toISOString(),
     subscriptions: {
-      soloActive,
-      masterActive,
-      mrrDollars: +mrr.toFixed(2),
-      arrDollars: +(mrr * 12).toFixed(2),
+      paidMembers: stripeSubs.paidMembers,
+      soloActive: stripeSubs.soloActive,
+      masterActive: stripeSubs.masterActive,
+      mrrDollars: +stripeSubs.mrr.toFixed(2),
+      arrDollars: +(stripeSubs.mrr * 12).toFixed(2),
       canceledLast30,
+      stripeError: stripeSubs.error,
     },
     affiliate: {
       activeInfluencers: influencerCount,
