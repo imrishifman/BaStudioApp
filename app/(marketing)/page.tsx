@@ -2,8 +2,16 @@
 
 import { useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { Hero } from '@/components/marketing/Hero'
 import { TheWayItWorks } from '@/components/marketing/TheWayItWorks'
+
+// One shared 3D mic that travels from the hero down into "How it works".
+// Client-only (WebGL) and rendered behind both sections.
+const TravelingMicCanvas = dynamic(
+  () => import('@/components/three/TravelingMicCanvas').then((m) => m.TravelingMicCanvas),
+  { ssr: false }
+)
 import { DNASection } from '@/components/marketing/DNASection'
 import { Numbers } from '@/components/marketing/Numbers'
 import { Quotes } from '@/components/marketing/Quotes'
@@ -88,8 +96,13 @@ export default function LandingPage() {
 
   return (
     <>
-      <Hero />
-      <TheWayItWorks />
+      {/* Shared shell: the traveling mic is pinned behind the hero and "How it
+          works", gliding from one to the other as you scroll. */}
+      <div className="relative" style={{ background: 'var(--bg-0)' }}>
+        <TravelingMicCanvas />
+        <Hero />
+        <TheWayItWorks />
+      </div>
       <DNASection />
       <Numbers />
       <Quotes />

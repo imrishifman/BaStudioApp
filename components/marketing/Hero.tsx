@@ -5,28 +5,6 @@ import Link from 'next/link'
 import { motion, useTransform, useScroll } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
 import { EyebrowTag } from '@/components/common/EyebrowTag'
-import dynamic from 'next/dynamic'
-
-const HeroCanvas = dynamic(
-  () => import('@/components/three/HeroCanvas').then((m) => m.HeroCanvas),
-  {
-    ssr: false,
-    loading: () => (
-      <div
-        className="pointer-events-none absolute inset-0 flex items-center justify-center"
-        style={{
-          background:
-            'radial-gradient(ellipse 60% 50% at 50% 60%, rgba(167,139,250,0.08) 0%, transparent 70%)',
-        }}
-      >
-        <div
-          className="h-64 w-64 rounded-full opacity-20 blur-3xl"
-          style={{ background: 'var(--accent-violet)' }}
-        />
-      </div>
-    ),
-  }
-)
 
 export function Hero() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -37,10 +15,10 @@ export function Hero() {
   return (
     <section
       ref={containerRef}
-      className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden pt-14"
-      style={{ background: 'var(--bg-0)' }}
+      className="relative z-[2] flex min-h-screen flex-col items-center justify-center overflow-hidden pt-14"
     >
-      {/* Ambient background */}
+      {/* Ambient background. Transparent base so the shared traveling mic
+          (rendered behind this section) shows through. */}
       <div
         className="pointer-events-none absolute inset-0"
         style={{
@@ -48,11 +26,6 @@ export function Hero() {
             'radial-gradient(ellipse 80% 60% at 50% 40%, rgba(167,139,250,0.05) 0%, transparent 60%)',
         }}
       />
-
-      {/* WebGL Canvas */}
-      <div className="pointer-events-none absolute inset-0">
-        <HeroCanvas />
-      </div>
 
       {/* Text content */}
       <motion.div

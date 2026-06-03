@@ -1,12 +1,10 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef } from 'react'
 import {
   useScroll,
   useTransform,
   motion,
-  AnimatePresence,
-  useMotionValueEvent,
   type MotionValue,
 } from 'framer-motion'
 import { EyebrowTag } from '@/components/common/EyebrowTag'
@@ -38,6 +36,16 @@ const CHAPTERS = [
   },
 ]
 
+const ACCENTS = ['var(--accent-violet)', 'var(--accent-cyan)', 'var(--accent-cyan)', 'var(--accent-violet)']
+
+// Filmstrip travel distance (px) and badge parallax lead. TRAVEL is large
+// enough that an off-center step is fully pushed out of the clipped viewport
+// by the time its neighbour is centered (no faint text ghosting at the edges).
+const TRAVEL = 1760
+const BADGE_LEAD = 300
+// Steps complete their scroll by this fraction; the remainder is the mic's exit.
+const SPREAD = 0.82
+
 export function TheWayItWorks() {
   const outerRef = useRef<HTMLDivElement>(null)
   const { scrollYProgress } = useScroll({
@@ -45,153 +53,118 @@ export function TheWayItWorks() {
     offset: ['start start', 'end end'],
   })
 
-  // Which chapter is active (0-3)
-  const chapterIndex = useTransform(scrollYProgress, [0, 0.25, 0.5, 0.75, 1], [0, 1, 2, 3, 3])
+  // Thin progress bar that fills as you move through the section.
+  const railScale = useTransform(scrollYProgress, [0, 1], [0, 1])
 
   return (
-    <div ref={outerRef} id="how-it-works" className="relative" style={{ height: '240vh' }}>
-      {/* Sticky viewport */}
-      <div
-        className="sticky top-0 flex h-screen items-center overflow-hidden"
-        style={{ background: 'var(--bg-0)' }}
-      >
+    <div ref={outerRef} id="how-it-works" className="relative z-[2]" style={{ height: '340vh' }}>
+      {/* Sticky viewport. Transparent so the shared traveling mic shows through
+          and docks in the right column. */}
+      <div className="sticky top-0 flex h-screen items-center overflow-hidden">
         <div
-          className="mx-auto grid w-full max-w-[1240px] grid-cols-1 gap-16 md:grid-cols-2"
+          className="relative z-10 mx-auto grid w-full max-w-[1240px] grid-cols-1 gap-16 md:grid-cols-2"
           style={{ padding: '0 clamp(20px, 5vw, 80px)' }}
         >
-          {/* Left - text column */}
-          <div className="flex flex-col justify-center">
-            <p className="eyebrow mb-10 text-[var(--ink-3)]">How it works</p>
+          {/* Left - chapters move continuously with scroll (a filmstrip). */}
+          <div className="relative flex h-[70vh] flex-col justify-center">
+            <p className="eyebrow absolute left-0 top-0 text-[var(--ink-3)]">How it works</p>
 
-            {CHAPTERS.map((ch, i) => (
-              <ChapterRow
-                key={ch.step}
-                chapter={ch}
-                index={i}
-                chapterIndex={chapterIndex}
-              />
-            ))}
-          </div>
-
-          {/* Right - visual placeholder (WebGL state driven by scroll) */}
-          <div className="hidden items-center justify-center md:flex">
-            <motion.div
-              className="relative flex h-[480px] w-[380px] items-center justify-center rounded-[var(--radius-xl)]"
-              style={{ background: 'var(--bg-1)', border: '1px solid var(--line-1)' }}
+            {/* Vertical progress rail */}
+            <div
+              className="absolute left-0 top-16 hidden h-[calc(100%-8rem)] w-px md:block"
+              style={{ background: 'var(--line-1)' }}
             >
-              {CHAPTERS.map((ch, i) => (
-                <VisualPanel key={ch.step} chapter={ch} index={i} chapterIndex={chapterIndex} />
-              ))}
-            </motion.div>
-          </div>
-        </div>
+              <motion.div
+                className="absolute left-0 top-0 w-px origin-top"
+                style={{
+                  height: '100%',
+                  scaleY: railScale,
+                  background: 'linear-gradient(var(--accent-violet), var(--accent-cyan))',
+                }}
+              />
+            </div>
 
+            <div className="relative h-full overflow-hidden">
+              {CHAPTERS.map((ch, i) => (
+                <ChapterPanel
+                  key={ch.step}
+                  chapter={ch}
+                  index={i}
+                  scrollYProgress={scrollYProgress}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Right - the shared traveling mic docks here (rendered behind). */}
+          <div className="hidden md:block" />
+        </div>
       </div>
     </div>
   )
 }
 
-function ChapterRow({
+function ChapterPanel({
   chapter,
   index,
-  chapterIndex,
+  scrollYProgress,
 }: {
   chapter: (typeof CHAPTERS)[number]
   index: number
-  chapterIndex: MotionValue<number>
+  scrollYProgress: MotionValue<number>
 }) {
-  const isActive = useTransformActive(chapterIndex, index)
+  // A continuous filmstrip: each chapter sits a fixed distance apart and the
+  // whole strip slides up at a constant rate, so the steps are ALWAYS moving
+  // with the scroll rather than snapping or resting in place. Chapter `index`
+  // is centered exactly when scroll progress === a.
+  // NOTE: useScroll accelerates these via a ScrollTimeline, so the input
+  // breakpoints become WAAPI keyframe offsets and MUST stay within [0,1] and be
+  // strictly increasing.
+  const N = CHAPTERS.length
+  // Steps finish their journey by SPREAD, leaving the final stretch for the
+  // traveling mic to fly out off the right of the section.
+  const a = (index / (N - 1)) * SPREAD
+  const first = index === 0
+  const last = index === N - 1
+
+  // y = TRAVEL * (a - progress): centered at progress=a, gliding up otherwise.
+  const y = useTransform(scrollYProgress, [0, 1], [a * TRAVEL, (a - 1) * TRAVEL])
+  // Number badge drifts faster for a touch of parallax depth.
+  const badgeY = useTransform(scrollYProgress, [0, 1], [a * BADGE_LEAD, (a - 1) * BADGE_LEAD])
+
+  // Fade in/out around the centered moment. First holds in from the start, last
+  // holds in and stays to the end so there's never a blank frame at the edges.
+  const W = 0.16
+  const opStops = first
+    ? [0, W]
+    : last
+      ? [a - W, a]
+      : [a - W, a, a + W]
+  const opValues = first ? [1, 0] : last ? [0, 1] : [0, 1, 0]
+  const opacity = useTransform(scrollYProgress, opStops, opValues)
 
   return (
-    <motion.div
-      className="mb-10 cursor-pointer"
-      animate={{ opacity: isActive ? 1 : 0.28 }}
-      transition={{ duration: 0.4 }}
-    >
-      <div className="mb-1 flex items-center gap-3">
-        <span
-          className="eyebrow"
-          style={{ color: isActive ? 'var(--accent-violet)' : 'var(--ink-4)' }}
-        >
-          {chapter.step}
-        </span>
-        <EyebrowTag className={isActive ? 'text-[var(--ink-3)]' : 'text-[var(--ink-4)]'}>
-          {chapter.eyebrow}
-        </EyebrowTag>
-      </div>
-      <h3
-        className="display-sm mb-2 whitespace-pre-line text-[var(--ink-1)]"
-        style={{ fontSize: 'clamp(22px, 2.5vw, 34px)' }}
-      >
-        {chapter.heading}
-      </h3>
-      <p className="body text-[var(--ink-2)]" style={{ maxWidth: '40ch' }}>
-        {chapter.body}
-      </p>
-    </motion.div>
-  )
-}
-
-function VisualPanel({
-  chapter,
-  index,
-  chapterIndex,
-}: {
-  chapter: (typeof CHAPTERS)[number]
-  index: number
-  chapterIndex: MotionValue<number>
-}) {
-  const isActive = useTransformActive(chapterIndex, index)
-
-  const accentColors = [
-    'var(--accent-violet)',
-    'var(--accent-cyan)',
-    'var(--accent-cyan)',
-    'var(--accent-violet)',
-  ]
-
-  return (
-    <AnimatePresence>
-      {isActive && (
-        <motion.div
-          key={chapter.step}
-          initial={{ opacity: 0, scale: 0.94 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 1.04 }}
-          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-10"
-        >
-          <div
-            className="flex h-20 w-20 items-center justify-center rounded-full text-3xl font-bold"
-            style={{
-              background: `${accentColors[index]}18`,
-              color: accentColors[index],
-              border: `1px solid ${accentColors[index]}40`,
-            }}
+    <div className="absolute inset-0 flex items-center md:pl-20">
+      <motion.div className="w-full" style={{ y, opacity }}>
+        <div className="mb-3 flex items-center gap-3">
+          <motion.span
+            className="display-sm font-bold"
+            style={{ y: badgeY, color: ACCENTS[index], fontSize: 'clamp(40px, 5vw, 64px)', lineHeight: 1 }}
           >
             {chapter.step}
-          </div>
-          <p
-            className="text-center font-semibold text-[var(--ink-1)]"
-            style={{ fontSize: 18, lineHeight: 1.4 }}
-          >
-            {chapter.eyebrow}
-          </p>
-          <p className="body-sm text-center text-[var(--ink-3)]" style={{ maxWidth: '28ch' }}>
-            {chapter.body}
-          </p>
-        </motion.div>
-      )}
-    </AnimatePresence>
+          </motion.span>
+          <EyebrowTag className="text-[var(--ink-3)]">{chapter.eyebrow}</EyebrowTag>
+        </div>
+        <h3
+          className="display-sm mb-3 whitespace-pre-line text-[var(--ink-1)]"
+          style={{ fontSize: 'clamp(26px, 3vw, 42px)' }}
+        >
+          {chapter.heading}
+        </h3>
+        <p className="body text-[var(--ink-2)]" style={{ maxWidth: '42ch' }}>
+          {chapter.body}
+        </p>
+      </motion.div>
+    </div>
   )
-}
-
-function useTransformActive(
-  motionValue: MotionValue<number>,
-  target: number
-) {
-  const rounded = useTransform(motionValue, (v) => Math.round(v))
-  const [active, setActive] = useState(target === 0)
-  useMotionValueEvent(rounded, 'change', (v: number) => setActive(v === target))
-  return active
 }
