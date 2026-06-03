@@ -1,37 +1,52 @@
 'use client'
 
-import { useRef } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import {
   useScroll,
   useTransform,
+  useMotionTemplate,
   motion,
   type MotionValue,
 } from 'framer-motion'
 import { EyebrowTag } from '@/components/common/EyebrowTag'
 
+// Mobile-only flag. On phones the title and the steps share one column, so we
+// add breathing room under the title and blur step text as it rises behind it.
+function useIsMobile() {
+  const [mobile, setMobile] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)')
+    const sync = () => setMobile(mq.matches)
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [])
+  return mobile
+}
+
 const CHAPTERS = [
   {
     step: '01',
     eyebrow: 'The Guest',
-    heading: 'You type a name.\nWe bring back a person.',
+    heading: 'You type a name. We bring back a person.',
     body: 'Our AI scours the web, LinkedIn, and past interviews to build a real portrait of your guest: their worldview, their stories, their unasked questions.',
   },
   {
     step: '02',
     eyebrow: 'The DNA',
-    heading: 'Your show has a fingerprint.\nWe read it.',
+    heading: 'Your show has a fingerprint. We read it.',
     body: 'Podcast DNA captures your voice, your structure, your influences. Every episode breathes the same air as your best ones ever did.',
   },
   {
     step: '03',
     eyebrow: 'The Questions',
-    heading: 'Never ask\nthe same thing twice.',
+    heading: 'Never ask the same thing twice.',
     body: "Ba Studio cross-references every episode you've ever made. If a question sounds familiar, it tells you, and suggests a sharper angle instead.",
   },
   {
     step: '04',
     eyebrow: 'The Script',
-    heading: 'From research to script\nin a single take.',
+    heading: 'From research to script in a single take.',
     body: 'One studio. The whole journey. Guest research, questions, intro, and full script, built in minutes, sounding like you on your very best day.',
   },
 ]
@@ -44,7 +59,10 @@ const ACCENTS = ['var(--accent-violet)', 'var(--accent-cyan)', 'var(--accent-cya
 const TRAVEL = 1760
 const BADGE_LEAD = 300
 // Steps complete their scroll by this fraction; the remainder is the mic's exit.
-const SPREAD = 0.88
+// 0.936 (paired with a 288vh section) keeps the per-step scroll distance the same
+// as the old 0.88/300vh combo while halving the empty tail before "Your show has
+// a soul" (the trailing dead-scroll drops from ~24vh to ~12vh).
+const SPREAD = 0.936
 
 export function TheWayItWorks() {
   const outerRef = useRef<HTMLDivElement>(null)
@@ -57,7 +75,7 @@ export function TheWayItWorks() {
   const railScale = useTransform(scrollYProgress, [0, 1], [0, 1])
 
   return (
-    <div ref={outerRef} id="how-it-works" className="relative z-[2]" style={{ height: '300vh' }}>
+    <div ref={outerRef} id="how-it-works" className="relative z-[2]" style={{ height: '288vh' }}>
       {/* Sticky viewport. Transparent so the shared traveling mic shows through
           and docks in the right column. */}
       <div className="sticky top-0 flex h-screen items-center overflow-hidden">
@@ -67,11 +85,14 @@ export function TheWayItWorks() {
         >
           {/* Left - chapters move continuously with scroll (a filmstrip). */}
           <div className="relative flex h-[70vh] flex-col justify-center">
-            <h2 className="display-lg text-gradient absolute left-0 top-0">How it works</h2>
+            <h2 className="display-lg text-gradient absolute left-0 top-0 z-20 whitespace-nowrap">How it works</h2>
 
-            {/* Vertical progress rail */}
+            {/* Vertical progress rail. Starts just below the title (clamp matches
+                the display-lg line height: 0.95 * 6vw) so it's one clean,
+                continuous line beginning under "How it works" rather than cutting
+                through the middle of the letters. */}
             <div
-              className="absolute left-0 top-16 hidden h-[calc(100%-8rem)] w-px md:block"
+              className="absolute left-0 top-[clamp(52px,5.7vw,92px)] hidden h-[calc(100%-4rem-clamp(52px,5.7vw,92px))] w-px md:block"
               style={{ background: 'var(--line-1)' }}
             >
               <motion.div
@@ -143,9 +164,22 @@ function ChapterPanel({
   const opValues = first ? [1, 0] : last ? [0, 1] : [0, 1, 0]
   const opacity = useTransform(scrollYProgress, opStops, opValues)
 
+  // Mobile only: as a step rises above its centered position (y goes negative)
+  // it slides up behind the "How it works" title. Blur it progressively so the
+  // title stays clean and the overlap reads as an intentional soft wash rather
+  // than two sets of crisp text colliding. No blur while at/below center.
+  const isMobile = useIsMobile()
+  const blurPx = useTransform(y, [-220, -40, 0], [9, 0, 0])
+  const blurFilter = useMotionTemplate`blur(${blurPx}px)`
+
   return (
-    <div className="absolute inset-0 flex items-center md:pl-20">
-      <motion.div className="w-full" style={{ y, opacity }}>
+    // Push the step block down so the number isn't crowding the title. Phones get
+    // a tighter gap; desktop gets a roomier one (the title has space to breathe).
+    <div className="absolute inset-0 flex items-center pt-[13vh] md:pt-[16vh] md:pl-20">
+      <motion.div
+        className="w-full"
+        style={{ y, opacity, ...(isMobile ? { filter: blurFilter } : {}) }}
+      >
         <div className="mb-3 flex items-center gap-3">
           <motion.span
             className="display-sm font-bold"
@@ -156,7 +190,7 @@ function ChapterPanel({
           <EyebrowTag className="text-[var(--ink-3)]">{chapter.eyebrow}</EyebrowTag>
         </div>
         <h3
-          className="display-sm mb-3 whitespace-pre-line text-[var(--ink-1)]"
+          className="display-sm mb-3 text-[var(--ink-1)] xl:whitespace-nowrap xl:text-[clamp(20px,1.6vw,26px)]!"
           style={{ fontSize: 'clamp(26px, 3vw, 42px)' }}
         >
           {chapter.heading}

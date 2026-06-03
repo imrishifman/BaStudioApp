@@ -65,7 +65,7 @@ export function DNASection() {
         <EyebrowTag dot className="mb-4">
           Podcast DNA
         </EyebrowTag>
-        <h2 className="display-lg text-gradient mb-4">
+        <h2 className="display-lg text-gradient mb-4 md:whitespace-nowrap">
           Your show has a soul.
         </h2>
         <p className="body-lg text-[var(--ink-2)]">
