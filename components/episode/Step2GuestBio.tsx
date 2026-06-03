@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react'
 import type { Episode, Show } from '@prisma/client'
 import { PillButton } from '@/components/common/PillButton'
 import { GlassCard } from '@/components/common/GlassCard'
-import { Sparkles, ArrowRight, RefreshCw, Telescope } from 'lucide-react'
+import { Sparkles, ArrowRight, RefreshCw, Telescope, UserX, SearchX } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAILoading } from './AILoadingContext'
+import { useConfirm } from '@/components/common/ConfirmDialog'
 import { SmartTextarea } from './SmartTextarea'
 import { postAI } from '@/lib/ai-client'
 
@@ -15,11 +16,14 @@ interface Props {
   show: Show | null
   shows: Show[]
   onNext: (patch?: Partial<Episode>) => Promise<void>
+  onGoToStep?: (step: number) => void
+  onEpisodeChange?: (ep: Episode) => void
   userEmail: string
 }
 
-export function Step2GuestBio({ episode, onNext }: Props) {
+export function Step2GuestBio({ episode, onNext, onGoToStep, onEpisodeChange }: Props) {
   const { runAI } = useAILoading()
+  const confirm = useConfirm()
   const [bio, setBio] = useState(episode?.guestBio ?? '')
   const [research, setResearch] = useState(episode?.guestResearch ?? '')
   const [funFacts, setFunFacts] = useState<string[]>((episode?.funFacts as string[]) ?? [])
@@ -97,6 +101,42 @@ export function Step2GuestBio({ episode, onNext }: Props) {
     await onNext({ guestBio: bio, guestResearch: research, status: 'focusing' })
   }
 
+  // "Wrong person?" — the research found the wrong individual. Clear the research
+  // so it regenerates, then send the user back to Step 1 to add sharper sources
+  // (LinkedIn, website, context) that disambiguate the right person.
+  async function wrongPerson() {
+    const ok = await confirm({
+      title: 'Wrong person?',
+      message:
+        "We'll clear this research and take you back to add more sources (a LinkedIn, website, or extra context) so we can find the right person. Your guest name and links are kept.",
+      confirmLabel: 'Add more sources',
+    })
+    if (!ok) return
+    if (episode?.id) {
+      try {
+        const res = await fetch(`/api/episodes/${episode.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            guestBio: null,
+            guestResearch: null,
+            funFacts: [],
+            introductionScript: null,
+            status: 'researching',
+          }),
+        })
+        if (res.ok) onEpisodeChange?.(await res.json())
+      } catch {
+        /* navigate anyway; Step 1 still has the name + links */
+      }
+    }
+    onGoToStep?.(1)
+  }
+
+  // Did the research actually turn anything up? If not, we show a friendly
+  // "need more sources" state instead of an empty editor (the reported bug).
+  const hasResults = !!(bio.trim() || research.trim() || funFacts.length > 0)
+
   return (
     <div className="space-y-6">
       <div>
@@ -109,6 +149,29 @@ export function Step2GuestBio({ episode, onNext }: Props) {
         <GlassCard className="flex flex-col items-center gap-4 p-12 text-center">
           <div className="h-10 w-10 animate-spin rounded-full border-2 border-[var(--line-2)] border-t-[var(--accent-violet)]" />
           <p className="body text-[var(--ink-2)]">Researching {episode?.guestName}…</p>
+        </GlassCard>
+      ) : !hasResults ? (
+        // No usable research came back — almost always too few sources to pin
+        // down the right person. Send them back to Step 1 to add more.
+        <GlassCard className="flex flex-col items-center gap-4 p-10 text-center">
+          <SearchX size={32} className="text-[var(--ink-3)]" />
+          <div>
+            <p className="body font-semibold text-[var(--ink-1)]">We couldn&apos;t find enough on {episode?.guestName || 'this guest'}</p>
+            <p className="body-sm mt-1 text-[var(--ink-2)]">
+              Add a few more sources (a LinkedIn, a website, a Twitter/X handle, or some
+              context) and we&apos;ll research again. The more sources, the sharper the result.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            {onGoToStep && (
+              <PillButton onClick={() => onGoToStep(1)}>
+                Add more sources
+              </PillButton>
+            )}
+            <PillButton variant="secondary" onClick={() => runResearch('initial')}>
+              <RefreshCw size={14} /> Try again
+            </PillButton>
+          </div>
         </GlassCard>
       ) : (
         <div className="space-y-4">
@@ -147,15 +210,18 @@ export function Step2GuestBio({ episode, onNext }: Props) {
             )}
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <PillButton variant="secondary" size="sm" onClick={() => runResearch('deep')} disabled={deepDone}>
               <Telescope size={14} /> {deepDone ? 'Deep research done' : 'Deep research'}
+            </PillButton>
+            <PillButton variant="secondary" size="sm" onClick={wrongPerson}>
+              <UserX size={14} /> Wrong person?
             </PillButton>
           </div>
         </div>
       )}
 
-      {!loading && (
+      {!loading && hasResults && (
         <PillButton onClick={handleNext} disabled={!bio}>
           Next <ArrowRight size={14} />
         </PillButton>

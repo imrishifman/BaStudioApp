@@ -24,7 +24,7 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { ArrowLeft, ArrowRight, X } from 'lucide-react'
+import { ArrowLeft, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Props {
@@ -144,7 +144,21 @@ export function EpisodeWizard({ episode: initialEpisode, shows, userEmail }: Pro
     setCurrentStep(s => Math.max(s - 1, 1))
   }
 
-  const stepProps = { episode, show: selectedShow, shows, onNext: goNext, userEmail }
+  function goToStep(s: number) {
+    const target = Math.min(Math.max(s, 1), steps.length)
+    setDir(target > currentStep ? 1 : -1)
+    setCurrentStep(target)
+  }
+
+  const stepProps = {
+    episode,
+    show: selectedShow,
+    shows,
+    onNext: goNext,
+    onGoToStep: goToStep,
+    onEpisodeChange: setEpisode,
+    userEmail,
+  }
 
   function renderStep() {
     const label = steps[currentStep - 1]?.label
@@ -165,18 +179,20 @@ export function EpisodeWizard({ episode: initialEpisode, shows, userEmail }: Pro
 
   return (
     <AILoadingProvider>
-    <div className="flex min-h-screen flex-col" style={{ background: 'var(--bg-0)' }}>
+    <div className="flex min-h-screen flex-col overflow-x-hidden" style={{ background: 'var(--bg-0)' }}>
       {/* Wizard header */}
       <div
         className="sticky top-0 z-30 flex items-center justify-between gap-4 px-4 py-3"
         style={{ background: 'var(--bg-1)', borderBottom: '1px solid var(--line-1)', backdropFilter: 'blur(12px)' }}
       >
-        <StepIndicator
-          steps={steps}
-          currentStep={currentStep}
-          onStepClick={s => { setDir(s > currentStep ? 1 : -1); setCurrentStep(s) }}
-        />
-        <div className="flex items-center gap-2">
+        <div className="no-scrollbar min-w-0 flex-1 overflow-x-auto">
+          <StepIndicator
+            steps={steps}
+            currentStep={currentStep}
+            onStepClick={s => { setDir(s > currentStep ? 1 : -1); setCurrentStep(s) }}
+          />
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
           {episode?.id && (
             <ShowPicker
               shows={shows}
@@ -204,8 +220,9 @@ export function EpisodeWizard({ episode: initialEpisode, shows, userEmail }: Pro
         </div>
       </div>
 
-      {/* Step content */}
-      <div className="flex-1 overflow-y-auto">
+      {/* Step content — clip horizontal so the slide animation never makes the
+          page scroll left/right (especially on mobile). */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
         <div className="mx-auto max-w-3xl p-6 lg:p-8">
           <AnimatePresence mode="wait" custom={dir} initial={false}>
             <motion.div
@@ -244,12 +261,9 @@ export function EpisodeWizard({ episode: initialEpisode, shows, userEmail }: Pro
             </p>
           )}
         </div>
-        {/* Step renders its own Next button - this is just the default */}
-        {!['Questions', 'Intro', 'Script', 'Share', 'Promote'].includes(steps[currentStep - 1]?.label ?? '') && (
-          <PillButton size="sm" onClick={() => goNext()}>
-            Next <ArrowRight size={14} />
-          </PillButton>
-        )}
+        {/* Each step renders its own forward action (Research / Generate / Next /
+            Skip) which also saves its data, so there is no global Next here.
+            A global Next would advance Step 1 WITHOUT saving the guest. */}
       </div>
 
       {/* Exit confirmation */}

@@ -89,7 +89,7 @@ export function Step1GuestName({ episode, show, shows, onNext, onEpisodeCreated,
           <Input
             value={guestName}
             onChange={e => setGuestName(e.target.value)}
-            placeholder="e.g. Satya Nadella"
+            placeholder="Your guest name"
             className="bg-[var(--bg-2)] border-[var(--line-2)] text-[var(--ink-1)] placeholder:text-[var(--ink-4)] text-lg"
             autoFocus
           />

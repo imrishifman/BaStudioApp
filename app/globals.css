@@ -439,6 +439,15 @@ body {
   border-radius: 999px;
 }
 
+/* Hide scrollbars where we scroll for layout only (e.g. the wizard step rail). */
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* ===================== Reduced Motion ===================== */
 
 @media (prefers-reduced-motion: reduce) {
