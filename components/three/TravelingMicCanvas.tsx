@@ -19,6 +19,9 @@ export function TravelingMicCanvas() {
   const travelRef = useRef(0)
   // 0..1 progress through the "How it works" steps.
   const workRef = useRef(0)
+  // The sticky shell element — on mobile we blur + fade it via inline styles so
+  // the overlapping step text stays legible and the mic bows out with step 4.
+  const shellRef = useRef<HTMLDivElement>(null)
 
   // null = checking, true = WebGL usable, false = unavailable/lost → fallback
   const [webglOk, setWebglOk] = useState<boolean | null>(null)
@@ -54,6 +57,24 @@ export function TravelingMicCanvas() {
       const work = span > 0 ? Math.min(1, Math.max(0, (y - hiwTop) / span)) : 0
       travelRef.current = travel
       workRef.current = work
+
+      // Mobile only: the mic stays centered (it never docks right on narrow
+      // screens), so it sits behind the step text. Blur it for legibility as it
+      // enters the section, and fade it out in sync with step 4's reveal so it
+      // bows out instead of flying off the side.
+      const el = shellRef.current
+      if (el) {
+        if (window.innerWidth < 768) {
+          const blur = (travel * 7).toFixed(2)
+          el.style.filter = `blur(${blur}px)`
+          // Step 4 fades in over work [0.72, 0.88]; mirror that to fade the mic out.
+          const fade = Math.min(1, Math.max(0, (work - 0.72) / 0.16))
+          el.style.opacity = String(1 - fade)
+        } else if (el.style.filter || el.style.opacity) {
+          el.style.filter = ''
+          el.style.opacity = ''
+        }
+      }
     }
     const onScroll = () => {
       if (!raf) raf = requestAnimationFrame(update)
@@ -76,7 +97,7 @@ export function TravelingMicCanvas() {
   // While probing, render a neutral glow (avoids a flash of the flat SVG mic).
   if (webglOk === null) {
     return (
-      <div className={shell} style={shellStyle}>
+      <div ref={shellRef} className={shell} style={shellStyle}>
         <div className="flex h-full w-full items-center justify-center">
           <div
             className="h-64 w-64 rounded-full opacity-20 blur-3xl"
@@ -89,14 +110,14 @@ export function TravelingMicCanvas() {
 
   if (webglOk === false) {
     return (
-      <div className={shell} style={shellStyle}>
+      <div ref={shellRef} className={shell} style={shellStyle}>
         <MicGraphic />
       </div>
     )
   }
 
   return (
-    <div className={shell} style={shellStyle}>
+    <div ref={shellRef} className={shell} style={shellStyle}>
       <CanvasErrorBoundary fallback={<MicGraphic />}>
         <Canvas
           dpr={[1, 1.5]}

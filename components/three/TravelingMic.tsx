@@ -36,7 +36,7 @@ export function TravelingMic({ travelRef, workRef }: TravelingMicProps) {
 
     // Once the steps are nearly done (last stretch of the section), the mic
     // flies out past the right edge so it exits cleanly after "How it works".
-    const exit = smoother(THREE.MathUtils.clamp((p - 0.82) / 0.18, 0, 1))
+    const exit = smoother(THREE.MathUtils.clamp((p - 0.88) / 0.12, 0, 1))
     const dockX = wide ? state.viewport.width * 0.27 * ease : 0
     const exitX = wide ? exit * (state.viewport.width * 0.5 + 2) : 0
     const targetX = dockX + exitX
@@ -67,7 +67,7 @@ export function TravelingMic({ travelRef, workRef }: TravelingMicProps) {
 
     // Base ring ramps with progress and pulses once the journey completes.
     if (baseMat.current) {
-      const pulse = p > 0.82 ? 0.6 + Math.sin(time * 3) * 0.4 : 0
+      const pulse = p > 0.88 ? 0.6 + Math.sin(time * 3) * 0.4 : 0
       baseMat.current.emissiveIntensity = THREE.MathUtils.damp(
         baseMat.current.emissiveIntensity,
         0.3 + p * 1.6 + pulse,

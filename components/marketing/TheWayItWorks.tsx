@@ -44,7 +44,7 @@ const ACCENTS = ['var(--accent-violet)', 'var(--accent-cyan)', 'var(--accent-cya
 const TRAVEL = 1760
 const BADGE_LEAD = 300
 // Steps complete their scroll by this fraction; the remainder is the mic's exit.
-const SPREAD = 0.82
+const SPREAD = 0.88
 
 export function TheWayItWorks() {
   const outerRef = useRef<HTMLDivElement>(null)
@@ -57,7 +57,7 @@ export function TheWayItWorks() {
   const railScale = useTransform(scrollYProgress, [0, 1], [0, 1])
 
   return (
-    <div ref={outerRef} id="how-it-works" className="relative z-[2]" style={{ height: '340vh' }}>
+    <div ref={outerRef} id="how-it-works" className="relative z-[2]" style={{ height: '300vh' }}>
       {/* Sticky viewport. Transparent so the shared traveling mic shows through
           and docks in the right column. */}
       <div className="sticky top-0 flex h-screen items-center overflow-hidden">
@@ -67,7 +67,7 @@ export function TheWayItWorks() {
         >
           {/* Left - chapters move continuously with scroll (a filmstrip). */}
           <div className="relative flex h-[70vh] flex-col justify-center">
-            <p className="eyebrow absolute left-0 top-0 text-[var(--ink-3)]">How it works</p>
+            <h2 className="display-lg text-gradient absolute left-0 top-0">How it works</h2>
 
             {/* Vertical progress rail */}
             <div
