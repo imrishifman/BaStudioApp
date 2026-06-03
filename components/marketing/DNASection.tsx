@@ -61,14 +61,14 @@ export function DNASection() {
       className="mx-auto max-w-[1240px]"
       style={{ padding: '0 clamp(20px, 5vw, 80px) clamp(96px, 12vw, 200px)' }}
     >
-      <div className="mb-16 max-w-xl">
+      <div className="mb-16">
         <EyebrowTag dot className="mb-4">
           Podcast DNA
         </EyebrowTag>
-        <h2 className="display-lg text-gradient mb-4 md:whitespace-nowrap">
+        <h2 className="display-lg text-gradient mb-4">
           Your show has a soul.
         </h2>
-        <p className="body-lg text-[var(--ink-2)]">
+        <p className="body-lg max-w-xl text-[var(--ink-2)]">
           Define your structure, tone, and signature once. Every episode inherits
           it, refined over time until the AI sounds exactly like you.
         </p>
