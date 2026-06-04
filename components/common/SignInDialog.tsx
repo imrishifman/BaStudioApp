@@ -93,6 +93,14 @@ export function SignInDialog({ open, onOpenChange, initialError }: SignInDialogP
         return
       }
 
+      // Brand-new email account: drop a one-shot cookie so GtmSignupTracker can
+      // fire the `sign_up` conversion AFTER the redirect lands on /studio (firing
+      // it here would risk losing the beacon to the navigation). The tracker
+      // reads, fires once, then deletes it.
+      if (mode === 'signup') {
+        document.cookie = 'ba_signup_method=email; path=/; max-age=300; samesite=lax'
+      }
+
       window.location.href = '/studio'
     } catch {
       setError('Something went wrong. Please try again.')

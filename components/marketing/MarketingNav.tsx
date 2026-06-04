@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { useSession, signIn } from 'next-auth/react'
 import { Menu, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { trackBeginSignup } from '@/lib/gtm'
 
 const NAV_LINKS = [
   { label: 'How it works', href: '#how-it-works' },
@@ -96,7 +97,11 @@ export function MarketingNav() {
               Sign in
             </button>
           )}
-          <Link href={session ? '/studio' : '/?signin=1'} className="pill-primary pill-primary-sm">
+          <Link
+            href={session ? '/studio' : '/?signin=1'}
+            className="pill-primary pill-primary-sm"
+            onClick={() => { if (!session) trackBeginSignup('nav') }}
+          >
             Try Ba Studio
           </Link>
         </nav>

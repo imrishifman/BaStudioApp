@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { motion, useTransform, useScroll } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
 import { EyebrowTag } from '@/components/common/EyebrowTag'
+import { trackBeginSignup } from '@/lib/gtm'
 
 export function Hero() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -52,7 +53,11 @@ export function Hero() {
         </p>
 
         <div className="flex flex-wrap items-center justify-center gap-4">
-          <Link href="/?signin=1" className="pill-primary pill-primary-lg">
+          <Link
+            href="/?signin=1"
+            className="pill-primary pill-primary-lg"
+            onClick={() => trackBeginSignup('hero')}
+          >
             Try Ba Studio
           </Link>
         </div>

@@ -7,6 +7,7 @@ import { GlassCard } from '@/components/common/GlassCard'
 import { EyebrowTag } from '@/components/common/EyebrowTag'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
+import { trackBeginSignup } from '@/lib/gtm'
 
 const PLANS = [
   {
@@ -173,6 +174,7 @@ export function PricingSection() {
                 <div className="mt-auto">
                   <Link
                     href={plan.ctaHref}
+                    onClick={() => trackBeginSignup('pricing')}
                     className={cn(
                       'block w-full text-center',
                       plan.recommended ? 'pill-primary' : 'pill-secondary'

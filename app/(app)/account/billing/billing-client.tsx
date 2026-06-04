@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
+import { trackStartSubscription } from '@/lib/gtm'
 import { GlassCard } from '@/components/common/GlassCard'
 import { PillButton } from '@/components/common/PillButton'
 import { useConfirm } from '@/components/common/ConfirmDialog'
@@ -32,6 +33,60 @@ export function BillingClient({ user }: { user: BillingUser | null }) {
   const router = useRouter()
   const confirm = useConfirm()
   const [busy, setBusy] = useState<string | null>(null)
+  const subscriptionTracked = useRef(false)
+
+  // Stripe redirects back here as /account/billing?success=1&session_id=... after
+  // a completed checkout. Fire the `start_subscription` conversion exactly once,
+  // pulling the confirmed amount/plan from Stripe via the server (never trusting
+  // the client). Dedupe per session_id across reloads so a refreshed success page
+  // can't double-count, then strip the params from the URL.
+  useEffect(() => {
+    if (subscriptionTracked.current) return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('success') !== '1') return
+    const sessionId = params.get('session_id')
+    if (!sessionId) return
+
+    const dedupeKey = `ba_sub_tracked_${sessionId}`
+    try {
+      if (sessionStorage.getItem(dedupeKey)) return
+    } catch {
+      /* sessionStorage unavailable; the in-memory ref still guards this load */
+    }
+    subscriptionTracked.current = true
+
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/stripe/session?session_id=${encodeURIComponent(sessionId)}`)
+        const data = await res.json()
+        if (res.ok && data.paid) {
+          trackStartSubscription({
+            value: data.value,
+            currency: data.currency,
+            plan: data.plan,
+            billingPeriod: data.billingPeriod,
+            transactionId: data.transactionId,
+            userId: data.userId,
+          })
+          try {
+            sessionStorage.setItem(dedupeKey, '1')
+          } catch {
+            /* ignore */
+          }
+        }
+      } catch {
+        /* analytics is best-effort; never disrupt the billing page */
+      } finally {
+        // Clean the conversion params out of the URL so a manual refresh or a
+        // shared link won't re-enter this flow.
+        const url = new URL(window.location.href)
+        url.searchParams.delete('success')
+        url.searchParams.delete('session_id')
+        window.history.replaceState({}, '', url.toString())
+        router.refresh()
+      }
+    })()
+  }, [router])
 
   const PLAN_LABEL: Record<Plan, string> = { free: t('billing.planFree'), solo: t('billing.planSolo'), master: t('billing.planMaster') }
 

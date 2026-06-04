@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import { ArrowRight } from 'lucide-react'
 import Link from 'next/link'
+import { trackBeginSignup } from '@/lib/gtm'
 
 export function FinalCTA() {
   return (
@@ -26,6 +27,7 @@ export function FinalCTA() {
         <Link
           href="/?signin=1"
           className="pill-primary pill-primary-lg group inline-flex items-center gap-2"
+          onClick={() => trackBeginSignup('footer')}
         >
           Get started free
           <ArrowRight
