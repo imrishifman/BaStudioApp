@@ -153,13 +153,18 @@ function ChapterPanel({
   // Number badge drifts faster for a touch of parallax depth.
   const badgeY = useTransform(scrollYProgress, [0, 1], [a * BADGE_LEAD, (a - 1) * BADGE_LEAD])
 
-  // Fade in/out around the centered moment. First holds in from the start; every
-  // other step (including the last) fades in, peaks at center, then fades out at
-  // the same rise distance, so step 4 disappears exactly like steps 1-3. SPREAD
-  // is chosen so the last step's a + W stays within [0, 1].
+  // Fade in/out around the centered moment, with a CLEAR PLATEAU at full opacity
+  // so each step stays sharp for a real stretch of scroll rather than peaking at a
+  // single instant. The shape is a trapezoid: fade in over [a - W, a - P], hold
+  // clear over [a - P, a + P], then fade out over [a + P, a + W]. First holds in
+  // from the start. SPREAD is chosen so the last step's a + W stays within [0, 1],
+  // and P < W so the keyframe offsets stay strictly increasing. The plateaus of
+  // adjacent steps don't overlap (gap = SPREAD/(N-1) - 2P > 0), so only one step
+  // is ever fully clear at a time.
   const W = 0.16
-  const opStops = first ? [0, W] : [a - W, a, a + W]
-  const opValues = first ? [1, 0] : [0, 1, 0]
+  const P = 0.09
+  const opStops = first ? [0, a + P, a + W] : [a - W, a - P, a + P, a + W]
+  const opValues = first ? [1, 1, 0] : [0, 1, 1, 0]
   const opacity = useTransform(scrollYProgress, opStops, opValues)
 
   // Mobile only: as a step rises above its centered position (y goes negative)

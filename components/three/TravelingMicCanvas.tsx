@@ -67,8 +67,10 @@ export function TravelingMicCanvas() {
         if (window.innerWidth < 768) {
           const blur = (travel * 7).toFixed(2)
           el.style.filter = `blur(${blur}px)`
-          // Step 4 fades in over work [0.66, 0.82]; mirror that to fade the mic out.
-          const fade = Math.min(1, Math.max(0, (work - 0.66) / 0.16))
+          // Step 4 is centered at work 0.82 and fades out over [0.82, 0.98]; fade
+          // the mic out across that same window so it bows out TOGETHER with step
+          // 4 (not a step early), mirroring the desktop exit in TravelingMic.tsx.
+          const fade = Math.min(1, Math.max(0, (work - 0.82) / 0.16))
           el.style.opacity = String(1 - fade)
         } else if (el.style.filter || el.style.opacity) {
           el.style.filter = ''
