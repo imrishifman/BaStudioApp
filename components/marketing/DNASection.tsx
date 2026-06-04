@@ -65,7 +65,10 @@ export function DNASection() {
         <EyebrowTag dot className="mb-4">
           Podcast DNA
         </EyebrowTag>
-        <h2 className="display-lg text-gradient mb-4">
+        {/* Font capped below display-lg's 88px max so the headline fits one line
+            on desktop within the padded 1240 container. No nowrap, so on phones
+            it wraps cleanly instead of being cut off the right edge. */}
+        <h2 className="display-lg text-gradient mb-4 text-[clamp(40px,5.4vw,72px)]!">
           Your show has a soul.
         </h2>
         <p className="body-lg max-w-xl text-[var(--ink-2)]">

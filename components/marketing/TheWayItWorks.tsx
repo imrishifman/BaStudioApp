@@ -58,11 +58,12 @@ const ACCENTS = ['var(--accent-violet)', 'var(--accent-cyan)', 'var(--accent-cya
 // by the time its neighbour is centered (no faint text ghosting at the edges).
 const TRAVEL = 1760
 const BADGE_LEAD = 300
-// Steps complete their scroll by this fraction; the remainder is the mic's exit.
-// 0.936 (paired with a 288vh section) keeps the per-step scroll distance the same
-// as the old 0.88/300vh combo while halving the empty tail before "Your show has
-// a soul" (the trailing dead-scroll drops from ~24vh to ~12vh).
-const SPREAD = 0.936
+// The last step is centered at this fraction of scroll, leaving room (1 - SPREAD)
+// for it to fade out symmetrically just like steps 1-3 (its fade-out window is
+// [SPREAD - W, SPREAD, SPREAD + W], so SPREAD + W must stay <= 1). 0.82 keeps a
+// small safety margin below 1.0 and removes the old empty "hold" tail before
+// "Your show has a soul", so the two sections sit closer together.
+const SPREAD = 0.82
 
 export function TheWayItWorks() {
   const outerRef = useRef<HTMLDivElement>(null)
@@ -75,7 +76,7 @@ export function TheWayItWorks() {
   const railScale = useTransform(scrollYProgress, [0, 1], [0, 1])
 
   return (
-    <div ref={outerRef} id="how-it-works" className="relative z-[2]" style={{ height: '288vh' }}>
+    <div ref={outerRef} id="how-it-works" className="relative z-[2]" style={{ height: '250vh' }}>
       {/* Sticky viewport. Transparent so the shared traveling mic shows through
           and docks in the right column. */}
       <div className="sticky top-0 flex h-screen items-center overflow-hidden">
@@ -146,22 +147,19 @@ function ChapterPanel({
   // traveling mic to fly out off the right of the section.
   const a = (index / (N - 1)) * SPREAD
   const first = index === 0
-  const last = index === N - 1
 
   // y = TRAVEL * (a - progress): centered at progress=a, gliding up otherwise.
   const y = useTransform(scrollYProgress, [0, 1], [a * TRAVEL, (a - 1) * TRAVEL])
   // Number badge drifts faster for a touch of parallax depth.
   const badgeY = useTransform(scrollYProgress, [0, 1], [a * BADGE_LEAD, (a - 1) * BADGE_LEAD])
 
-  // Fade in/out around the centered moment. First holds in from the start, last
-  // holds in and stays to the end so there's never a blank frame at the edges.
+  // Fade in/out around the centered moment. First holds in from the start; every
+  // other step (including the last) fades in, peaks at center, then fades out at
+  // the same rise distance, so step 4 disappears exactly like steps 1-3. SPREAD
+  // is chosen so the last step's a + W stays within [0, 1].
   const W = 0.16
-  const opStops = first
-    ? [0, W]
-    : last
-      ? [a - W, a]
-      : [a - W, a, a + W]
-  const opValues = first ? [1, 0] : last ? [0, 1] : [0, 1, 0]
+  const opStops = first ? [0, W] : [a - W, a, a + W]
+  const opValues = first ? [1, 0] : [0, 1, 0]
   const opacity = useTransform(scrollYProgress, opStops, opValues)
 
   // Mobile only: as a step rises above its centered position (y goes negative)
@@ -190,7 +188,7 @@ function ChapterPanel({
           <EyebrowTag className="text-[var(--ink-3)]">{chapter.eyebrow}</EyebrowTag>
         </div>
         <h3
-          className="display-sm mb-3 text-[var(--ink-1)] xl:whitespace-nowrap xl:text-[clamp(20px,1.6vw,26px)]!"
+          className="display-sm mb-3 text-[var(--ink-1)] xl:whitespace-nowrap xl:text-[20px]!"
           style={{ fontSize: 'clamp(26px, 3vw, 42px)' }}
         >
           {chapter.heading}

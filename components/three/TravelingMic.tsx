@@ -34,9 +34,10 @@ export function TravelingMic({ travelRef, workRef }: TravelingMicProps) {
     // column once "How it works" takes over. On narrow screens it stays centered.
     const wide = state.size.width >= 768
 
-    // Once the steps are nearly done (last stretch of the section), the mic
-    // flies out past the right edge so it exits cleanly after "How it works".
-    const exit = smoother(THREE.MathUtils.clamp((p - 0.936) / 0.064, 0, 1))
+    // Step 4 is centered at p=0.82 and fades out over [0.82, 0.98]. The mic flies
+    // out across that same window so it disappears TOGETHER with step 4 — not
+    // before it and not after it.
+    const exit = smoother(THREE.MathUtils.clamp((p - 0.82) / 0.16, 0, 1))
     const dockX = wide ? state.viewport.width * 0.27 * ease : 0
     const exitX = wide ? exit * (state.viewport.width * 0.5 + 2) : 0
     const targetX = dockX + exitX
@@ -67,7 +68,7 @@ export function TravelingMic({ travelRef, workRef }: TravelingMicProps) {
 
     // Base ring ramps with progress and pulses once the journey completes.
     if (baseMat.current) {
-      const pulse = p > 0.936 ? 0.6 + Math.sin(time * 3) * 0.4 : 0
+      const pulse = p > 0.82 ? 0.6 + Math.sin(time * 3) * 0.4 : 0
       baseMat.current.emissiveIntensity = THREE.MathUtils.damp(
         baseMat.current.emissiveIntensity,
         0.3 + p * 1.6 + pulse,
