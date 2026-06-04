@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import Anthropic from '@anthropic-ai/sdk'
-import { buildScriptPrompt } from '@/lib/ai/prompts'
+import { buildScriptPrompt, languageDirective } from '@/lib/ai/prompts'
 import { extractJson, aiErrorMessage } from '@/lib/ai/json'
 
 export const maxDuration = 60
@@ -18,6 +18,9 @@ export async function POST(req: Request) {
   const episode = await prisma.episode.findFirst({ where: { id: episodeId, createdByEmail: session.user.email } })
   if (!episode) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
+  // The user's saved language steers the output language (e.g. Hebrew).
+  const lang = (await prisma.user.findUnique({ where: { email: session.user.email }, select: { language: true } }))?.language
+
   try {
     // Revision path: apply a one-off change request to the whole script.
     if (instruction) {
@@ -26,7 +29,7 @@ export async function POST(req: Request) {
       const msg = await anthropic.messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 6000,
-        messages: [{ role: 'user', content: revisePrompt }],
+        messages: [{ role: 'user', content: revisePrompt + languageDirective(lang) }],
       })
       const text = msg.content[0].type === 'text' ? msg.content[0].text : ''
       const { script } = extractJson<{ script: string }>(text)
@@ -40,7 +43,7 @@ export async function POST(req: Request) {
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: kind === 'full' ? 4500 : 2000,
-      messages: [{ role: 'user', content: prompt }],
+      messages: [{ role: 'user', content: prompt + languageDirective(lang) }],
     })
 
     const text = message.content[0].type === 'text' ? message.content[0].text : ''

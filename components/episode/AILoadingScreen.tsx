@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
+import { useT } from '@/components/i18n/I18nProvider'
 
 export type AIStep = 'research' | 'focus' | 'questions' | 'intro' | 'script'
 
@@ -66,6 +67,7 @@ interface Props {
 }
 
 export function AILoadingScreen({ progress, onCancel }: Props) {
+  const t = useT()
   const done = progress >= 100
 
   const [msgIndex, setMsgIndex] = useState(() => Math.floor(Math.random() * MESSAGES.length))
@@ -103,8 +105,8 @@ export function AILoadingScreen({ progress, onCancel }: Props) {
   // On completion, fade out then unmount.
   useEffect(() => {
     if (!done) return
-    const t = setTimeout(() => setGone(true), 500)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setGone(true), 500)
+    return () => clearTimeout(timer)
   }, [done])
 
   if (gone) return null
@@ -136,21 +138,21 @@ export function AILoadingScreen({ progress, onCancel }: Props) {
           className="body-lg max-w-md text-center font-medium text-[var(--ink-1)] transition-opacity duration-300"
           style={{ opacity: msgVisible && !done ? 1 : 0 }}
         >
-          {MESSAGES[msgIndex]}
+          {t(`episode.aiMsg${msgIndex}`)}
         </p>
       </div>
 
-      <p className="body-sm text-[var(--ink-3)]">This usually takes 10-30 seconds. Hang tight.</p>
+      <p className="body-sm text-[var(--ink-3)]">{t('episode.aiUsuallyTakes')}</p>
 
       {elapsed >= 45 && !done && (
         <div className="flex flex-col items-center gap-2">
-          <p className="body-sm text-[var(--ink-2)]">Taking a bit longer than usual… almost there.</p>
+          <p className="body-sm text-[var(--ink-2)]">{t('episode.aiTakingLonger')}</p>
           {onCancel && (
             <button
               onClick={onCancel}
               className="body-sm text-[var(--ink-3)] underline transition-colors hover:text-[var(--ink-1)]"
             >
-              Cancel and try again
+              {t('episode.aiCancel')}
             </button>
           )}
         </div>
@@ -163,7 +165,7 @@ export function AILoadingScreen({ progress, onCancel }: Props) {
             <span className="ai-bar-orb" />
           </div>
         </div>
-        <p className="ai-bar-label mt-3 text-center">{done ? 'READY' : 'LOADING……'}</p>
+        <p className="ai-bar-label mt-3 text-center">{done ? t('episode.aiReady') : t('episode.aiLoading')}</p>
       </div>
     </div>
   )

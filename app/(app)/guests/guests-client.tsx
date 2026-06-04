@@ -11,45 +11,46 @@ import {
 import { GlassCard } from '@/components/common/GlassCard'
 import { useConfirm } from '@/components/common/ConfirmDialog'
 import { initials } from '@/lib/utils'
+import { useT } from '@/components/i18n/I18nProvider'
 
 type ColumnKey = 'cold' | 'warm' | 'recorded' | 'published'
 
 const COLUMNS: {
   key: ColumnKey
-  label: string
-  hint: string
+  labelKey: string
+  hintKey: string
   color: string
   status: GuestStatus
   statuses: GuestStatus[]
 }[] = [
   {
     key: 'cold',
-    label: 'Cold',
-    hint: 'On your wishlist',
+    labelKey: 'guests.colColdLabel',
+    hintKey: 'guests.colColdHint',
     color: '#67e8f9',
     status: 'wishlist',
     statuses: ['wishlist'],
   },
   {
     key: 'warm',
-    label: 'Warm',
-    hint: 'Reached out / confirmed',
+    labelKey: 'guests.colWarmLabel',
+    hintKey: 'guests.colWarmHint',
     color: '#ffd60a',
     status: 'confirmed',
     statuses: ['outreach_sent', 'confirmed'],
   },
   {
     key: 'recorded',
-    label: 'Recorded',
-    hint: 'In the can',
+    labelKey: 'guests.colRecordedLabel',
+    hintKey: 'guests.colRecordedHint',
     color: '#a78bfa',
     status: 'recorded',
     statuses: ['recorded'],
   },
   {
     key: 'published',
-    label: 'Published',
-    hint: 'Live to the world',
+    labelKey: 'guests.colPublishedLabel',
+    hintKey: 'guests.colPublishedHint',
     color: '#30d158',
     status: 'published',
     statuses: ['published'],
@@ -63,6 +64,7 @@ export function GuestsClient({
   guests: Guest[]
   embedded?: boolean
 }) {
+  const tr = useT()
   const [guests, setGuests] = useState(initialGuests)
   const confirm = useConfirm()
 
@@ -72,9 +74,9 @@ export function GuestsClient({
 
   async function deleteGuest(guest: Guest) {
     const ok = await confirm({
-      title: 'Remove guest?',
-      message: `Remove ${guest.name} from your pipeline? This can't be undone.`,
-      confirmLabel: 'Remove',
+      title: tr('guests.removeGuestTitle'),
+      message: `${tr('guests.removeGuestMsgPrefix')}${guest.name}${tr('guests.removeGuestMsgSuffix')}`,
+      confirmLabel: tr('guests.removeLabel'),
       destructive: true,
     })
     if (!ok) return
@@ -113,11 +115,11 @@ export function GuestsClient({
     <div className={embedded ? '' : 'p-6 lg:p-8'}>
       {!embedded && (
         <div className="mb-1">
-          <h1 className="display-sm text-[var(--ink-1)]">Guests</h1>
+          <h1 className="display-sm text-[var(--ink-1)]">{tr('guests.title')}</h1>
         </div>
       )}
       <p className="body-sm mb-6 text-[var(--ink-3)]">
-        Drag a guest across the pipeline as your relationship warms up.
+        {tr('guests.pipelineHint')}
       </p>
 
       <DragDropContext onDragEnd={onDragEnd}>
@@ -133,8 +135,8 @@ export function GuestsClient({
                       style={{ background: col.color }}
                     />
                     <div>
-                      <p className="body-sm font-semibold text-[var(--ink-1)]">{col.label}</p>
-                      <p className="text-[11px] text-[var(--ink-4)]">{col.hint}</p>
+                      <p className="body-sm font-semibold text-[var(--ink-1)]">{tr(col.labelKey)}</p>
+                      <p className="text-[11px] text-[var(--ink-4)]">{tr(col.hintKey)}</p>
                     </div>
                   </div>
                   <span
@@ -163,7 +165,7 @@ export function GuestsClient({
                     >
                       {colGuests.length === 0 && !snapshot.isDraggingOver && (
                         <div className="flex flex-1 items-center justify-center py-6">
-                          <p className="body-sm text-[var(--ink-4)]">Drag guests here</p>
+                          <p className="body-sm text-[var(--ink-4)]">{tr('guests.dragGuestsHere')}</p>
                         </div>
                       )}
                       {colGuests.map((guest, i) => (
@@ -205,14 +207,14 @@ export function GuestsClient({
                                     </p>
                                     {guest.timesInterviewed > 0 && (
                                       <p className="text-[11px] text-[var(--ink-3)]">
-                                        {guest.timesInterviewed}× interviewed
+                                        {guest.timesInterviewed}{tr('guests.interviewedSuffix')}
                                       </p>
                                     )}
                                   </div>
                                   <button
                                     type="button"
-                                    aria-label={`Remove ${guest.name}`}
-                                    title="Remove guest"
+                                    aria-label={`${tr('guests.removeGuestAriaPrefix')}${guest.name}`}
+                                    title={tr('guests.removeGuestTitleAttr')}
                                     onMouseDown={(e) => e.stopPropagation()}
                                     onClick={(e) => {
                                       e.stopPropagation()
@@ -266,9 +268,9 @@ export function GuestsClient({
 
       {guests.length === 0 && (
         <GlassCard className="mt-4 p-8 text-center">
-          <p className="body text-[var(--ink-2)]">No guests yet.</p>
+          <p className="body text-[var(--ink-2)]">{tr('guests.noGuests')}</p>
           <p className="body-sm mt-1 text-[var(--ink-3)]">
-            Guests are added automatically when you research them in an episode.
+            {tr('guests.guestsAutoAdded')}
           </p>
         </GlassCard>
       )}

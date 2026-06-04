@@ -10,6 +10,7 @@ import { PillButton } from '@/components/common/PillButton'
 import { UserPlus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Show, Team } from '@prisma/client'
+import { useT } from '@/components/i18n/I18nProvider'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const inputCls = 'bg-[var(--bg-3)] border-[var(--line-2)] text-[var(--ink-1)] placeholder:text-[var(--ink-4)]'
@@ -28,6 +29,7 @@ export function NewTeamModal({
   shows: Show[]
   onSaved: () => void
 }) {
+  const t = useT()
   const [name, setName] = useState('')
   const [showId, setShowId] = useState('')
   const [members, setMembers] = useState<string[]>([])
@@ -46,11 +48,11 @@ export function NewTeamModal({
   function addMember() {
     const email = memberInput.trim().toLowerCase()
     if (!EMAIL_RE.test(email)) {
-      toast.error('Enter a valid email')
+      toast.error(t('team.enterValidEmail'))
       return
     }
     if (members.includes(email)) {
-      toast('Already added')
+      toast(t('team.alreadyAdded'))
       return
     }
     setMembers((p) => [...p, email])
@@ -59,7 +61,7 @@ export function NewTeamModal({
 
   async function save() {
     if (!name.trim()) {
-      toast.error('Team name is required')
+      toast.error(t('team.teamNameRequired'))
       return
     }
     setSaving(true)
@@ -75,7 +77,7 @@ export function NewTeamModal({
         onOpenChange(false)
         onSaved()
       } else {
-        toast.error('Could not save team')
+        toast.error(t('team.couldNotSaveTeam'))
       }
     } finally {
       setSaving(false)
@@ -87,24 +89,24 @@ export function NewTeamModal({
       <DialogContent className="max-w-md border-[var(--line-1)]" style={{ background: 'var(--bg-2)' }}>
         <DialogHeader>
           <DialogTitle className="display-sm text-[var(--ink-1)]">
-            {team ? 'Edit team' : 'New team'}
+            {team ? t('team.editTeam') : t('team.newTeamTitle')}
           </DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4 pt-2">
           <div className="flex flex-col gap-1.5">
-            <Label className="body-sm text-[var(--ink-2)]">Team name</Label>
+            <Label className="body-sm text-[var(--ink-2)]">{t('team.teamNameLabel')}</Label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Production Crew"
+              placeholder={t('team.teamNamePh')}
               className={inputCls}
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label className="body-sm text-[var(--ink-2)]">Attach to show</Label>
+            <Label className="body-sm text-[var(--ink-2)]">{t('team.attachToShow')}</Label>
             <select value={showId} onChange={(e) => setShowId(e.target.value)} className={selectCls}>
-              <option value="">No show</option>
+              <option value="">{t('team.noShowOption')}</option>
               {shows.map((s) => (
                 <option key={s.id} value={s.id} style={{ background: 'var(--bg-3)' }}>
                   {s.name}
@@ -112,12 +114,12 @@ export function NewTeamModal({
               ))}
             </select>
             <p className="text-[11px] text-[var(--ink-4)]">
-              New episodes for this show will automatically attach this team.
+              {t('team.attachHint')}
             </p>
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label className="body-sm text-[var(--ink-2)]">Members</Label>
+            <Label className="body-sm text-[var(--ink-2)]">{t('team.membersLabel')}</Label>
             <div className="flex gap-2">
               <Input
                 value={memberInput}
@@ -128,7 +130,7 @@ export function NewTeamModal({
                     addMember()
                   }
                 }}
-                placeholder="member@email.com"
+                placeholder={t('team.memberPh')}
                 className={`${inputCls} flex-1`}
               />
               <PillButton type="button" size="sm" variant="secondary" onClick={addMember}>
@@ -147,7 +149,7 @@ export function NewTeamModal({
                     <button
                       onClick={() => setMembers((p) => p.filter((x) => x !== m))}
                       className="text-[var(--ink-4)] transition-colors hover:text-[var(--error)]"
-                      aria-label="Remove"
+                      aria-label={t('team.removeMemberAria')}
                     >
                       <X size={12} />
                     </button>
@@ -159,10 +161,10 @@ export function NewTeamModal({
 
           <div className="flex gap-3 pt-2">
             <PillButton onClick={save} disabled={saving}>
-              {saving ? 'Saving…' : 'Save team'}
+              {saving ? t('team.saving') : t('team.saveTeam')}
             </PillButton>
             <PillButton variant="secondary" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t('team.cancel')}
             </PillButton>
           </div>
         </div>

@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useAILoading } from './AILoadingContext'
 import { postAI } from '@/lib/ai-client'
+import { useT } from '@/components/i18n/I18nProvider'
 
 interface Props {
   episode: Episode | null
@@ -42,6 +43,7 @@ const BUILTIN_NAMES = new Set(INFLUENCERS.map((i) => i.name))
 const MAX = 3
 
 export function Step4Style({ episode, onNext }: Props) {
+  const t = useT()
   const { runAI } = useAILoading()
   const [selected, setSelected] = useState<string[]>(episode?.interviewInfluences ?? [])
   const [profiles, setProfiles] = useState<Record<string, string>>(
@@ -86,7 +88,7 @@ export function Step4Style({ episode, onNext }: Props) {
         { episodeId: episode.id, url: url.trim() }
       )
       if (!data.found || !data.name) {
-        toast.error('Could not identify a show at that URL. Try adding by name.')
+        toast.error(t('episode.urlNotFound'))
         return
       }
       setProfiles((p) => ({ ...p, [data.name!]: data.profile ?? '' }))
@@ -97,7 +99,7 @@ export function Step4Style({ episode, onNext }: Props) {
       )
       setUrl('')
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not research that show')
+      toast.error(err instanceof Error ? err.message : t('episode.couldNotResearchShow'))
     } finally {
       setUrlLoading(false)
     }
@@ -118,7 +120,7 @@ export function Step4Style({ episode, onNext }: Props) {
       await onNext({ interviewInfluences: selected, status: 'questions' })
     } catch (err) {
       if ((err as Error)?.name !== 'AbortError') {
-        toast.error(err instanceof Error ? err.message : 'Could not generate questions')
+        toast.error(err instanceof Error ? err.message : t('episode.couldNotGenQuestions'))
       }
     } finally {
       setGenerating(false)
@@ -132,17 +134,17 @@ export function Step4Style({ episode, onNext }: Props) {
   ).filter((n) => !BUILTIN_NAMES.has(n))
 
   const cards: { name: string; emoji: string; desc: string }[] = [
-    ...INFLUENCERS,
-    ...customNames.map((n) => ({ name: n, emoji: '🔍', desc: customDescs[n] ?? 'Custom influence' })),
+    ...INFLUENCERS.map((inf, i) => ({ name: inf.name, emoji: inf.emoji, desc: t(`episode.inf${i}`) })),
+    ...customNames.map((n) => ({ name: n, emoji: '🔍', desc: customDescs[n] || t('episode.customInfluence') })),
   ]
 
   return (
     <div className="space-y-6">
       <div>
-        <p className="eyebrow mb-1 text-[var(--ink-3)]">Step 4 of 10</p>
-        <h2 className="display-sm text-[var(--ink-1)]">Interview style</h2>
+        <p className="eyebrow mb-1 text-[var(--ink-3)]">{t('episode.stepPrefix')}4{t('episode.of10')}</p>
+        <h2 className="display-sm text-[var(--ink-1)]">{t('episode.s4Title')}</h2>
         <p className="body mt-1 text-[var(--ink-2)]">
-          Pick up to {MAX} interviewers whose style should shape your questions ({selected.length}/{MAX}). Click <em>Research this style</em> on the ones you choose so the AI can truly emulate them.
+          {t('episode.stylePickPrefix')}{selected.length}{t('episode.stylePickMid')}<em>{t('episode.styleResearchEm')}</em>{t('episode.stylePickSuffix')}
         </p>
       </div>
 
@@ -178,7 +180,7 @@ export function Step4Style({ episode, onNext }: Props) {
 
       {/* Paste a podcast URL */}
       <div className="space-y-1.5">
-        <p className="eyebrow text-[var(--ink-3)]">Or paste a podcast URL</p>
+        <p className="eyebrow text-[var(--ink-3)]">{t('episode.orPasteUrl')}</p>
         <div className="flex gap-2">
           <div className="relative flex-1">
             <LinkIcon size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--ink-4)]" />
@@ -186,20 +188,20 @@ export function Step4Style({ episode, onNext }: Props) {
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); researchUrl() } }}
-              placeholder="Apple Podcasts, Spotify, YouTube, or episode link"
+              placeholder={t('episode.urlPh')}
               disabled={urlLoading}
               className="body-sm w-full rounded-[var(--radius-sm)] py-2 pl-7 pr-3"
               style={{ background: 'var(--bg-2)', border: '1px solid var(--line-2)', color: 'var(--ink-1)' }}
             />
           </div>
           <PillButton variant="secondary" size="sm" onClick={researchUrl} disabled={urlLoading || !url.trim()}>
-            {urlLoading ? <><Loader2 size={13} className="animate-spin" /> Researching…</> : <><Telescope size={13} /> Research</>}
+            {urlLoading ? <><Loader2 size={13} className="animate-spin" /> {t('episode.researching')}</> : <><Telescope size={13} /> {t('episode.research')}</>}
           </PillButton>
         </div>
       </div>
 
       <PillButton onClick={generateQuestions} disabled={generating || selected.length === 0} size="lg">
-        <Sparkles size={16} /> Generate Questions
+        <Sparkles size={16} /> {t('episode.generateQuestions')}
       </PillButton>
     </div>
   )

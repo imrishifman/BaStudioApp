@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import { useAILoading } from './AILoadingContext'
 import { postAI } from '@/lib/ai-client'
 import { downloadScriptDocx } from '@/lib/docx-export'
+import { useT } from '@/components/i18n/I18nProvider'
 
 interface Props {
   episode: Episode | null; show: Show | null; shows: Show[]
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export function Step7Script({ episode, onNext }: Props) {
+  const t = useT()
   const { runAI } = useAILoading()
   const [script, setScript] = useState(episode?.fullScript ?? '')
   const [loading, setLoading] = useState(false)
@@ -46,7 +48,7 @@ export function Step7Script({ episode, onNext }: Props) {
       })
       setScript(data.script as string)
     } catch (err) {
-      if ((err as Error)?.name !== 'AbortError') toast.error(err instanceof Error ? err.message : 'Failed to generate')
+      if ((err as Error)?.name !== 'AbortError') toast.error(err instanceof Error ? err.message : t('episode.failedGenerate'))
     } finally { setLoading(false) }
   }
 
@@ -62,7 +64,7 @@ export function Step7Script({ episode, onNext }: Props) {
         setInstruction('')
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Revision failed')
+      toast.error(err instanceof Error ? err.message : t('episode.revisionFailed'))
     } finally { setRevising(false) }
   }
 
@@ -79,15 +81,15 @@ export function Step7Script({ episode, onNext }: Props) {
     if (!episode?.id || !photoUrl) return
     try {
       await fetch(`/api/episodes/${episode.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ guestPhotoUrl: photoUrl }) })
-      toast.success('Photo saved')
-    } catch { toast.error('Could not save photo') }
+      toast.success(t('episode.photoSaved'))
+    } catch { toast.error(t('episode.couldNotSavePhoto')) }
   }
 
   function exportDocx() {
     if (!script) return
     downloadScriptDocx(
       {
-        title: `${episode?.guestName ?? 'Episode'} - Interview Script`,
+        title: `${episode?.guestName ?? 'Episode'}${t('episode.docxTitleSuffix')}`,
         subtitle: episode?.title ?? undefined,
       },
       script,
@@ -98,16 +100,16 @@ export function Step7Script({ episode, onNext }: Props) {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="eyebrow mb-1 text-[var(--ink-3)]">Step 7 of 10</p>
-          <h2 className="display-sm text-[var(--ink-1)]">Full script</h2>
-          <p className="body mt-1 text-[var(--ink-2)]">Your complete interview guide. Edit freely, ask for changes, or export.</p>
+          <p className="eyebrow mb-1 text-[var(--ink-3)]">{t('episode.stepPrefix')}7{t('episode.of10')}</p>
+          <h2 className="display-sm text-[var(--ink-1)]">{t('episode.s7Title')}</h2>
+          <p className="body mt-1 text-[var(--ink-2)]">{t('episode.s7Body')}</p>
         </div>
         <div className="flex shrink-0 gap-2">
           <PillButton variant="secondary" size="sm" onClick={exportDocx} disabled={!script || loading}>
             <Download size={14} /> .docx
           </PillButton>
           <PillButton variant="secondary" size="sm" onClick={generate} disabled={loading}>
-            <RefreshCw size={14} className={cn(loading && 'animate-spin')} /> Regenerate
+            <RefreshCw size={14} className={cn(loading && 'animate-spin')} /> {t('episode.regenerate')}
           </PillButton>
         </div>
       </div>
@@ -116,16 +118,16 @@ export function Step7Script({ episode, onNext }: Props) {
       {!loading && (photoUrl || photoLoading) && (
         <GlassCard className="flex items-center gap-3 p-3">
           {photoLoading ? (
-            <p className="body-sm text-[var(--ink-3)]"><ImageIcon size={14} className="mr-1 inline" /> Looking for a guest photo…</p>
+            <p className="body-sm text-[var(--ink-3)]"><ImageIcon size={14} className="mr-1 inline" /> {t('episode.lookingForPhoto')}</p>
           ) : photoUrl ? (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={photoUrl} alt={episode?.guestName ?? ''} className="h-12 w-12 rounded-full object-cover" />
-              <p className="body-sm flex-1 text-[var(--ink-2)]">Found a possible guest photo.</p>
+              <p className="body-sm flex-1 text-[var(--ink-2)]">{t('episode.foundPhoto')}</p>
               {episode?.guestPhotoUrl !== photoUrl && (
-                <PillButton size="sm" onClick={confirmPhoto}>Use it</PillButton>
+                <PillButton size="sm" onClick={confirmPhoto}>{t('episode.useIt')}</PillButton>
               )}
-              <button onClick={() => setPhotoUrl(null)} className="body-sm text-[var(--ink-3)] hover:text-[var(--ink-1)]">Skip</button>
+              <button onClick={() => setPhotoUrl(null)} className="body-sm text-[var(--ink-3)] hover:text-[var(--ink-1)]">{t('episode.skip')}</button>
             </>
           ) : null}
         </GlassCard>
@@ -134,12 +136,12 @@ export function Step7Script({ episode, onNext }: Props) {
       {loading ? (
         <GlassCard className="flex flex-col items-center gap-4 p-12 text-center">
           <Sparkles size={32} className="animate-pulse text-[var(--accent-violet)]" />
-          <p className="body text-[var(--ink-2)]">Writing your script…</p>
-          <p className="body-sm text-[var(--ink-3)]">This takes about 30 seconds</p>
+          <p className="body text-[var(--ink-2)]">{t('episode.writingScript')}</p>
+          <p className="body-sm text-[var(--ink-3)]">{t('episode.scriptTakes')}</p>
         </GlassCard>
       ) : (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-          <SmartTextarea value={script} onChange={setScript} rows={20} className="bg-[var(--bg-2)] border-[var(--line-2)] text-[var(--ink-1)] leading-relaxed font-mono text-sm" placeholder="Your full script will appear here…" />
+          <SmartTextarea value={script} onChange={setScript} rows={20} className="bg-[var(--bg-2)] border-[var(--line-2)] text-[var(--ink-1)] leading-relaxed font-mono text-sm" placeholder={t('episode.scriptPh')} />
         </motion.div>
       )}
 
@@ -158,19 +160,19 @@ export function Step7Script({ episode, onNext }: Props) {
               value={instruction}
               onChange={e => setInstruction(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); applyRevision() } }}
-              placeholder='Ask for a change, e.g. "make question 3 more casual"'
+              placeholder={t('episode.revisePh')}
               disabled={revising}
               className="body-sm flex-1 rounded-[var(--radius-sm)] px-3 py-2"
               style={{ background: 'var(--bg-2)', border: '1px solid var(--line-2)', color: 'var(--ink-1)' }}
             />
             <PillButton size="sm" onClick={applyRevision} disabled={revising || !instruction.trim()}>
-              <Wand2 size={14} /> {revising ? 'Revising…' : 'Revise'}
+              <Wand2 size={14} /> {revising ? t('episode.revising') : t('episode.revise')}
             </PillButton>
           </div>
         </div>
       )}
 
-      {!loading && <PillButton onClick={() => onNext({ fullScript: script, status: 'review' })} disabled={!script}>Next <ArrowRight size={14} /></PillButton>}
+      {!loading && <PillButton onClick={() => onNext({ fullScript: script, status: 'review' })} disabled={!script}>{t('episode.next')} <ArrowRight size={14} /></PillButton>}
     </div>
   )
 }

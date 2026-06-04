@@ -11,6 +11,7 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useAILoading } from './AILoadingContext'
 import { postAI } from '@/lib/ai-client'
+import { useT } from '@/components/i18n/I18nProvider'
 import {
   normalizeGenerated,
   resolveSections,
@@ -33,6 +34,7 @@ const toggle = (arr: number[] = [], v: number) =>
   arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]
 
 export function Step5Questions({ episode, show, onNext }: Props) {
+  const t = useT()
   const { runAI } = useAILoading()
 
   const [generated, setGenerated] = useState<GeneratedMap>(
@@ -96,7 +98,7 @@ export function Step5Questions({ episode, show, onNext }: Props) {
       setSelected({})
     } catch (err) {
       if ((err as Error)?.name !== 'AbortError') {
-        toast.error(err instanceof Error ? err.message : 'Failed to generate questions')
+        toast.error(err instanceof Error ? err.message : t('episode.failedGenQuestions'))
       }
     } finally {
       setLoading(false)
@@ -112,7 +114,7 @@ export function Step5Questions({ episode, show, onNext }: Props) {
         body: JSON.stringify({ generatedQuestions: serializeGenerated(map) }),
       })
     } catch {
-      toast.error('Could not save the edit')
+      toast.error(t('episode.couldNotSaveEdit'))
     }
   }
 
@@ -147,23 +149,23 @@ export function Step5Questions({ episode, show, onNext }: Props) {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="eyebrow mb-1 text-[var(--ink-3)]">Step 5 of 10</p>
-          <h2 className="display-sm text-[var(--ink-1)]">Questions</h2>
+          <p className="eyebrow mb-1 text-[var(--ink-3)]">{t('episode.stepPrefix')}5{t('episode.of10')}</p>
+          <h2 className="display-sm text-[var(--ink-1)]">{t('episode.s5Title')}</h2>
           <p className="body mt-1 text-[var(--ink-2)]">
-            Pick the questions you want, strongest first. Tap a card to select it.
+            {t('episode.s5Body')}
           </p>
         </div>
         {hasAny && (
           <PillButton variant="secondary" size="sm" onClick={generate} disabled={loading}>
-            <RefreshCw size={14} className={cn(loading && 'animate-spin')} /> Regenerate
+            <RefreshCw size={14} className={cn(loading && 'animate-spin')} /> {t('episode.regenerate')}
           </PillButton>
         )}
       </div>
 
       {!hasAny ? (
         <GlassCard className="flex flex-col items-center gap-4 p-12 text-center">
-          <p className="body text-[var(--ink-2)]">No questions yet.</p>
-          <PillButton onClick={generate} disabled={loading}><Sparkles size={14} /> Generate questions</PillButton>
+          <p className="body text-[var(--ink-2)]">{t('episode.noQuestionsYet')}</p>
+          <PillButton onClick={generate} disabled={loading}><Sparkles size={14} /> {t('episode.generateQuestionsShort')}</PillButton>
         </GlassCard>
       ) : (
         <div className="space-y-7">
@@ -177,7 +179,7 @@ export function Step5Questions({ episode, show, onNext }: Props) {
                 <div className="mb-3 flex items-center justify-between">
                   <p className="eyebrow text-[var(--ink-3)]">{section.name}</p>
                   {qs.length > 0 && (
-                    <span className="body-sm text-[var(--ink-4)]">{selCount}/{qs.length} selected</span>
+                    <span className="body-sm text-[var(--ink-4)]">{selCount}/{qs.length} {t('episode.selected')}</span>
                   )}
                 </div>
                 <div className="space-y-2">
@@ -214,8 +216,8 @@ export function Step5Questions({ episode, show, onNext }: Props) {
                                   className="bg-[var(--bg-2)] border-[var(--line-2)] text-[var(--ink-1)]"
                                 />
                                 <div className="flex gap-2">
-                                  <PillButton size="sm" onClick={saveEdit}><Check size={13} /> Save</PillButton>
-                                  <button onClick={() => setEdit(null)} className="body-sm text-[var(--ink-3)] hover:text-[var(--ink-1)]">Cancel</button>
+                                  <PillButton size="sm" onClick={saveEdit}><Check size={13} /> {t('episode.save')}</PillButton>
+                                  <button onClick={() => setEdit(null)} className="body-sm text-[var(--ink-3)] hover:text-[var(--ink-1)]">{t('episode.cancel')}</button>
                                 </div>
                               </div>
                             ) : (
@@ -236,7 +238,7 @@ export function Step5Questions({ episode, show, onNext }: Props) {
                               <button
                                 onClick={() => setEdit({ key: section.key, idx: originalIdx, text: q.question })}
                                 className="rounded-full p-1.5 text-[var(--ink-4)] transition-colors hover:text-[var(--ink-1)]"
-                                aria-label="Edit question"
+                                aria-label={t('episode.editQuestionAria')}
                               >
                                 <Pencil size={14} />
                               </button>
@@ -244,7 +246,7 @@ export function Step5Questions({ episode, show, onNext }: Props) {
                                 onClick={() => setFavorites((p) => ({ ...p, [section.key]: toggle(p[section.key], originalIdx) }))}
                                 className="rounded-full p-1.5 transition-transform active:scale-90"
                                 style={{ color: isFav ? 'var(--warning)' : 'var(--ink-4)' }}
-                                aria-label="Favourite"
+                                aria-label={t('episode.favouriteAria')}
                               >
                                 <Star size={15} fill={isFav ? 'currentColor' : 'none'} />
                               </button>
@@ -276,13 +278,13 @@ export function Step5Questions({ episode, show, onNext }: Props) {
                               rows={2}
                               className="bg-[var(--bg-2)] border-[var(--line-2)] text-[var(--ink-1)]"
                             />
-                            <PillButton size="sm" onClick={() => setEditingClosing(false)}><Check size={13} /> Done</PillButton>
+                            <PillButton size="sm" onClick={() => setEditingClosing(false)}><Check size={13} /> {t('episode.done')}</PillButton>
                           </div>
                         ) : (
                           <>
                             <div className="flex items-center gap-2">
-                              <p className="body-sm font-semibold text-[var(--accent-violet)]">Signature closing</p>
-                              <button onClick={() => setEditingClosing(true)} className="body-sm text-[var(--ink-3)] underline hover:text-[var(--ink-1)]">Change</button>
+                              <p className="body-sm font-semibold text-[var(--accent-violet)]">{t('episode.signatureClosing')}</p>
+                              <button onClick={() => setEditingClosing(true)} className="body-sm text-[var(--ink-3)] underline hover:text-[var(--ink-1)]">{t('episode.change')}</button>
                             </div>
                             <p className="body mt-1 text-[var(--ink-1)]">{closing}</p>
                           </>
@@ -299,7 +301,7 @@ export function Step5Questions({ episode, show, onNext }: Props) {
 
       {hasAny && (
         <PillButton onClick={handleNext} disabled={!canProceed}>
-          Build My Intro! <ArrowRight size={14} />
+          {t('episode.buildIntro')} <ArrowRight size={14} />
         </PillButton>
       )}
     </div>

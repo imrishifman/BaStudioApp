@@ -11,17 +11,12 @@ import { Plus, ChevronRight, Pencil, Trash2, X, Check as CheckIcon } from 'lucid
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { formatDate } from '@/lib/utils'
+import { useT } from '@/components/i18n/I18nProvider'
 
 const STATUS_COLOR: Record<string, string> = {
   draft: 'var(--ink-4)', researching: 'var(--accent-violet)', focusing: 'var(--accent-cyan)',
   questions: 'var(--accent-cyan)', intro: 'var(--accent-pink)', script: 'var(--accent-pink)',
   video: 'var(--warning)', review: 'var(--warning)', approved: 'var(--success)', published: 'var(--success)',
-}
-
-const STATUS_LABEL: Record<string, string> = {
-  draft: 'Draft', researching: 'Researching', focusing: 'Focus', questions: 'Questions',
-  intro: 'Intro', script: 'Script', video: 'Video', review: 'Review',
-  approved: 'Approved', published: 'Published',
 }
 
 interface Props {
@@ -32,6 +27,7 @@ interface Props {
 export function DashboardClient({ episodes, sessionUser }: Props) {
   const router = useRouter()
   const confirm = useConfirm()
+  const t = useT()
   const [filter, setFilter] = useState<'all' | 'active' | 'published'>('all')
   const [editMode, setEditMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -48,18 +44,20 @@ export function DashboardClient({ episodes, sessionUser }: Props) {
   async function deleteSelected() {
     if (selectedIds.size === 0) return
     const ok = await confirm({
-      title: 'Delete episodes?',
-      message: `Delete ${selectedIds.size} episode${selectedIds.size > 1 ? 's' : ''}? This cannot be undone.`,
-      confirmLabel: 'Delete',
+      title: t('episodes.deleteConfirmTitle'),
+      message: selectedIds.size === 1
+        ? t('episodes.deleteConfirmBodyOne')
+        : `${t('episodes.deleteConfirmBodyPrefix')} ${selectedIds.size} ${t('episodes.deleteConfirmBodyMany')}`,
+      confirmLabel: t('common.delete'),
       destructive: true,
     })
     if (!ok) return
     setDeleting(true)
     try {
       await Promise.all(Array.from(selectedIds).map(id => fetch(`/api/episodes/${id}`, { method: 'DELETE' })))
-      toast.success(`Deleted ${selectedIds.size}`)
+      toast.success(`${t('episodes.deletedToast')} ${selectedIds.size}`)
       setSelectedIds(new Set()); setEditMode(false); router.refresh()
-    } catch { toast.error('Could not delete some episodes') } finally { setDeleting(false) }
+    } catch { toast.error(t('episodes.deleteError')) } finally { setDeleting(false) }
   }
 
   const filtered = episodes.filter(ep => {
@@ -74,7 +72,7 @@ export function DashboardClient({ episodes, sessionUser }: Props) {
     <div className="mx-auto max-w-5xl space-y-6 p-6 lg:p-8">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="display-sm text-[var(--ink-1)]">Episodes</h1>
+        <h1 className="display-sm text-[var(--ink-1)]">{t('dashboard.title')}</h1>
         <div className="flex items-center gap-2">
           {editMode ? (
             <>
@@ -84,14 +82,14 @@ export function DashboardClient({ episodes, sessionUser }: Props) {
                 className="body-sm flex items-center gap-1 rounded-full px-3 py-1 font-semibold disabled:opacity-50"
                 style={{ background: 'var(--error)', color: '#fff' }}
               >
-                <Trash2 size={13} /> Delete{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
+                <Trash2 size={13} /> {t('common.delete')}{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
               </button>
               <button
                 onClick={() => { setEditMode(false); setSelectedIds(new Set()) }}
                 className="body-sm flex items-center gap-1 rounded-full border px-3 py-1 text-[var(--ink-2)]"
                 style={{ borderColor: 'var(--line-2)' }}
               >
-                <X size={13} /> Cancel
+                <X size={13} /> {t('common.cancel')}
               </button>
             </>
           ) : (
@@ -100,11 +98,11 @@ export function DashboardClient({ episodes, sessionUser }: Props) {
               className="body-sm flex items-center gap-1 rounded-full border px-3 py-1 text-[var(--ink-2)] hover:text-[var(--ink-1)]"
               style={{ borderColor: 'var(--line-2)' }}
             >
-              <Pencil size={13} /> Edit
+              <Pencil size={13} /> {t('common.edit')}
             </button>
           )}
           <PillButton variant="secondary" size="sm" onClick={() => router.push('/episodes/new')}>
-            <Plus size={14} /> New episode
+            <Plus size={14} /> {t('common.newEpisode')}
           </PillButton>
         </div>
       </div>
@@ -113,10 +111,11 @@ export function DashboardClient({ episodes, sessionUser }: Props) {
       {awaitingReview.length > 0 && (
         <GlassCard className="flex items-center justify-between gap-4 p-4" style={{ borderColor: 'rgba(255,214,10,0.3)' }}>
           <p className="body text-[var(--ink-1)]">
-            {awaitingReview.length} episode{awaitingReview.length !== 1 ? 's' : ''} awaiting your review
+            {awaitingReview.length}{' '}
+            {awaitingReview.length !== 1 ? t('dashboard.awaitingReviewMany') : t('dashboard.awaitingReviewOne')}
           </p>
           <Link href={`/episodes/${awaitingReview[0].id}`} className="pill-primary pill-primary-sm">
-            Review <ChevronRight size={14} />
+            {t('common.review')} <ChevronRight size={14} />
           </Link>
         </GlassCard>
       )}
@@ -130,7 +129,7 @@ export function DashboardClient({ episodes, sessionUser }: Props) {
             className="body-sm rounded-[6px] px-3 py-1.5 font-semibold capitalize transition-all"
             style={filter === f ? { background: 'var(--ink-1)', color: 'var(--bg-0)' } : { color: 'var(--ink-3)' }}
           >
-            {f}
+            {f === 'all' ? t('dashboard.filterAll') : f === 'active' ? t('dashboard.filterActive') : t('dashboard.filterPublished')}
           </button>
         ))}
       </div>
@@ -138,10 +137,10 @@ export function DashboardClient({ episodes, sessionUser }: Props) {
       {/* Episode grid */}
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center gap-4 py-16 text-center">
-          <p className="display-sm text-[var(--ink-1)]">No episodes yet</p>
-          <p className="body text-[var(--ink-2)]">Create your first episode to get started.</p>
+          <p className="display-sm text-[var(--ink-1)]">{t('dashboard.noEpisodes')}</p>
+          <p className="body text-[var(--ink-2)]">{t('dashboard.noEpisodesBody')}</p>
           <PillButton onClick={() => router.push('/episodes/new')}>
-            <Plus size={14} /> New episode
+            <Plus size={14} /> {t('common.newEpisode')}
           </PillButton>
         </div>
       ) : (
@@ -175,8 +174,10 @@ function EpisodeCard({
   selected?: boolean
   onToggle?: () => void
 }) {
-  const stepLabels = ['', 'Guest', 'Bio', 'Focus', 'Style', 'Questions', 'Intro', 'Script', 'Video', 'Share', 'Promote']
-  const currentStepLabel = stepLabels[episode.currentStep] ?? `Step ${episode.currentStep}`
+  const t = useT()
+  const stepKeys = ['', 'steps.guest', 'steps.bio', 'steps.focus', 'steps.style', 'steps.questions', 'steps.intro', 'steps.script', 'steps.video', 'steps.share', 'steps.promote']
+  const stepKey = stepKeys[episode.currentStep]
+  const currentStepLabel = stepKey ? t(stepKey) : `${t('common.step')} ${episode.currentStep}`
 
   const card = (
     <GlassCard
@@ -210,7 +211,7 @@ function EpisodeCard({
               className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-bold"
               style={{ background: 'var(--accent-violet)', color: '#fff' }}
             >
-              Shared
+              {t('dashboard.shared')}
             </span>
           )}
         </div>
@@ -229,10 +230,10 @@ function EpisodeCard({
             className="body-sm rounded-full px-2.5 py-0.5 font-semibold"
             style={{ background: `${STATUS_COLOR[episode.status]}18`, color: STATUS_COLOR[episode.status] }}
           >
-            {STATUS_LABEL[episode.status]}
+            {t(`status.${episode.status}`)}
           </span>
           <span className="body-sm text-[var(--ink-3)]">
-            Step {episode.currentStep} · {currentStepLabel}
+            {t('common.step')} {episode.currentStep} · {currentStepLabel}
           </span>
         </div>
       </GlassCard>

@@ -12,6 +12,7 @@ import { ShowCard } from '@/components/shows/ShowCard'
 import { EditShowModal } from '@/components/shows/EditShowModal'
 import { GuestsClient } from '@/app/(app)/guests/guests-client'
 import { cn } from '@/lib/utils'
+import { useT } from '@/components/i18n/I18nProvider'
 import type { Show, Guest } from '@prisma/client'
 
 type ShowWithEpisodes = Show & { episodes: { status: string }[] }
@@ -23,6 +24,7 @@ interface Props {
 
 export function ShowsClient({ shows, guests }: Props) {
   const router = useRouter()
+  const t = useT()
   const [tab, setTab] = useState<'shows' | 'guests'>('shows')
   const [createOpen, setCreateOpen] = useState(false)
   // After creating a show we invite the user to set its Show DNA right away.
@@ -35,22 +37,22 @@ export function ShowsClient({ shows, guests }: Props) {
           className="flex gap-1 rounded-full p-1"
           style={{ background: 'var(--bg-2)', border: '1px solid var(--line-1)' }}
         >
-          {(['shows', 'guests'] as const).map((t) => (
+          {(['shows', 'guests'] as const).map((tabKey) => (
             <button
-              key={t}
-              onClick={() => setTab(t)}
+              key={tabKey}
+              onClick={() => setTab(tabKey)}
               className={cn(
                 'body-sm rounded-full px-4 py-1.5 font-semibold capitalize transition-all',
-                tab === t ? 'bg-[var(--ink-1)] text-[var(--bg-0)]' : 'text-[var(--ink-3)]'
+                tab === tabKey ? 'bg-[var(--ink-1)] text-[var(--bg-0)]' : 'text-[var(--ink-3)]'
               )}
             >
-              {t}
+              {tabKey === 'shows' ? t('shows.tabShows') : t('shows.tabGuests')}
             </button>
           ))}
         </div>
         {tab === 'shows' && (
           <PillButton size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus size={14} /> New show
+            <Plus size={14} /> {t('shows.newShow')}
           </PillButton>
         )}
       </div>
@@ -64,12 +66,12 @@ export function ShowsClient({ shows, guests }: Props) {
             >
               <Mic size={24} style={{ color: 'var(--accent-cyan)' }} />
             </div>
-            <p className="display-sm text-[var(--ink-1)]">Create your first show</p>
+            <p className="display-sm text-[var(--ink-1)]">{t('shows.createFirstTitle')}</p>
             <p className="body text-[var(--ink-2)]">
-              Organise your episodes, DNA, and team under a show.
+              {t('shows.createFirstBody')}
             </p>
             <PillButton onClick={() => setCreateOpen(true)}>
-              <Plus size={14} /> Create your first show
+              <Plus size={14} /> {t('shows.createFirstCta')}
             </PillButton>
           </GlassCard>
         ) : (
@@ -101,12 +103,10 @@ export function ShowsClient({ shows, guests }: Props) {
             >
               <Sparkles size={22} style={{ color: 'var(--accent-violet)' }} />
             </div>
-            <DialogTitle className="display-sm text-[var(--ink-1)]">Ready to set the Show DNA?</DialogTitle>
+            <DialogTitle className="display-sm text-[var(--ink-1)]">{t('shows.dnaPromptTitle')}</DialogTitle>
           </DialogHeader>
           <p className="body text-[var(--ink-2)]">
-            Show DNA is the difference between a <span className="font-semibold text-[var(--ink-1)]">good</span> show
-            and a <span className="font-semibold text-[var(--ink-1)]">professional</span> one. It teaches the AI your
-            structure, tone, and style so every episode sounds unmistakably like you.
+            {t('shows.dnaPromptBodyP1')} <span className="font-semibold text-[var(--ink-1)]">{t('shows.dnaPromptGood')}</span> {t('shows.dnaPromptBodyP2')} <span className="font-semibold text-[var(--ink-1)]">{t('shows.dnaPromptProfessional')}</span>{t('shows.dnaPromptBodyP3')}
           </p>
           <div className="flex gap-3 pt-2">
             <PillButton
@@ -116,13 +116,13 @@ export function ShowsClient({ shows, guests }: Props) {
                 if (id) router.push(`/shows/${id}/dna`)
               }}
             >
-              <Sparkles size={14} /> Set it up now
+              <Sparkles size={14} /> {t('shows.setItUpNow')}
             </PillButton>
             <PillButton
               variant="secondary"
               onClick={() => { setDnaPromptShow(null); window.location.reload() }}
             >
-              Maybe later
+              {t('shows.maybeLater')}
             </PillButton>
           </div>
         </DialogContent>

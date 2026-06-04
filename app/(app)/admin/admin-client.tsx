@@ -8,6 +8,7 @@ import { PlanBadge } from '@/components/common/PlanBadge'
 import { Users, Tag, BarChart2, Settings, MessageSquare, Heart, Lightbulb, AlertTriangle, Star, Activity, CheckCircle2, XCircle, DollarSign, Link2, GitBranch, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import type { User, CouponCode, UserFeedback } from '@prisma/client'
+import { useT } from '@/components/i18n/I18nProvider'
 
 type UserWithActivity = User & {
   episodeCount: number
@@ -62,6 +63,7 @@ const FEEDBACK_META: Record<string, { color: string; icon: typeof Heart; label: 
 }
 
 export function AdminClient({ users: initialUsers, coupons: initialCoupons, feedback, stats }: Props) {
+  const t = useT()
   const [tab, setTab] = useState<Tab>('system')
   const [users, setUsers] = useState(initialUsers)
   const [coupons, setCoupons] = useState(initialCoupons)
@@ -77,7 +79,7 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
     })
     if (res.ok) {
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, plan: plan as User['plan'] } : u))
-      toast.success('Plan updated')
+      toast.success(t('admin.planUpdated'))
     }
   }
 
@@ -93,7 +95,7 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
       const c = await res.json()
       setCoupons(prev => [c, ...prev])
       setNewCoupon({ code: '', applicablePlan: 'solo', discountValue: 100, maxUses: 1 })
-      toast.success('Coupon created')
+      toast.success(t('admin.couponCreated'))
     }
     setCreating(false)
   }
@@ -102,7 +104,7 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
     const res = await fetch(`/api/admin/coupons/${id}`, { method: 'DELETE' })
     if (res.ok) {
       setCoupons(prev => prev.filter(c => c.id !== id))
-      toast.success('Coupon deleted')
+      toast.success(t('admin.couponDeleted'))
     }
   }
 
@@ -117,19 +119,19 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
     if (res.ok) {
       setCoupons(prev => prev.map(c => (c.id === id ? { ...c, ...data } : c)))
       const mode = data.liveMode ? 'live' : 'test'
-      toast.success(data.recreated ? `Re-created in Stripe ${mode} mode` : `Already in sync (${mode} mode)`)
+      toast.success(data.recreated ? `${t('admin.recreatedIn')} ${mode} ${t('admin.mode')}` : `${t('admin.alreadyInSync')} (${mode} ${t('admin.mode')})`)
     } else {
-      toast.error(data.error ?? 'Re-sync failed')
+      toast.error(data.error ?? t('admin.resyncFailed'))
     }
     setResyncing(null)
   }
 
   const TABS = [
-    { key: 'system' as Tab, label: 'System', icon: Activity },
-    { key: 'users' as Tab, label: 'Users', icon: Users },
-    { key: 'coupons' as Tab, label: 'Coupons', icon: Tag },
-    { key: 'feedback' as Tab, label: `Feedback${feedback.length ? ` (${feedback.length})` : ''}`, icon: MessageSquare },
-    { key: 'stats' as Tab, label: 'Stats', icon: BarChart2 },
+    { key: 'system' as Tab, label: t('admin.tabSystem'), icon: Activity },
+    { key: 'users' as Tab, label: t('admin.tabUsers'), icon: Users },
+    { key: 'coupons' as Tab, label: t('admin.tabCoupons'), icon: Tag },
+    { key: 'feedback' as Tab, label: `${t('admin.tabFeedback')}${feedback.length ? ` (${feedback.length})` : ''}`, icon: MessageSquare },
+    { key: 'stats' as Tab, label: t('admin.tabStats'), icon: BarChart2 },
   ]
 
   // System polling: refetch /api/admin/system-status every 30s while the tab is open.
@@ -168,23 +170,23 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
     <div className="p-6 lg:p-8">
       <div className="mb-6 flex items-center gap-3">
         <Settings size={18} style={{ color: 'var(--accent-violet)' }} />
-        <h1 className="display-sm text-[var(--ink-1)]">Admin</h1>
+        <h1 className="display-sm text-[var(--ink-1)]">{t('admin.title')}</h1>
       </div>
 
       {/* Tabs */}
       <div className="mb-6 flex gap-1 rounded-[var(--radius-md)] p-1" style={{ background: 'var(--bg-2)', width: 'fit-content' }}>
-        {TABS.map(t => {
-          const Icon = t.icon
+        {TABS.map(item => {
+          const Icon = item.icon
           return (
             <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
+              key={item.key}
+              onClick={() => setTab(item.key)}
               className="flex items-center gap-1.5 rounded-[var(--radius-sm)] px-3 py-1.5 body-sm transition-colors"
-              style={tab === t.key
+              style={tab === item.key
                 ? { background: 'var(--bg-3)', color: 'var(--ink-1)' }
                 : { color: 'var(--ink-3)' }}
             >
-              <Icon size={14} /> {t.label}
+              <Icon size={14} /> {item.label}
             </button>
           )
         })}
@@ -197,8 +199,8 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
           <div className="flex items-center justify-between">
             <p className="body-sm text-[var(--ink-3)]">
               {systemStatus
-                ? `Updated ${secondsSinceFetch}s ago · auto-refresh every 30s`
-                : 'Loading…'}
+                ? `${t('admin.updatedAgoPrefix')}${secondsSinceFetch}${t('admin.updatedAgoSuffix')}`
+                : t('admin.loading')}
             </p>
             <button
               onClick={async () => {
@@ -208,7 +210,7 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
               className="body-sm rounded-full border px-3 py-1 text-[var(--ink-2)] hover:text-[var(--ink-1)]"
               style={{ borderColor: 'var(--line-2)' }}
             >
-              Refresh now
+              {t('admin.refreshNow')}
             </button>
           </div>
 
@@ -216,15 +218,15 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
             <>
               {/* Subscriptions + revenue */}
               <div>
-                <p className="eyebrow mb-3 text-[var(--ink-3)]">Subscriptions & revenue</p>
+                <p className="eyebrow mb-3 text-[var(--ink-3)]">{t('admin.subsRevenue')}</p>
                 <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
                   {[
-                    { label: 'Paid members', value: systemStatus.subscriptions.paidMembers },
-                    { label: 'Solo active', value: systemStatus.subscriptions.soloActive },
-                    { label: 'Master active', value: systemStatus.subscriptions.masterActive },
-                    { label: 'MRR', value: `$${systemStatus.subscriptions.mrrDollars.toLocaleString()}` },
-                    { label: 'ARR', value: `$${systemStatus.subscriptions.arrDollars.toLocaleString()}` },
-                    { label: 'Cancels (30d)', value: systemStatus.subscriptions.canceledLast30 },
+                    { label: t('admin.paidMembers'), value: systemStatus.subscriptions.paidMembers },
+                    { label: t('admin.soloActive'), value: systemStatus.subscriptions.soloActive },
+                    { label: t('admin.masterActive'), value: systemStatus.subscriptions.masterActive },
+                    { label: t('admin.mrr'), value: `$${systemStatus.subscriptions.mrrDollars.toLocaleString()}` },
+                    { label: t('admin.arr'), value: `$${systemStatus.subscriptions.arrDollars.toLocaleString()}` },
+                    { label: t('admin.cancels30'), value: systemStatus.subscriptions.canceledLast30 },
                   ].map((s) => (
                     <GlassCard key={s.label} className="p-4">
                       <p className="body-sm text-[var(--ink-3)]">{s.label}</p>
@@ -234,20 +236,20 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
                 </div>
                 {systemStatus.subscriptions.stripeError && (
                   <p className="body-sm mt-2 text-[var(--accent-rose,#fb7185)]">
-                    Stripe: {systemStatus.subscriptions.stripeError}
+                    {t('admin.stripePrefix')}{systemStatus.subscriptions.stripeError}
                   </p>
                 )}
               </div>
 
               {/* Affiliate */}
               <div>
-                <p className="eyebrow mb-3 text-[var(--ink-3)]">Affiliate · live</p>
+                <p className="eyebrow mb-3 text-[var(--ink-3)]">{t('admin.affiliateLive')}</p>
                 <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
                   {[
-                    { label: 'Active influencers', value: systemStatus.affiliate.activeInfluencers },
-                    { label: 'Clicks (24h)', value: systemStatus.affiliate.clicksLast24h },
-                    { label: 'Conversions this month', value: systemStatus.affiliate.conversionsThisMonth },
-                    { label: 'Unpaid commission', value: `$${systemStatus.affiliate.unpaidCommissionDollars.toLocaleString()}` },
+                    { label: t('admin.activeInfluencers'), value: systemStatus.affiliate.activeInfluencers },
+                    { label: t('admin.clicks24'), value: systemStatus.affiliate.clicksLast24h },
+                    { label: t('admin.conversionsThisMonth'), value: systemStatus.affiliate.conversionsThisMonth },
+                    { label: t('admin.unpaidCommission'), value: `$${systemStatus.affiliate.unpaidCommissionDollars.toLocaleString()}` },
                   ].map((s) => (
                     <GlassCard key={s.label} className="p-4">
                       <p className="body-sm text-[var(--ink-3)]">{s.label}</p>
@@ -256,23 +258,23 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
                   ))}
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-4 text-[var(--ink-3)]">
-                  <p className="body-sm">Clicks all-time: <span className="text-[var(--ink-1)] font-semibold">{systemStatus.affiliate.clicksTotal.toLocaleString()}</span></p>
-                  <p className="body-sm">Attributions: <span className="text-[var(--ink-1)] font-semibold">{systemStatus.affiliate.attributionsTotal.toLocaleString()}</span></p>
+                  <p className="body-sm">{t('admin.clicksAllTimePrefix')}<span className="text-[var(--ink-1)] font-semibold">{systemStatus.affiliate.clicksTotal.toLocaleString()}</span></p>
+                  <p className="body-sm">{t('admin.attributionsPrefix')}<span className="text-[var(--ink-1)] font-semibold">{systemStatus.affiliate.attributionsTotal.toLocaleString()}</span></p>
                   {systemStatus.affiliate.topInfluencer && (
-                    <p className="body-sm">Top: <span className="text-[var(--ink-1)] font-semibold">{systemStatus.affiliate.topInfluencer.name}</span> ({systemStatus.affiliate.topInfluencer.conversions} conv.)</p>
+                    <p className="body-sm">{t('admin.topPrefix')}<span className="text-[var(--ink-1)] font-semibold">{systemStatus.affiliate.topInfluencer.name}</span> ({systemStatus.affiliate.topInfluencer.conversions}{t('admin.convSuffix')})</p>
                   )}
                 </div>
               </div>
 
               {/* System health */}
               <div>
-                <p className="eyebrow mb-3 text-[var(--ink-3)]">System health</p>
+                <p className="eyebrow mb-3 text-[var(--ink-3)]">{t('admin.systemHealth')}</p>
                 <div className="grid gap-4 lg:grid-cols-2">
                   {/* DB + env */}
                   <GlassCard className="p-5">
                     <div className="mb-3 flex items-center gap-2">
                       <Link2 size={14} className="text-[var(--ink-3)]" />
-                      <p className="body font-semibold text-[var(--ink-1)]">Database</p>
+                      <p className="body font-semibold text-[var(--ink-1)]">{t('admin.database')}</p>
                       {systemStatus.system.db.ok ? (
                         <CheckCircle2 size={14} style={{ color: 'var(--success)' }} />
                       ) : (
@@ -282,7 +284,7 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
                     {systemStatus.system.db.error && (
                       <p className="body-sm text-[var(--error)] mb-3">{systemStatus.system.db.error}</p>
                     )}
-                    <p className="eyebrow mb-2 text-[var(--ink-4)]">Env vars</p>
+                    <p className="eyebrow mb-2 text-[var(--ink-4)]">{t('admin.envVars')}</p>
                     <div className="grid grid-cols-2 gap-1">
                       {Object.entries(systemStatus.system.env).map(([k, v]) => (
                         <div key={k} className="flex items-center gap-1.5 body-sm">
@@ -301,11 +303,11 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
                   <GlassCard className="p-5">
                     <div className="mb-3 flex items-center gap-2">
                       <GitBranch size={14} className="text-[var(--ink-3)]" />
-                      <p className="body font-semibold text-[var(--ink-1)]">Latest deploy</p>
+                      <p className="body font-semibold text-[var(--ink-1)]">{t('admin.latestDeploy')}</p>
                     </div>
                     {systemStatus.system.deploy === null && (
                       <p className="body-sm text-[var(--ink-3)]">
-                        Add <code className="text-[var(--ink-2)]">VERCEL_API_TOKEN</code> env var to enable.
+                        {t('admin.addVercelTokenPrefix')}<code className="text-[var(--ink-2)]">VERCEL_API_TOKEN</code>{t('admin.addVercelTokenSuffix')}
                       </p>
                     )}
                     {systemStatus.system.deploy && 'error' in systemStatus.system.deploy && (
@@ -360,7 +362,7 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
       {tab === 'users' && (
         <GlassCard className="overflow-hidden p-0">
           <div className="p-4" style={{ borderBottom: '1px solid var(--line-1)' }}>
-            <p className="body-sm font-semibold text-[var(--ink-1)]">{users.length} users</p>
+            <p className="body-sm font-semibold text-[var(--ink-1)]">{users.length}{t('admin.usersSuffix')}</p>
           </div>
           <div className="divide-y" style={{ '--tw-divide-opacity': 1 } as React.CSSProperties}>
             {users.map(user => (
@@ -370,9 +372,9 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
                   <p className="body-sm text-[var(--ink-3)] truncate">{user.email}</p>
                 </div>
                 <div className="hidden sm:flex items-center gap-4 shrink-0">
-                  <ActivityStat label="Episodes" value={user.episodeCount} />
-                  <ActivityStat label="Published" value={user.publishedCount} />
-                  <ActivityStat label="Shows" value={user.showCount} />
+                  <ActivityStat label={t('admin.episodes')} value={user.episodeCount} />
+                  <ActivityStat label={t('admin.published')} value={user.publishedCount} />
+                  <ActivityStat label={t('admin.shows')} value={user.showCount} />
                 </div>
                 <PlanBadge plan={user.plan} />
                 <div className="flex gap-1">
@@ -397,10 +399,10 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
       {tab === 'coupons' && (
         <div className="space-y-4">
           <GlassCard className="p-4">
-            <p className="body-sm font-semibold text-[var(--ink-1)] mb-3">Create coupon</p>
+            <p className="body-sm font-semibold text-[var(--ink-1)] mb-3">{t('admin.createCoupon')}</p>
             <div className="flex flex-wrap gap-2 items-end">
               <div className="space-y-1">
-                <label className="body-sm text-[var(--ink-3)]">Code</label>
+                <label className="body-sm text-[var(--ink-3)]">{t('admin.code')}</label>
                 <Input
                   value={newCoupon.code}
                   onChange={e => setNewCoupon(prev => ({ ...prev, code: e.target.value.toUpperCase() }))}
@@ -409,19 +411,19 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
                 />
               </div>
               <div className="space-y-1">
-                <label className="body-sm text-[var(--ink-3)]">Plan</label>
+                <label className="body-sm text-[var(--ink-3)]">{t('admin.plan')}</label>
                 <select
                   value={newCoupon.applicablePlan}
                   onChange={e => setNewCoupon(prev => ({ ...prev, applicablePlan: e.target.value }))}
                   className="h-9 rounded-md px-3 body-sm"
                   style={{ background: 'var(--bg-3)', border: '1px solid var(--line-2)', color: 'var(--ink-1)' }}
                 >
-                  <option value="solo">Solo</option>
-                  <option value="master">Master</option>
+                  <option value="solo">{t('admin.solo')}</option>
+                  <option value="master">{t('admin.master')}</option>
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="body-sm text-[var(--ink-3)]">Discount %</label>
+                <label className="body-sm text-[var(--ink-3)]">{t('admin.discountPct')}</label>
                 <Input
                   type="number"
                   value={newCoupon.discountValue}
@@ -430,7 +432,7 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
                 />
               </div>
               <div className="space-y-1">
-                <label className="body-sm text-[var(--ink-3)]">Max uses</label>
+                <label className="body-sm text-[var(--ink-3)]">{t('admin.maxUses')}</label>
                 <Input
                   type="number"
                   value={newCoupon.maxUses}
@@ -439,7 +441,7 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
                 />
               </div>
               <PillButton size="sm" onClick={createCoupon} disabled={creating || !newCoupon.code.trim()}>
-                Create
+                {t('admin.create')}
               </PillButton>
             </div>
           </GlassCard>
@@ -447,27 +449,27 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
           <GlassCard className="overflow-hidden p-0">
             <div className="divide-y">
               {coupons.length === 0 && (
-                <p className="p-4 body-sm text-[var(--ink-3)]">No coupons yet.</p>
+                <p className="p-4 body-sm text-[var(--ink-3)]">{t('admin.noCoupons')}</p>
               )}
               {coupons.map(coupon => (
                 <div key={coupon.id} className="flex items-center gap-4 px-4 py-3">
                   <div className="min-w-0 flex-1">
                     <p className="body-sm font-mono font-semibold text-[var(--ink-1)]">{coupon.code}</p>
-                    <p className="body-sm text-[var(--ink-3)]">{coupon.applicablePlan} · {coupon.discountValue}% off · {coupon.usesSoFar}/{coupon.maxUses > 0 ? coupon.maxUses : '∞'} uses</p>
+                    <p className="body-sm text-[var(--ink-3)]">{coupon.applicablePlan} · {coupon.discountValue}{t('admin.pctOff')} · {coupon.usesSoFar}/{coupon.maxUses > 0 ? coupon.maxUses : '∞'} {t('admin.uses')}</p>
                   </div>
                   <button
                     onClick={() => resyncCoupon(coupon.id)}
                     disabled={resyncing === coupon.id}
                     className="flex items-center gap-1.5 body-sm text-[var(--ink-3)] hover:text-[var(--ink-1)] transition-colors disabled:opacity-50"
-                    title="Re-create this code in Stripe for the current environment (fixes 'invalid code' at checkout)"
+                    title={t('admin.resyncTitle')}
                   >
-                    <RefreshCw size={12} className={resyncing === coupon.id ? 'animate-spin' : ''} /> Re-sync
+                    <RefreshCw size={12} className={resyncing === coupon.id ? 'animate-spin' : ''} /> {t('admin.resync')}
                   </button>
                   <button
                     onClick={() => deleteCoupon(coupon.id)}
                     className="body-sm text-[var(--ink-4)] hover:text-red-400 transition-colors"
                   >
-                    Delete
+                    {t('admin.delete')}
                   </button>
                 </div>
               ))}
@@ -485,19 +487,19 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
               <button
                 key={f}
                 onClick={() => setFeedbackFilter(f)}
-                className="body-sm rounded-full px-3 py-1 font-semibold capitalize transition-colors"
+                className="body-sm rounded-full px-3 py-1 font-semibold transition-colors"
                 style={feedbackFilter === f
                   ? { background: 'var(--ink-1)', color: 'var(--bg-0)' }
                   : { background: 'var(--bg-2)', color: 'var(--ink-3)' }}
               >
-                {f === 'all' ? 'All' : f}
+                {f === 'all' ? t('admin.filterAll') : t(`admin.${f}`)}
               </button>
             ))}
           </div>
 
           {filteredFeedback.length === 0 ? (
             <GlassCard className="p-6 text-center">
-              <p className="body-sm text-[var(--ink-3)]">No feedback yet.</p>
+              <p className="body-sm text-[var(--ink-3)]">{t('admin.noFeedback')}</p>
             </GlassCard>
           ) : (
             <div className="space-y-3">
@@ -511,7 +513,7 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
                       <div className="flex items-center gap-2">
                         <Icon size={14} style={{ color }} />
                         <span className="body-sm font-semibold text-[var(--ink-1)]">
-                          {meta?.label ?? f.type ?? 'Feedback'}
+                          {meta ? t(`admin.${f.type as 'praise' | 'review' | 'suggestion' | 'complaint'}`) : (f.type ?? t('admin.feedback'))}
                         </span>
                         {f.rating != null && (
                           <span className="flex items-center gap-0.5">
@@ -532,7 +534,7 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
                     </div>
                     <p className="body text-[var(--ink-1)] whitespace-pre-wrap">{f.message}</p>
                     <p className="body-sm mt-2 text-[var(--ink-3)]">
-                      {f.userEmail ?? 'Anonymous'} · {f.page ?? f.source ?? '-'}
+                      {f.userEmail ?? t('admin.anonymous')} · {f.page ?? f.source ?? '-'}
                     </p>
                   </GlassCard>
                 )
@@ -546,14 +548,14 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
       {tab === 'stats' && (
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {[
-            { label: 'Total users', value: stats.totalUsers },
-            { label: 'Active this week', value: stats.activeThisWeek },
-            { label: 'Episodes created', value: stats.totalEpisodes },
-            { label: 'Published', value: stats.publishedEpisodes },
-            { label: 'Onboarding complete', value: stats.onboardingComplete },
-            { label: 'Never activated (>3d)', value: stats.neverActivated },
-            { label: 'Guest briefs sent', value: stats.briefsSent },
-            { label: 'Social content generated', value: stats.socialGenerated },
+            { label: t('admin.totalUsers'), value: stats.totalUsers },
+            { label: t('admin.activeThisWeek'), value: stats.activeThisWeek },
+            { label: t('admin.episodesCreated'), value: stats.totalEpisodes },
+            { label: t('admin.published'), value: stats.publishedEpisodes },
+            { label: t('admin.onboardingComplete'), value: stats.onboardingComplete },
+            { label: t('admin.neverActivated'), value: stats.neverActivated },
+            { label: t('admin.briefsSent'), value: stats.briefsSent },
+            { label: t('admin.socialGenerated'), value: stats.socialGenerated },
           ].map(stat => (
             <GlassCard key={stat.label} className="p-4">
               <p className="body-sm text-[var(--ink-3)]">{stat.label}</p>

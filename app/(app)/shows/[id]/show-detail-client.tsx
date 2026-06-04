@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { formatDate, cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { useT } from '@/components/i18n/I18nProvider'
 
 type ShowWithEpisodes = Show & { episodes: Episode[] }
 
@@ -32,6 +33,7 @@ export function ShowDetailClient({
   currentEmail: string
 }) {
   const router = useRouter()
+  const t = useT()
   const [episodes, setEpisodes] = useState(show.episodes)
   const [tab, setTab] = useState<Tab>('all')
   const [editOpen, setEditOpen] = useState(false)
@@ -43,11 +45,11 @@ export function ShowDetailClient({
   const approvals = episodes.filter((e) => e.status === 'review' && !e.managerApproved)
 
   const TABS: { key: Tab; label: string; badge?: number }[] = [
-    { key: 'all', label: 'All' },
-    { key: 'production', label: 'In Production' },
-    { key: 'published', label: 'Published' },
-    { key: 'promote', label: 'Promote' },
-    { key: 'approvals', label: 'Approvals', badge: approvals.length },
+    { key: 'all', label: t('shows.tabAll') },
+    { key: 'production', label: t('shows.tabProduction') },
+    { key: 'published', label: t('shows.tabPublished') },
+    { key: 'promote', label: t('shows.tabPromote') },
+    { key: 'approvals', label: t('shows.tabApprovals'), badge: approvals.length },
   ]
 
   async function approve(id: string) {
@@ -60,9 +62,9 @@ export function ShowDetailClient({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'approved', managerApproved: true }),
       })
-      toast.success('Episode approved')
+      toast.success(t('shows.approvedToast'))
     } catch {
-      toast.error('Could not approve')
+      toast.error(t('shows.approveError'))
     }
   }
 
@@ -83,7 +85,7 @@ export function ShowDetailClient({
         <button onClick={() => router.push('/shows')} className="text-[var(--ink-3)] transition-colors hover:text-[var(--ink-1)]">
           <ArrowLeft size={18} />
         </button>
-        <p className="body-sm text-[var(--ink-3)]">Shows</p>
+        <p className="body-sm text-[var(--ink-3)]">{t('nav.shows')}</p>
       </div>
 
       {/* Header */}
@@ -105,19 +107,19 @@ export function ShowDetailClient({
                 className="mt-2 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[12px] font-semibold"
                 style={{ background: 'rgba(48,209,88,0.1)', color: 'var(--success)' }}
               >
-                <Crown size={12} /> You are the Manager
+                <Crown size={12} /> {t('shows.youAreManager')}
               </span>
             </div>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
             <PillButton variant="secondary" size="sm" onClick={() => router.push('/guests')}>
-              <Users size={14} /> Add Guest
+              <Users size={14} /> {t('shows.addGuest')}
             </PillButton>
             <PillButton variant="secondary" size="sm" onClick={() => router.push(`/shows/${show.id}/dna`)}>
-              <Dna size={14} /> Podcast DNA
+              <Dna size={14} /> {t('shows.podcastDna')}
             </PillButton>
             <PillButton variant="secondary" size="sm" onClick={() => setEditOpen(true)}>
-              <Settings size={14} /> Edit
+              <Settings size={14} /> {t('common.edit')}
             </PillButton>
           </div>
         </div>
@@ -126,22 +128,22 @@ export function ShowDetailClient({
       {/* Tabs */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex flex-wrap gap-1 overflow-x-auto rounded-full p-1" style={{ background: 'var(--bg-2)', border: '1px solid var(--line-1)' }}>
-          {TABS.map((t) => (
+          {TABS.map((tabItem) => (
             <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
+              key={tabItem.key}
+              onClick={() => setTab(tabItem.key)}
               className={cn(
                 'body-sm flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 font-semibold transition-all',
-                tab === t.key ? 'bg-[var(--ink-1)] text-[var(--bg-0)]' : 'text-[var(--ink-3)] hover:text-[var(--ink-1)]'
+                tab === tabItem.key ? 'bg-[var(--ink-1)] text-[var(--bg-0)]' : 'text-[var(--ink-3)] hover:text-[var(--ink-1)]'
               )}
             >
-              {t.label}
-              {t.badge ? (
+              {tabItem.label}
+              {tabItem.badge ? (
                 <span
                   className="rounded-full px-1.5 text-[10px] font-bold"
                   style={{ background: 'var(--warning)', color: 'var(--bg-0)' }}
                 >
-                  {t.badge}
+                  {tabItem.badge}
                 </span>
               ) : null}
             </button>
@@ -152,14 +154,14 @@ export function ShowDetailClient({
           className="body-sm rounded-full border px-3 py-1.5 font-semibold text-[var(--ink-2)] transition-colors hover:text-[var(--ink-1)]"
           style={{ borderColor: 'var(--line-2)' }}
         >
-          Calendar
+          {t('nav.calendar')}
         </Link>
       </div>
 
       {/* Content */}
       {list.length === 0 ? (
         <GlassCard className="p-10 text-center">
-          <p className="body text-[var(--ink-2)]">Nothing here yet.</p>
+          <p className="body text-[var(--ink-2)]">{t('shows.nothingHere')}</p>
         </GlassCard>
       ) : (
         <div className="space-y-2">
@@ -180,7 +182,7 @@ export function ShowDetailClient({
                   <p className="body truncate font-medium text-[var(--ink-1)]">{ep.title ?? ep.guestName}</p>
                   <p className="body-sm text-[var(--ink-3)]">
                     {ep.guestName}
-                    {ep.releaseDate && ` · Airs ${formatDate(ep.releaseDate)}`}
+                    {ep.releaseDate && ` · ${t('shows.airs')} ${formatDate(ep.releaseDate)}`}
                   </p>
                 </span>
               </Link>
@@ -193,7 +195,7 @@ export function ShowDetailClient({
                       className="body-sm flex items-center gap-1 rounded-full px-3 py-1.5 font-semibold"
                       style={{ background: 'rgba(48,209,88,0.12)', color: 'var(--success)' }}
                     >
-                      <Check size={13} /> View content
+                      <Check size={13} /> {t('shows.viewContent')}
                     </Link>
                   ) : (
                     <Link
@@ -201,25 +203,25 @@ export function ShowDetailClient({
                       className="body-sm flex items-center gap-1 rounded-full px-3 py-1.5 font-semibold"
                       style={{ background: 'rgba(255,159,10,0.14)', color: '#ff9f0a' }}
                     >
-                      <Sparkles size={13} /> Generate
+                      <Sparkles size={13} /> {t('shows.generate')}
                     </Link>
                   )
                 ) : tab === 'approvals' ? (
                   <PillButton size="sm" onClick={() => approve(ep.id)}>
-                    <Check size={14} /> Approve
+                    <Check size={14} /> {t('shows.approve')}
                   </PillButton>
                 ) : (
                   <span
                     className="body-sm rounded-full px-2.5 py-0.5 font-semibold capitalize"
                     style={{ background: `${STATUS_COLOR[ep.status] ?? 'var(--ink-4)'}18`, color: STATUS_COLOR[ep.status] ?? 'var(--ink-4)' }}
                   >
-                    {ep.status}
+                    {t(`status.${ep.status}`)}
                   </span>
                 )}
                 <button
                   onClick={() => setChatEp(ep)}
                   className="rounded-full p-2 text-[var(--ink-3)] transition-colors hover:text-[var(--ink-1)]"
-                  aria-label="Episode chat"
+                  aria-label={t('shows.episodeChatAria')}
                 >
                   <MessageSquare size={16} />
                 </button>

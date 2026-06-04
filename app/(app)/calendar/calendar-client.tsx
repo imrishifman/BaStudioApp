@@ -23,6 +23,7 @@ import { ChevronLeft, ChevronRight, Check, X, Share2, Copy, CalendarPlus } from 
 import { toast } from 'sonner'
 import { GlassCard } from '@/components/common/GlassCard'
 import { cn, initials } from '@/lib/utils'
+import { useT } from '@/components/i18n/I18nProvider'
 
 interface EpisodeEvent {
   id: string
@@ -55,19 +56,18 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 const EPISODE_LEGEND = [
-  { label: 'Researching', color: 'var(--accent-violet)' },
-  { label: 'Questions', color: 'var(--accent-cyan)' },
-  { label: 'Script', color: 'var(--accent-pink)' },
-  { label: 'Review', color: 'var(--warning)' },
-  { label: 'Published', color: '#30d158' },
-]
+  { labelKey: 'calendar.legendResearching', color: 'var(--accent-violet)' },
+  { labelKey: 'calendar.legendQuestions', color: 'var(--accent-cyan)' },
+  { labelKey: 'calendar.legendScript', color: 'var(--accent-pink)' },
+  { labelKey: 'calendar.legendReview', color: 'var(--warning)' },
+  { labelKey: 'calendar.legendPublished', color: '#30d158' },
+] as const
 
 const AVAIL_COLOR: Record<AvailStatus, string> = {
   available: '#30d158',
   busy: 'var(--error)',
 }
 
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const statusColor = (s: string) => STATUS_COLOR[s] ?? 'var(--ink-4)'
 
 export function CalendarClient({
@@ -81,6 +81,8 @@ export function CalendarClient({
   shows: { id: string; name: string }[]
   userId: string
 }) {
+  const t = useT()
+  const DAYS = [t('calendar.day0'), t('calendar.day1'), t('calendar.day2'), t('calendar.day3'), t('calendar.day4'), t('calendar.day5'), t('calendar.day6')]
   const [episodes, setEpisodes] = useState(initial)
   const [current, setCurrent] = useState(new Date())
   const [mode, setMode] = useState<'episodes' | 'availability'>('episodes')
@@ -92,8 +94,8 @@ export function CalendarClient({
     const url = `${window.location.origin}/team-calendar/${userId}/${showId}`
     navigator.clipboard
       .writeText(url)
-      .then(() => toast.success('Booking link copied'))
-      .catch(() => toast.error('Could not copy link'))
+      .then(() => toast.success(t('calendar.bookingLinkCopied')))
+      .catch(() => toast.error(t('calendar.couldNotCopyLink')))
     setShareOpen(false)
   }
 
@@ -140,9 +142,9 @@ export function CalendarClient({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ releaseDate: newIso }),
       })
-      toast.success(newIso ? `Rescheduled to ${format(new Date(newIso), 'MMM d')}` : 'Unscheduled')
+      toast.success(newIso ? `${t('calendar.rescheduledTo')}${format(new Date(newIso), 'MMM d')}` : t('calendar.unscheduledToast'))
     } catch {
-      toast.error('Could not reschedule')
+      toast.error(t('calendar.couldNotReschedule'))
     }
   }
 
@@ -155,7 +157,7 @@ export function CalendarClient({
         body: JSON.stringify({ date: key, status }),
       })
     } catch {
-      toast.error('Could not save availability')
+      toast.error(t('calendar.couldNotSaveAvail'))
     }
   }
 
@@ -177,17 +179,17 @@ export function CalendarClient({
   }
 
   const legend = mode === 'episodes'
-    ? EPISODE_LEGEND
+    ? EPISODE_LEGEND.map((l) => ({ label: t(l.labelKey), color: l.color }))
     : [
-        { label: 'Available', color: AVAIL_COLOR.available },
-        { label: 'Busy', color: AVAIL_COLOR.busy },
+        { label: t('calendar.availAvailable'), color: AVAIL_COLOR.available },
+        { label: t('calendar.availBusy'), color: AVAIL_COLOR.busy },
       ]
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-6 lg:p-8">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="display-sm text-[var(--ink-1)]">Calendar</h1>
+        <h1 className="display-sm text-[var(--ink-1)]">{t('calendar.title')}</h1>
         <div className="flex flex-wrap items-center gap-2">
           <div
             className="flex gap-1 rounded-full p-1"
@@ -198,11 +200,11 @@ export function CalendarClient({
                 key={m}
                 onClick={() => setMode(m)}
                 className={cn(
-                  'body-sm rounded-full px-3 py-1.5 font-semibold capitalize transition-all',
+                  'body-sm rounded-full px-3 py-1.5 font-semibold transition-all',
                   mode === m ? 'bg-[var(--ink-1)] text-[var(--bg-0)]' : 'text-[var(--ink-3)]'
                 )}
               >
-                {m}
+                {m === 'episodes' ? t('calendar.modeEpisodes') : t('calendar.modeAvailability')}
               </button>
             ))}
           </div>
@@ -211,7 +213,7 @@ export function CalendarClient({
             className="body-sm rounded-full border px-3 py-1.5 font-semibold text-[var(--ink-2)] transition-colors hover:text-[var(--ink-1)]"
             style={{ borderColor: 'var(--line-2)' }}
           >
-            Today
+            {t('calendar.today')}
           </button>
           <div className="flex items-center gap-1">
             <button onClick={() => setCurrent((c) => addMonths(c, -1))} className="rounded-full p-2 text-[var(--ink-3)] hover:text-[var(--ink-1)]">
@@ -230,21 +232,21 @@ export function CalendarClient({
       {/* Availability chips */}
       {mode === 'availability' && (
         <div className="flex flex-wrap items-center gap-3">
-          <p className="body-sm text-[var(--ink-3)]">Drag or tap a chip, then a day:</p>
+          <p className="body-sm text-[var(--ink-3)]">{t('calendar.dragChipHint')}</p>
           {(['available', 'busy'] as AvailStatus[]).map((s) => (
             <button
               key={s}
               draggable
               onDragStart={() => (dragStatus.current = s)}
               onClick={() => setSelectedChip((cur) => (cur === s ? null : s))}
-              className="flex cursor-grab items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-semibold capitalize transition-all"
+              className="flex cursor-grab items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-all"
               style={{
                 borderColor: selectedChip === s ? AVAIL_COLOR[s] : 'var(--line-2)',
                 background: selectedChip === s ? `${AVAIL_COLOR[s]}1f` : 'transparent',
                 color: AVAIL_COLOR[s],
               }}
             >
-              {s === 'available' ? <Check size={13} /> : <X size={13} />} {s}
+              {s === 'available' ? <Check size={13} /> : <X size={13} />} {s === 'available' ? t('calendar.availAvailable') : t('calendar.availBusy')}
             </button>
           ))}
 
@@ -255,7 +257,7 @@ export function CalendarClient({
               className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-semibold text-[var(--ink-2)] transition-colors hover:text-[var(--ink-1)]"
               style={{ borderColor: 'var(--line-2)' }}
             >
-              <Share2 size={13} /> Share booking link
+              <Share2 size={13} /> {t('calendar.shareBookingLink')}
             </button>
             {shareOpen && (
               <>
@@ -265,11 +267,11 @@ export function CalendarClient({
                   style={{ background: 'var(--bg-2)', border: '1px solid var(--line-1)' }}
                 >
                   <p className="body-sm px-2 py-1.5 font-semibold text-[var(--ink-1)]">
-                    Share available days for…
+                    {t('calendar.shareAvailableFor')}
                   </p>
                   {shows.length === 0 ? (
                     <p className="body-sm px-2 py-2 text-[var(--ink-3)]">
-                      Create a show first to share a booking link.
+                      {t('calendar.createShowFirst')}
                     </p>
                   ) : (
                     shows.map((s) => (
@@ -293,7 +295,7 @@ export function CalendarClient({
       {/* Upcoming strip (episodes mode only) */}
       {mode === 'episodes' && upcoming.length > 0 && (
         <div>
-          <p className="body-sm mb-3 font-semibold text-[var(--ink-2)]">Upcoming recordings</p>
+          <p className="body-sm mb-3 font-semibold text-[var(--ink-2)]">{t('calendar.upcomingRecordings')}</p>
           <div className="flex gap-3 overflow-x-auto pb-2">
             {upcoming.map((ep) => {
               const d = differenceInCalendarDays(new Date(ep.releaseDate!), new Date())
@@ -314,20 +316,20 @@ export function CalendarClient({
                     </div>
                     <div className="min-w-0">
                       <p className="body-sm truncate font-semibold text-[var(--ink-1)]">{ep.guestName}</p>
-                      <p className="truncate text-[11px] text-[var(--ink-3)]">{ep.show?.name ?? 'No show'}</p>
+                      <p className="truncate text-[11px] text-[var(--ink-3)]">{ep.show?.name ?? t('calendar.noShow')}</p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="body-sm text-[var(--ink-2)]">Airs {format(new Date(ep.releaseDate!), 'MMM d')}</span>
+                    <span className="body-sm text-[var(--ink-2)]">{t('calendar.airsPrefix')}{format(new Date(ep.releaseDate!), 'MMM d')}</span>
                     <span className="text-[11px] font-semibold" style={{ color: cc }}>
-                      {d === 0 ? 'Today' : `In ${d}d`}
+                      {d === 0 ? t('calendar.today') : `${t('calendar.inPrefix')}${d}${t('calendar.inSuffix')}`}
                     </span>
                   </div>
                   <a
                     href={`/api/episodes/${ep.id}/ics`}
                     className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-[var(--ink-3)] transition-colors hover:text-[var(--ink-1)]"
                   >
-                    <CalendarPlus size={12} /> Add to calendar
+                    <CalendarPlus size={12} /> {t('calendar.addToCalendar')}
                   </a>
                 </GlassCard>
               )
@@ -440,10 +442,10 @@ export function CalendarClient({
                   <DayNumber day={day} today={today} />
                   {avail && (
                     <span
-                      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize"
+                      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold"
                       style={{ background: `${AVAIL_COLOR[avail]}22`, color: AVAIL_COLOR[avail] }}
                     >
-                      {avail === 'available' ? <Check size={11} /> : <X size={11} />} {avail}
+                      {avail === 'available' ? <Check size={11} /> : <X size={11} />} {avail === 'available' ? t('calendar.availAvailable') : t('calendar.availBusy')}
                     </span>
                   )}
                 </div>
@@ -458,7 +460,7 @@ export function CalendarClient({
         <DragDropContext onDragEnd={onDragEnd}>
           <div>
             <p className="body-sm mb-2 font-semibold text-[var(--ink-2)]">
-              Unscheduled {unscheduled.length > 0 && `(${unscheduled.length})`}
+              {t('calendar.unscheduled')} {unscheduled.length > 0 && `(${unscheduled.length})`}
             </p>
             <Droppable droppableId="unscheduled" direction="horizontal">
               {(provided, snapshot) => (
@@ -473,7 +475,7 @@ export function CalendarClient({
                 >
                   {unscheduled.length === 0 && !snapshot.isDraggingOver && (
                     <p className="body-sm self-center text-[var(--ink-4)]">
-                      Drag an episode here to unschedule it.
+                      {t('calendar.dragToUnschedule')}
                     </p>
                   )}
                   {unscheduled.map((ep, idx) => (

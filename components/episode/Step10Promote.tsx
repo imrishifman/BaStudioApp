@@ -8,6 +8,7 @@ import { GlassCard } from '@/components/common/GlassCard'
 import { Sparkles, CheckCircle2, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { useT } from '@/components/i18n/I18nProvider'
 
 interface SocialContent { linkedin_post?: string; twitter_thread?: string; instagram_caption?: string; episode_description?: string }
 
@@ -24,6 +25,9 @@ const TABS = [
 ] as const
 
 export function Step10Promote({ episode, onNext }: Props) {
+  const t = useT()
+  const labelFor = (key: typeof TABS[number]['key'], fallback: string) =>
+    key === 'episode_description' ? t('episode.tabShowNotes') : fallback
   const [content, setContent] = useState<SocialContent>((episode?.socialContent as SocialContent) ?? {})
   const [activeTab, setActiveTab] = useState<typeof TABS[number]['key']>('linkedin_post')
   const [loading, setLoading] = useState(false)
@@ -40,7 +44,7 @@ export function Step10Promote({ episode, onNext }: Props) {
       const data = await res.json()
       if (data.error) { toast.error(data.error); return }
       setContent(data)
-    } catch { toast.error('Generation failed') } finally { setLoading(false) }
+    } catch { toast.error(t('episode.generationFailed')) } finally { setLoading(false) }
   }
 
   async function handleDone() {
@@ -51,19 +55,19 @@ export function Step10Promote({ episode, onNext }: Props) {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="eyebrow mb-1 text-[var(--ink-3)]">Final step</p>
-          <h2 className="display-sm text-[var(--ink-1)]">Promote your episode</h2>
-          <p className="body mt-1 text-[var(--ink-2)]">Social posts and show notes, ready to copy.</p>
+          <p className="eyebrow mb-1 text-[var(--ink-3)]">{t('episode.finalStep')}</p>
+          <h2 className="display-sm text-[var(--ink-1)]">{t('episode.s10Title')}</h2>
+          <p className="body mt-1 text-[var(--ink-2)]">{t('episode.s10Body')}</p>
         </div>
         <PillButton variant="secondary" size="sm" onClick={generate} disabled={loading}>
-          <RefreshCw size={14} className={cn(loading && 'animate-spin')} /> Regenerate
+          <RefreshCw size={14} className={cn(loading && 'animate-spin')} /> {t('episode.regenerate')}
         </PillButton>
       </div>
 
       {loading ? (
         <GlassCard className="flex flex-col items-center gap-4 p-12 text-center">
           <Sparkles size={32} className="animate-pulse text-[var(--accent-violet)]" />
-          <p className="body text-[var(--ink-2)]">Creating your social content…</p>
+          <p className="body text-[var(--ink-2)]">{t('episode.creatingSocial')}</p>
         </GlassCard>
       ) : (
         <div>
@@ -77,7 +81,7 @@ export function Step10Promote({ episode, onNext }: Props) {
                   activeTab === tab.key ? 'bg-[var(--ink-1)] text-[var(--bg-0)]' : 'text-[var(--ink-3)]'
                 )}
               >
-                {tab.label}
+                {labelFor(tab.key, tab.label)}
               </button>
             ))}
           </div>
@@ -86,7 +90,7 @@ export function Step10Promote({ episode, onNext }: Props) {
             onChange={e => setContent(prev => ({ ...prev, [activeTab]: e.target.value }))}
             rows={12}
             className="bg-[var(--bg-2)] border-[var(--line-2)] text-[var(--ink-1)]"
-            placeholder={`${TABS.find(t => t.key === activeTab)?.label} content will appear here…`}
+            placeholder={`${labelFor(activeTab, TABS.find(tabItem => tabItem.key === activeTab)?.label ?? '')}${t('episode.contentAppearsSuffix')}`}
           />
         </div>
       )}
@@ -94,10 +98,10 @@ export function Step10Promote({ episode, onNext }: Props) {
       {!loading && (
         <div className="flex items-center gap-3">
           <PillButton onClick={handleDone}>
-            <CheckCircle2 size={14} /> Done - episode published
+            <CheckCircle2 size={14} /> {t('episode.donePublished')}
           </PillButton>
           <button onClick={() => onNext()} className="body-sm text-[var(--ink-3)] underline hover:text-[var(--ink-1)]">
-            Skip
+            {t('episode.skip')}
           </button>
         </div>
       )}

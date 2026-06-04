@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { ArrowLeft, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { useT } from '@/components/i18n/I18nProvider'
 
 interface Props {
   episode: Episode | null
@@ -52,6 +53,7 @@ function buildSteps(show: Show | null) {
 
 export function EpisodeWizard({ episode: initialEpisode, shows, userEmail }: Props) {
   const router = useRouter()
+  const t = useT()
   const [episode, setEpisode] = useState<Episode | null>(initialEpisode)
   const [currentStep, setCurrentStep] = useState(initialEpisode?.currentStep ?? 1)
   const [exitOpen, setExitOpen] = useState(false)
@@ -203,17 +205,17 @@ export function EpisodeWizard({ episode: initialEpisode, shows, userEmail }: Pro
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ showId }),
                 })
-                if (!res.ok) { toast.error('Could not move episode'); return }
+                if (!res.ok) { toast.error(t('episode.couldNotMove')); return }
                 const updated = await res.json()
                 setEpisode(updated)
-                toast.success(showId ? 'Moved to show' : 'Removed from show')
+                toast.success(showId ? t('episode.movedToShow') : t('episode.removedFromShow'))
               }}
             />
           )}
           <button
             onClick={() => setExitOpen(true)}
             className="text-[var(--ink-3)] transition-colors hover:text-[var(--ink-1)]"
-            aria-label="Exit wizard"
+            aria-label={t('episode.exitAria')}
           >
             <X size={18} />
           </button>
@@ -252,12 +254,12 @@ export function EpisodeWizard({ episode: initialEpisode, shows, userEmail }: Pro
         <div className="flex items-center gap-3">
           {currentStep > 1 && (
             <PillButton variant="secondary" size="sm" onClick={goBack}>
-              <ArrowLeft size={14} /> Back
+              <ArrowLeft size={14} /> {t('episode.back')}
             </PillButton>
           )}
           {lastSaved && (
             <p className="body-sm text-[var(--ink-4)]">
-              Saved {Math.round((Date.now() - lastSaved.getTime()) / 1000)}s ago
+              {t('episode.savedPrefix')}{Math.round((Date.now() - lastSaved.getTime()) / 1000)}{t('episode.secondsAgoSuffix')}
             </p>
           )}
         </div>
@@ -270,20 +272,20 @@ export function EpisodeWizard({ episode: initialEpisode, shows, userEmail }: Pro
       <AlertDialog open={exitOpen} onOpenChange={setExitOpen}>
         <AlertDialogContent className="border-[var(--line-1)]" style={{ background: 'var(--bg-2)' }}>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-[var(--ink-1)]">Leave the wizard?</AlertDialogTitle>
+            <AlertDialogTitle className="text-[var(--ink-1)]">{t('episode.leaveTitle')}</AlertDialogTitle>
             <AlertDialogDescription className="text-[var(--ink-2)]">
-              Your progress is saved. You can return to this episode any time.
+              {t('episode.leaveBody')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="border-[var(--line-1)] bg-transparent text-[var(--ink-1)]">
-              Keep working
+              {t('episode.keepWorking')}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => router.push('/dashboard')}
               className="bg-[var(--ink-1)] text-[var(--bg-0)]"
             >
-              Exit to episodes
+              {t('episode.exitToEpisodes')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

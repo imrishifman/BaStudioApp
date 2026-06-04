@@ -4,10 +4,12 @@ import { useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { PillButton } from '@/components/common/PillButton'
 import { ArrowRight } from 'lucide-react'
+import { useT } from '@/components/i18n/I18nProvider'
 
 // Celebratory bookend shown once the full script is generated - mirrors the
 // AI loading overlay's language (same orb), closing the loop on the journey.
 export function EpisodeReadyOverlay({ onContinue }: { onContinue: () => void }) {
+  const t = useT()
   useEffect(() => {
     let cancelled = false
     import('canvas-confetti').then(({ default: confetti }) => {
@@ -30,17 +32,17 @@ export function EpisodeReadyOverlay({ onContinue }: { onContinue: () => void }) 
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
       role="dialog"
-      aria-label="Episode ready"
+      aria-label={t('episode.readyAria')}
     >
       <div className="ai-orb" style={{ animation: 'ai-orb-complete 0.6s ease-out' }} />
       <div className="text-center">
-        <h2 className="display-sm text-[var(--ink-1)]">Your episode is ready</h2>
+        <h2 className="display-sm text-[var(--ink-1)]">{t('episode.readyTitle')}</h2>
         <p className="body mt-2 max-w-sm text-[var(--ink-2)]">
-          Research, questions, intro, and script - all done. Take it from here.
+          {t('episode.readyBody')}
         </p>
       </div>
       <PillButton onClick={onContinue}>
-        Continue <ArrowRight size={14} />
+        {t('episode.continue')} <ArrowRight size={14} />
       </PillButton>
     </motion.div>
   )

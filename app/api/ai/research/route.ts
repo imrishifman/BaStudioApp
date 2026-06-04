@@ -9,6 +9,7 @@ import {
   buildResearchPrefix,
   buildBioInstruction,
   buildFunFactsInstruction,
+  languageDirective,
 } from '@/lib/ai/prompts'
 import { extractJson, aiErrorMessage } from '@/lib/ai/json'
 import { ensureGuestFromEpisode } from '@/lib/guest-sync'
@@ -48,6 +49,8 @@ export async function POST(req: Request) {
 
   const user = await prisma.user.findUnique({ where: { email: session.user.email } })
   if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+  // Steers every generation below into the user's language (e.g. Hebrew).
+  const langSuffix = languageDirective(user.language)
   // Free-plan research limit only counts the heavy research phase.
   if (phase === 'research' && mode !== 'regenerate-bio' && user.plan === 'free' && user.aiResearchCountThisMonth >= 1) {
     return NextResponse.json({ error: 'Research limit reached. Upgrade to continue.' }, { status: 403 })
@@ -76,7 +79,7 @@ export async function POST(req: Request) {
       const bioMsg = await anthropic.messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 400,
-        messages: [{ role: 'user', content: buildBioPrompt(existing, guestName, show, { punchy: true }) }],
+        messages: [{ role: 'user', content: buildBioPrompt(existing, guestName, show, { punchy: true }) + langSuffix }],
       })
       const bio = allText(bioMsg)
       if (episodeId) await prisma.episode.updateMany({ where: { id: episodeId, createdByEmail: session.user.email }, data: { guestBio: bio } })
@@ -99,7 +102,7 @@ export async function POST(req: Request) {
             role: 'user',
             content: [
               { type: 'text', text: prefix, cache_control: { type: 'ephemeral' } },
-              { type: 'text', text: buildBioInstruction(guestName, show, isDeep ? { sentences: '4-5' } : {}) },
+              { type: 'text', text: buildBioInstruction(guestName, show, isDeep ? { sentences: '4-5' } : {}) + langSuffix },
             ],
           }],
         }),
@@ -110,7 +113,7 @@ export async function POST(req: Request) {
             role: 'user',
             content: [
               { type: 'text', text: prefix, cache_control: { type: 'ephemeral' } },
-              { type: 'text', text: buildFunFactsInstruction(guestName, isDeep ? 10 : 5, { specific: isDeep }) },
+              { type: 'text', text: buildFunFactsInstruction(guestName, isDeep ? 10 : 5, { specific: isDeep }) + langSuffix },
             ],
           }],
         }),
@@ -156,7 +159,7 @@ export async function POST(req: Request) {
       try {
         geminiRes = await genai.models.generateContent({
           model: 'gemini-2.5-flash',
-          contents: researchPrompt,
+          contents: researchPrompt + langSuffix,
           config: {
             tools: [{ googleSearch: {} }],
             maxOutputTokens: isDeep ? 3000 : 3500,

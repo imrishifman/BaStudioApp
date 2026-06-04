@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import Anthropic from '@anthropic-ai/sdk'
-import { buildChatPrompt } from '@/lib/ai/prompts'
+import { prisma } from '@/lib/prisma'
+import { buildChatPrompt, languageDirective } from '@/lib/ai/prompts'
 import { aiErrorMessage } from '@/lib/ai/json'
 
 export const maxDuration = 60
@@ -15,12 +16,14 @@ export async function POST(req: Request) {
   if (!message) return NextResponse.json({ error: 'message required' }, { status: 400 })
 
   const prompt = buildChatPrompt(message, episodeContext ?? null, page ?? null)
+  // The user's saved language steers the output language (e.g. Hebrew).
+  const lang = (await prisma.user.findUnique({ where: { email: session.user.email }, select: { language: true } }))?.language
 
   try {
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 512,
-      messages: [{ role: 'user', content: prompt }],
+      messages: [{ role: 'user', content: prompt + languageDirective(lang) }],
     })
     const reply = response.content[0].type === 'text' ? response.content[0].text : ''
     return NextResponse.json({ reply })

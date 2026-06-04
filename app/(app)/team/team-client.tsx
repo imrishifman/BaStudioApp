@@ -12,6 +12,7 @@ import {
   Send, Plus, Pencil, Trash2, ArrowLeft, MessageSquare, Tv2, Users,
 } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useT } from '@/components/i18n/I18nProvider'
 
 interface Message {
   id: string
@@ -30,23 +31,24 @@ interface Props {
 }
 
 export function TeamClient({ shows, teams, lastMessages, sessionUser }: Props) {
+  const t = useT()
   const [tab, setTab] = useState<'chat' | 'teams'>('chat')
 
   return (
     <div className="mx-auto max-w-4xl space-y-5 p-6 lg:p-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="display-sm text-[var(--ink-1)]">Hub</h1>
+        <h1 className="display-sm text-[var(--ink-1)]">{t('team.title')}</h1>
         <div className="flex gap-1 rounded-full p-1" style={{ background: 'var(--bg-2)', border: '1px solid var(--line-1)' }}>
-          {(['chat', 'teams'] as const).map((t) => (
+          {(['chat', 'teams'] as const).map((tabKey) => (
             <button
-              key={t}
-              onClick={() => setTab(t)}
+              key={tabKey}
+              onClick={() => setTab(tabKey)}
               className={cn(
-                'body-sm rounded-full px-4 py-1.5 font-semibold capitalize transition-all',
-                tab === t ? 'bg-[var(--ink-1)] text-[var(--bg-0)]' : 'text-[var(--ink-3)]'
+                'body-sm rounded-full px-4 py-1.5 font-semibold transition-all',
+                tab === tabKey ? 'bg-[var(--ink-1)] text-[var(--bg-0)]' : 'text-[var(--ink-3)]'
               )}
             >
-              {t}
+              {tabKey === 'chat' ? t('team.tabChat') : t('team.tabTeams')}
             </button>
           ))}
         </div>
@@ -55,8 +57,8 @@ export function TeamClient({ shows, teams, lastMessages, sessionUser }: Props) {
       {tab === 'chat' ? (
         shows.length === 0 ? (
           <GlassCard className="p-10 text-center">
-            <p className="display-sm text-[var(--ink-1)]">No groups yet</p>
-            <p className="body mt-2 text-[var(--ink-2)]">Create a show to start a group chat.</p>
+            <p className="display-sm text-[var(--ink-1)]">{t('team.noGroupsTitle')}</p>
+            <p className="body mt-2 text-[var(--ink-2)]">{t('team.noGroupsBody')}</p>
           </GlassCard>
         ) : (
           <ChatWhatsApp shows={shows} lastMessages={lastMessages} sessionUser={sessionUser} />
@@ -71,6 +73,7 @@ export function TeamClient({ shows, teams, lastMessages, sessionUser }: Props) {
 /* ---------------- Teams tab ---------------- */
 
 function TeamsPanel({ teams, shows }: { teams: Team[]; shows: Show[] }) {
+  const t = useT()
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Team | null>(null)
   const showName = (id: string | null) => shows.find((s) => s.id === id)?.name
@@ -90,7 +93,7 @@ function TeamsPanel({ teams, shows }: { teams: Team[]; shows: Show[] }) {
             setModalOpen(true)
           }}
         >
-          <Plus size={14} /> New Team
+          <Plus size={14} /> {t('team.newTeam')}
         </PillButton>
       </div>
 
@@ -99,9 +102,9 @@ function TeamsPanel({ teams, shows }: { teams: Team[]; shows: Show[] }) {
           <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ background: 'var(--bg-3)' }}>
             <Users size={22} style={{ color: 'var(--accent-violet)' }} />
           </div>
-          <p className="body font-semibold text-[var(--ink-1)]">No teams yet</p>
+          <p className="body font-semibold text-[var(--ink-1)]">{t('team.noTeamsTitle')}</p>
           <p className="body-sm text-[var(--ink-3)]">
-            Create a team, attach it to a show, and add members - it&apos;ll auto-attach to that show&apos;s new episodes.
+            {t('team.noTeamsBody')}
           </p>
         </GlassCard>
       ) : (
@@ -113,7 +116,7 @@ function TeamsPanel({ teams, shows }: { teams: Team[]; shows: Show[] }) {
                   <p className="body font-semibold text-[var(--ink-1)]">{team.name}</p>
                   <p className="body-sm flex items-center gap-1.5 text-[var(--ink-3)]">
                     <Tv2 size={13} />
-                    {team.showId ? `Attached to ${showName(team.showId) ?? 'a show'}` : 'Not attached to a show'}
+                    {team.showId ? `${t('team.attachedToPrefix')}${showName(team.showId) ?? t('team.aShow')}` : t('team.notAttached')}
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-1">
@@ -123,14 +126,14 @@ function TeamsPanel({ teams, shows }: { teams: Team[]; shows: Show[] }) {
                       setModalOpen(true)
                     }}
                     className="rounded-full p-2 text-[var(--ink-3)] transition-colors hover:text-[var(--ink-1)]"
-                    aria-label="Edit team"
+                    aria-label={t('team.editTeamAria')}
                   >
                     <Pencil size={15} />
                   </button>
                   <button
                     onClick={() => del(team.id)}
                     className="rounded-full p-2 text-[var(--ink-4)] transition-colors hover:text-[var(--error)]"
-                    aria-label="Delete team"
+                    aria-label={t('team.deleteTeamAria')}
                   >
                     <Trash2 size={15} />
                   </button>
@@ -176,6 +179,7 @@ function ChatWhatsApp({
   lastMessages: Props['lastMessages']
   sessionUser: Session['user']
 }) {
+  const t = useT()
   const [openId, setOpenId] = useState<string | null>(null)
   const openShow = shows.find((s) => s.id === openId) ?? null
 
@@ -198,7 +202,7 @@ function ChatWhatsApp({
               </div>
               <div className="min-w-0 flex-1">
                 <p className="body-sm truncate font-semibold text-[var(--ink-1)]">{show.name}</p>
-                <p className="truncate text-[12px] text-[var(--ink-3)]">{last ? last.message : 'No messages yet'}</p>
+                <p className="truncate text-[12px] text-[var(--ink-3)]">{last ? last.message : t('team.noMessagesYet')}</p>
               </div>
               {last && <span className="shrink-0 text-[10px] text-[var(--ink-4)]">{formatDate(last.createdAt)}</span>}
             </button>
@@ -212,7 +216,7 @@ function ChatWhatsApp({
         ) : (
           <GlassCard className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
             <MessageSquare size={28} className="text-[var(--ink-4)]" />
-            <p className="body-sm text-[var(--ink-3)]">Select a group to start chatting.</p>
+            <p className="body-sm text-[var(--ink-3)]">{t('team.selectGroup')}</p>
           </GlassCard>
         )}
       </div>
@@ -229,6 +233,7 @@ function ChatThread({
   sessionUser: Session['user']
   onBack: () => void
 }) {
+  const t = useT()
   const [draft, setDraft] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
   const qc = useQueryClient()
@@ -267,7 +272,7 @@ function ChatThread({
   return (
     <GlassCard className="flex w-full flex-col overflow-hidden p-0">
       <div className="flex items-center gap-3 p-3" style={{ borderBottom: '1px solid var(--line-1)' }}>
-        <button onClick={onBack} className="text-[var(--ink-2)] md:hidden" aria-label="Back">
+        <button onClick={onBack} className="text-[var(--ink-2)] md:hidden" aria-label={t('team.backAria')}>
           <ArrowLeft size={18} />
         </button>
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold" style={{ background: 'var(--bg-3)', color: 'var(--ink-2)' }}>
@@ -278,7 +283,7 @@ function ChatThread({
 
       <div className="flex-1 space-y-3 overflow-y-auto p-4">
         {messages.length === 0 && (
-          <p className="body-sm py-8 text-center text-[var(--ink-4)]">No messages yet. Say hello 👋</p>
+          <p className="body-sm py-8 text-center text-[var(--ink-4)]">{t('team.threadEmpty')}</p>
         )}
         {messages.map((msg) => {
           const isMe = msg.senderEmail === sessionUser.email
@@ -303,7 +308,7 @@ function ChatThread({
         <Input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Message the group…"
+          placeholder={t('team.messageGroupPh')}
           className="flex-1 border-[var(--line-2)] bg-[var(--bg-3)] text-[var(--ink-1)] placeholder:text-[var(--ink-4)]"
           onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
         />

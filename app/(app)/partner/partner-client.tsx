@@ -9,6 +9,7 @@ import {
   BarChart2, DollarSign, Link as LinkIcon, MousePointerClick, TrendingUp,
   Copy, CheckCircle2, AlertCircle, Settings, History, FileText,
 } from 'lucide-react'
+import { useT } from '@/components/i18n/I18nProvider'
 
 interface Stats {
   clicksLast30: number
@@ -36,25 +37,27 @@ function formatDate(iso: string | Date | null) {
 }
 
 function CopyButton({ value, label }: { value: string; label?: string }) {
+  const t = useT()
   const [copied, setCopied] = useState(false)
   return (
     <button
       onClick={async () => {
         await navigator.clipboard.writeText(value)
         setCopied(true)
-        toast.success(`${label ?? 'Copied'}!`)
+        toast.success(`${label ?? t('partner.copied')}!`)
         setTimeout(() => setCopied(false), 1500)
       }}
       className="body-sm flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 font-semibold text-[var(--ink-2)] transition-colors hover:text-[var(--ink-1)]"
       style={{ borderColor: 'var(--line-2)' }}
     >
       {copied ? <CheckCircle2 size={12} style={{ color: 'var(--success)' }} /> : <Copy size={12} />}
-      {copied ? 'Copied' : 'Copy'}
+      {copied ? t('partner.copied') : t('partner.copy')}
     </button>
   )
 }
 
 export function PartnerClient({ influencer, conversions, payouts, stats, referralUrl }: Props) {
+  const t = useT()
   const [tab, setTab] = useState<Tab>('overview')
   const [connecting, setConnecting] = useState(false)
 
@@ -67,35 +70,35 @@ export function PartnerClient({ influencer, conversions, payouts, stats, referra
         window.location.href = data.url
         return
       }
-      toast.error(data.error ?? 'Could not start Stripe onboarding')
+      toast.error(data.error ?? t('partner.couldNotOnboard'))
     } catch {
-      toast.error('Network error')
+      toast.error(t('partner.networkError'))
     } finally {
       setConnecting(false)
     }
   }
 
   const TABS: { key: Tab; label: string; icon: typeof BarChart2 }[] = [
-    { key: 'overview', label: 'Overview', icon: BarChart2 },
-    { key: 'earnings', label: `Earnings${conversions.length ? ` (${conversions.length})` : ''}`, icon: DollarSign },
-    { key: 'payouts', label: 'Payouts', icon: History },
-    { key: 'settings', label: 'Settings', icon: Settings },
+    { key: 'overview', label: t('partner.tabOverview'), icon: BarChart2 },
+    { key: 'earnings', label: `${t('partner.tabEarnings')}${conversions.length ? ` (${conversions.length})` : ''}`, icon: DollarSign },
+    { key: 'payouts', label: t('partner.tabPayouts'), icon: History },
+    { key: 'settings', label: t('partner.tabSettings'), icon: Settings },
   ]
 
   const commissionLabel = influencer.commissionType === 'fixed'
-    ? `$${influencer.commissionValue ?? 0} per signup`
+    ? `$${influencer.commissionValue ?? 0}${t('partner.perSignup')}`
     : `${influencer.commissionValue ?? 0}%`
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-6 lg:p-8">
       {/* Header */}
       <div>
-        <p className="eyebrow text-[var(--ink-3)]">Partner portal</p>
+        <p className="eyebrow text-[var(--ink-3)]">{t('partner.portalEyebrow')}</p>
         <h1 className="display-sm mt-1 text-[var(--ink-1)]">
-          {influencer.name.split(' ')[0]}&apos;s dashboard
+          {influencer.name.split(' ')[0]}{t('partner.dashboardSuffix')}
         </h1>
         <p className="body mt-1 text-[var(--ink-2)]">
-          Earning <span className="font-semibold text-[var(--ink-1)]">{commissionLabel}</span> on every conversion.
+          {t('partner.earningPrefix')}<span className="font-semibold text-[var(--ink-1)]">{commissionLabel}</span>{t('partner.earningSuffix')}
         </p>
       </div>
 
@@ -105,10 +108,10 @@ export function PartnerClient({ influencer, conversions, payouts, stats, referra
           <AlertCircle size={18} style={{ color: 'var(--warning)' }} />
           <div className="flex-1">
             <p className="body font-semibold text-[var(--ink-1)]">
-              You haven&apos;t signed the partnership agreement yet
+              {t('partner.agreementNotSignedTitle')}
             </p>
             <p className="body-sm text-[var(--ink-3)]">
-              Your coupon code won&apos;t track conversions until the agreement is signed. Check your email for the signature link.
+              {t('partner.agreementNotSignedBody')}
             </p>
           </div>
         </GlassCard>
@@ -119,13 +122,13 @@ export function PartnerClient({ influencer, conversions, payouts, stats, referra
         <GlassCard className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center" style={{ borderColor: 'rgba(167,139,250,0.4)' }}>
           <AlertCircle size={18} style={{ color: 'var(--accent-violet)' }} className="shrink-0" />
           <div className="flex-1">
-            <p className="body font-semibold text-[var(--ink-1)]">Connect Stripe to receive payouts</p>
+            <p className="body font-semibold text-[var(--ink-1)]">{t('partner.connectStripeTitle')}</p>
             <p className="body-sm text-[var(--ink-3)]">
-              Your commissions are being tracked. Connect Stripe to start receiving payouts. You can sign up as an individual, no registered business required.
+              {t('partner.connectStripeBody')}
             </p>
           </div>
           <PillButton size="sm" onClick={connectStripe} disabled={connecting} className="shrink-0">
-            {connecting ? 'Opening…' : (influencer.stripeAccountId ? 'Finish Stripe setup' : 'Connect Stripe')}
+            {connecting ? t('partner.opening') : (influencer.stripeAccountId ? t('partner.finishStripe') : t('partner.connectStripe'))}
           </PillButton>
         </GlassCard>
       )}
@@ -155,10 +158,10 @@ export function PartnerClient({ influencer, conversions, payouts, stats, referra
           {/* Stat cards */}
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {[
-              { label: 'Clicks (30d)', value: stats.clicksLast30, icon: MousePointerClick },
-              { label: 'Conversions', value: stats.conversionCount, icon: TrendingUp },
-              { label: 'Unpaid commission', value: `$${stats.unpaidCommission.toLocaleString()}`, icon: DollarSign },
-              { label: 'Total earned', value: `$${stats.totalEarned.toLocaleString()}`, icon: BarChart2 },
+              { label: t('partner.statClicks30'), value: stats.clicksLast30, icon: MousePointerClick },
+              { label: t('partner.statConversions'), value: stats.conversionCount, icon: TrendingUp },
+              { label: t('partner.statUnpaid'), value: `$${stats.unpaidCommission.toLocaleString()}`, icon: DollarSign },
+              { label: t('partner.statTotalEarned'), value: `$${stats.totalEarned.toLocaleString()}`, icon: BarChart2 },
             ].map(s => {
               const Icon = s.icon
               return (
@@ -177,32 +180,32 @@ export function PartnerClient({ influencer, conversions, payouts, stats, referra
           <GlassCard className="space-y-4 p-6">
             <div className="flex items-center gap-2">
               <LinkIcon size={16} className="text-[var(--accent-violet)]" />
-              <p className="body font-semibold text-[var(--ink-1)]">Your link & code</p>
+              <p className="body font-semibold text-[var(--ink-1)]">{t('partner.linkAndCode')}</p>
             </div>
             {influencer.couponCode ? (
               <>
                 <div className="rounded-[var(--radius-sm)] p-4" style={{ background: 'var(--bg-3)' }}>
-                  <p className="body-sm mb-1 text-[var(--ink-3)]">Coupon code</p>
+                  <p className="body-sm mb-1 text-[var(--ink-3)]">{t('partner.couponCode')}</p>
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-2xl font-bold tracking-wider text-[var(--ink-1)]" style={{ fontFamily: 'ui-monospace, SF Mono, monospace' }}>
                       {influencer.couponCode}
                     </p>
-                    <CopyButton value={influencer.couponCode} label="Code copied" />
+                    <CopyButton value={influencer.couponCode} label={t('partner.codeCopied')} />
                   </div>
                 </div>
                 {referralUrl && (
                   <div className="rounded-[var(--radius-sm)] p-4" style={{ background: 'var(--bg-3)' }}>
-                    <p className="body-sm mb-1 text-[var(--ink-3)]">Referral link</p>
+                    <p className="body-sm mb-1 text-[var(--ink-3)]">{t('partner.referralLink')}</p>
                     <div className="flex items-center justify-between gap-3">
                       <p className="body truncate font-mono text-[var(--ink-1)]">{referralUrl}</p>
-                      <CopyButton value={referralUrl} label="Link copied" />
+                      <CopyButton value={referralUrl} label={t('partner.linkCopied')} />
                     </div>
                   </div>
                 )}
               </>
             ) : (
               <p className="body-sm text-[var(--ink-3)]">
-                No coupon code has been assigned to you yet. Reach out to support.
+                {t('partner.noCouponAssigned')}
               </p>
             )}
           </GlassCard>
@@ -211,12 +214,12 @@ export function PartnerClient({ influencer, conversions, payouts, stats, referra
           {conversions.length > 0 && (
             <GlassCard className="space-y-3 p-6">
               <div className="flex items-center justify-between">
-                <p className="body font-semibold text-[var(--ink-1)]">Recent conversions</p>
+                <p className="body font-semibold text-[var(--ink-1)]">{t('partner.recentConversions')}</p>
                 <button
                   onClick={() => setTab('earnings')}
                   className="body-sm text-[var(--ink-3)] hover:text-[var(--ink-1)]"
                 >
-                  See all
+                  {t('partner.seeAll')}
                 </button>
               </div>
               <div className="divide-y" style={{ borderColor: 'var(--line-1)' }}>
@@ -224,7 +227,7 @@ export function PartnerClient({ influencer, conversions, payouts, stats, referra
                   <div key={c.id} className="flex items-center justify-between py-2.5">
                     <div className="min-w-0 flex-1">
                       <p className="body-sm font-medium text-[var(--ink-1)] truncate">
-                        {c.convertedUserEmail ?? 'Anonymous'}
+                        {c.convertedUserEmail ?? t('partner.anonymous')}
                       </p>
                       <p className="body-sm text-[var(--ink-3)]">
                         {c.planPurchased} · {formatDate(c.conversionDate)}
@@ -241,7 +244,7 @@ export function PartnerClient({ influencer, conversions, payouts, stats, referra
                           color: c.commissionPaid ? 'var(--success)' : 'var(--accent-violet)',
                         }}
                       >
-                        {c.commissionPaid ? 'Paid' : 'Pending'}
+                        {c.commissionPaid ? t('partner.paid') : t('partner.pending')}
                       </span>
                     </div>
                   </div>
@@ -257,7 +260,7 @@ export function PartnerClient({ influencer, conversions, payouts, stats, referra
         <GlassCard className="overflow-hidden p-0">
           {conversions.length === 0 ? (
             <p className="p-6 text-center body-sm text-[var(--ink-3)]">
-              No conversions yet. Share your link and code to start earning.
+              {t('partner.noConversions')}
             </p>
           ) : (
             <div className="divide-y" style={{ borderColor: 'var(--line-1)' }}>
@@ -265,10 +268,10 @@ export function PartnerClient({ influencer, conversions, payouts, stats, referra
                 <div key={c.id} className="flex items-center gap-4 px-5 py-4">
                   <div className="min-w-0 flex-1">
                     <p className="body font-medium text-[var(--ink-1)] truncate">
-                      {c.convertedUserEmail ?? 'Anonymous'}
+                      {c.convertedUserEmail ?? t('partner.anonymous')}
                     </p>
                     <p className="body-sm text-[var(--ink-3)]">
-                      {c.planPurchased} plan · ${(c.revenueAmount ?? 0).toFixed(2)} revenue · {formatDate(c.conversionDate)}
+                      {c.planPurchased}{t('partner.planSuffix')} · ${(c.revenueAmount ?? 0).toFixed(2)}{t('partner.revenueSuffix')} · {formatDate(c.conversionDate)}
                     </p>
                   </div>
                   <div className="text-right">
@@ -282,7 +285,7 @@ export function PartnerClient({ influencer, conversions, payouts, stats, referra
                         color: c.commissionPaid ? 'var(--success)' : 'var(--accent-violet)',
                       }}
                     >
-                      {c.commissionPaid ? 'Paid' : 'Pending'}
+                      {c.commissionPaid ? t('partner.paid') : t('partner.pending')}
                     </span>
                   </div>
                 </div>
@@ -296,13 +299,13 @@ export function PartnerClient({ influencer, conversions, payouts, stats, referra
       {tab === 'payouts' && (
         <GlassCard className="overflow-hidden p-0">
           <div className="p-5" style={{ borderBottom: '1px solid var(--line-1)' }}>
-            <p className="body font-semibold text-[var(--ink-1)]">Payout history</p>
+            <p className="body font-semibold text-[var(--ink-1)]">{t('partner.payoutHistory')}</p>
             <p className="body-sm text-[var(--ink-3)]">
-              Total paid out: <span className="font-semibold text-[var(--ink-1)]">${stats.paidCommission.toLocaleString()}</span>
+              {t('partner.totalPaidOutPrefix')}<span className="font-semibold text-[var(--ink-1)]">${stats.paidCommission.toLocaleString()}</span>
             </p>
           </div>
           {payouts.length === 0 ? (
-            <p className="p-6 text-center body-sm text-[var(--ink-3)]">No payouts yet. Payouts run every Monday.</p>
+            <p className="p-6 text-center body-sm text-[var(--ink-3)]">{t('partner.noPayouts')}</p>
           ) : (
             <div className="divide-y" style={{ borderColor: 'var(--line-1)' }}>
               {payouts.map(p => (
@@ -312,7 +315,7 @@ export function PartnerClient({ influencer, conversions, payouts, stats, referra
                       ${(p.amountUsd ?? 0).toFixed(2)}
                     </p>
                     <p className="body-sm text-[var(--ink-3)]">
-                      {formatDate(p.payoutDate)} · {p.conversionsPaid ?? 0} conversion{(p.conversionsPaid ?? 0) === 1 ? '' : 's'}
+                      {formatDate(p.payoutDate)} · {p.conversionsPaid ?? 0} {(p.conversionsPaid ?? 0) === 1 ? t('partner.conversionSingular') : t('partner.conversionPlural')}
                     </p>
                   </div>
                   <span
@@ -336,12 +339,12 @@ export function PartnerClient({ influencer, conversions, payouts, stats, referra
         <div className="space-y-4">
           {/* Status card */}
           <GlassCard className="space-y-3 p-6">
-            <p className="body font-semibold text-[var(--ink-1)]">Status</p>
+            <p className="body font-semibold text-[var(--ink-1)]">{t('partner.status')}</p>
             <div className="space-y-2">
               {[
-                { label: 'Agreement signed', done: influencer.agreementSigned, date: influencer.agreementSignedDate },
-                { label: 'Stripe connected', done: influencer.stripeOnboardingCompleted, date: null },
-                { label: 'Coupon active', done: influencer.couponActive, date: null },
+                { label: t('partner.agreementSigned'), done: influencer.agreementSigned, date: influencer.agreementSignedDate },
+                { label: t('partner.stripeConnected'), done: influencer.stripeOnboardingCompleted, date: null },
+                { label: t('partner.couponActive'), done: influencer.couponActive, date: null },
               ].map(s => (
                 <div key={s.label} className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -353,7 +356,7 @@ export function PartnerClient({ influencer, conversions, payouts, stats, referra
                     <p className="body-sm text-[var(--ink-1)]">{s.label}</p>
                   </div>
                   <p className="body-sm text-[var(--ink-3)]">
-                    {s.done ? (s.date ? formatDate(s.date) : 'Yes') : 'Not yet'}
+                    {s.done ? (s.date ? formatDate(s.date) : t('partner.yes')) : t('partner.notYet')}
                   </p>
                 </div>
               ))}
@@ -362,15 +365,15 @@ export function PartnerClient({ influencer, conversions, payouts, stats, referra
 
           {/* Profile card */}
           <GlassCard className="space-y-3 p-6">
-            <p className="body font-semibold text-[var(--ink-1)]">Profile</p>
+            <p className="body font-semibold text-[var(--ink-1)]">{t('partner.profile')}</p>
             <div className="grid gap-3 sm:grid-cols-2">
               {[
-                { label: 'Name', value: influencer.name },
-                { label: 'Email', value: influencer.email ?? '-' },
-                { label: 'Handle', value: influencer.handle ?? '-' },
-                { label: 'Platform', value: influencer.platform ?? '-' },
-                { label: 'Commission', value: commissionLabel },
-                { label: 'Coupon code', value: influencer.couponCode ?? '-' },
+                { label: t('partner.name'), value: influencer.name },
+                { label: t('partner.email'), value: influencer.email ?? '-' },
+                { label: t('partner.handle'), value: influencer.handle ?? '-' },
+                { label: t('partner.platform'), value: influencer.platform ?? '-' },
+                { label: t('partner.commission'), value: commissionLabel },
+                { label: t('partner.couponCode'), value: influencer.couponCode ?? '-' },
               ].map(f => (
                 <div key={f.label}>
                   <p className="body-sm text-[var(--ink-3)]">{f.label}</p>
@@ -379,7 +382,7 @@ export function PartnerClient({ influencer, conversions, payouts, stats, referra
               ))}
             </div>
             <p className="body-sm pt-2 text-[var(--ink-4)]">
-              To update any of these details, email <a href="mailto:hello@bastudiopodcast.com" className="underline">hello@bastudiopodcast.com</a>.
+              {t('partner.updateDetailsPrefix')}<a href="mailto:hello@bastudiopodcast.com" className="underline">hello@bastudiopodcast.com</a>.
             </p>
           </GlassCard>
 
@@ -387,11 +390,11 @@ export function PartnerClient({ influencer, conversions, payouts, stats, referra
           <GlassCard className="flex items-center gap-3 p-5">
             <FileText size={18} className="text-[var(--ink-3)]" />
             <div className="flex-1">
-              <p className="body font-semibold text-[var(--ink-1)]">Partnership agreement</p>
+              <p className="body font-semibold text-[var(--ink-1)]">{t('partner.partnershipAgreement')}</p>
               <p className="body-sm text-[var(--ink-3)]">
                 {influencer.agreementSigned
-                  ? `Signed on ${formatDate(influencer.agreementSignedDate)}`
-                  : 'Not yet signed'}
+                  ? `${t('partner.signedOnPrefix')}${formatDate(influencer.agreementSignedDate)}`
+                  : t('partner.notYetSigned')}
               </p>
             </div>
             {influencer.agreementSignatureToken && (
@@ -400,7 +403,7 @@ export function PartnerClient({ influencer, conversions, payouts, stats, referra
                 className="body-sm rounded-full border px-4 py-1.5 font-semibold text-[var(--ink-2)] hover:text-[var(--ink-1)]"
                 style={{ borderColor: 'var(--line-2)' }}
               >
-                View
+                {t('partner.view')}
               </a>
             )}
           </GlassCard>

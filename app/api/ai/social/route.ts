@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import Anthropic from '@anthropic-ai/sdk'
-import { buildSocialPrompt } from '@/lib/ai/prompts'
+import { buildSocialPrompt, languageDirective } from '@/lib/ai/prompts'
 import { extractJson, aiErrorMessage } from '@/lib/ai/json'
 
 export const maxDuration = 60
@@ -21,12 +21,14 @@ export async function POST(req: Request) {
 
   const show = showId ? await prisma.show.findUnique({ where: { id: showId } }) : null
   const prompt = buildSocialPrompt(episode, show, releaseDate)
+  // The user's saved language steers the output language (e.g. Hebrew).
+  const lang = (await prisma.user.findUnique({ where: { email: session.user.email }, select: { language: true } }))?.language
 
   try {
     const message = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 3000,
-      messages: [{ role: 'user', content: prompt }],
+      messages: [{ role: 'user', content: prompt + languageDirective(lang) }],
     })
 
     const text = message.content[0].type === 'text' ? message.content[0].text : ''

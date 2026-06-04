@@ -4,13 +4,14 @@ import { useState } from 'react'
 import { Textarea } from '@/components/ui/textarea'
 import { Wand2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useT } from '@/components/i18n/I18nProvider'
 
 const ACTIONS = [
-  { key: 'rephrase', label: 'Rephrase' },
-  { key: 'shorten', label: 'Shorten' },
-  { key: 'punchier', label: 'Punch it up' },
-  { key: 'formal', label: 'More formal' },
-]
+  { key: 'rephrase', labelKey: 'episode.actionRephrase' },
+  { key: 'shorten', labelKey: 'episode.actionShorten' },
+  { key: 'punchier', labelKey: 'episode.actionPunchier' },
+  { key: 'formal', labelKey: 'episode.actionFormal' },
+] as const
 
 interface Props {
   value: string
@@ -23,6 +24,7 @@ interface Props {
 // A Textarea with an Apple-Intelligence-style floating toolbar: select text and
 // rewrite the selection in place (Rephrase / Shorten / Punch it up / More formal).
 export function SmartTextarea({ value, onChange, rows, className, placeholder }: Props) {
+  const t = useT()
   const [sel, setSel] = useState<{ start: number; end: number } | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -42,11 +44,11 @@ export function SmartTextarea({ value, onChange, rows, className, placeholder }:
         body: JSON.stringify({ text: selected, action }),
       })
       const data = await res.json()
-      if (!data.text) throw new Error(data.error ?? 'Rewrite failed')
+      if (!data.text) throw new Error(data.error ?? t('episode.rewriteFailed'))
       onChange(value.slice(0, sel.start) + data.text + value.slice(sel.end))
       setSel(null)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Rewrite failed')
+      toast.error(err instanceof Error ? err.message : t('episode.rewriteFailed'))
     } finally {
       setBusy(false)
     }
@@ -61,7 +63,7 @@ export function SmartTextarea({ value, onChange, rows, className, placeholder }:
         >
           {busy ? (
             <span className="flex items-center gap-1.5 px-2 py-0.5 text-[12px] text-[var(--ink-2)]">
-              <Loader2 size={12} className="animate-spin" /> Rewriting…
+              <Loader2 size={12} className="animate-spin" /> {t('episode.rewriting')}
             </span>
           ) : (
             <>
@@ -73,7 +75,7 @@ export function SmartTextarea({ value, onChange, rows, className, placeholder }:
                   onClick={() => apply(a.key)}
                   className="rounded-full px-2 py-1 text-[12px] font-medium text-[var(--ink-2)] transition-colors hover:bg-[rgba(127,127,127,0.12)] hover:text-[var(--ink-1)]"
                 >
-                  {a.label}
+                  {t(a.labelKey)}
                 </button>
               ))}
             </>

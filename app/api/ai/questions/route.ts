@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import Anthropic from '@anthropic-ai/sdk'
-import { buildQuestionsPrompt } from '@/lib/ai/prompts'
+import { buildQuestionsPrompt, languageDirective } from '@/lib/ai/prompts'
 import { resolveSections, normalizeGenerated } from '@/lib/questions'
 import { extractJson, aiErrorMessage } from '@/lib/ai/json'
 
@@ -21,6 +21,9 @@ export async function POST(req: Request) {
   if (!episode) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const show = showId ? await prisma.show.findUnique({ where: { id: showId } }) : null
+
+  // The user's saved language steers the output language (e.g. Hebrew).
+  const lang = (await prisma.user.findUnique({ where: { email: session.user.email }, select: { language: true } }))?.language
 
   // Section structure: Podcast DNA → default.
   const sections = resolveSections(show?.episodeSections, null)
@@ -54,7 +57,7 @@ export async function POST(req: Request) {
       // profiles in the prompt.
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 6000,
-      messages: [{ role: 'user', content: prompt }],
+      messages: [{ role: 'user', content: prompt + languageDirective(lang) }],
     })
 
     const text = message.content[0].type === 'text' ? message.content[0].text : ''

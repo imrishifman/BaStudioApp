@@ -1,6 +1,7 @@
 'use client'
 
 import { cn } from '@/lib/utils'
+import { useT } from '@/components/i18n/I18nProvider'
 
 interface StepIndicatorProps {
   steps: { label: string }[]
@@ -9,6 +10,7 @@ interface StepIndicatorProps {
 }
 
 export function StepIndicator({ steps, currentStep, onStepClick }: StepIndicatorProps) {
+  const t = useT()
   return (
     <div className="flex items-center gap-0">
       {steps.map((step, i) => {
@@ -35,7 +37,7 @@ export function StepIndicator({ steps, currentStep, onStepClick }: StepIndicator
                 color: active ? 'var(--bg-0)' : done ? 'white' : 'var(--ink-3)',
                 border: active ? '2px solid transparent' : '1px solid var(--line-2)',
               }}
-              aria-label={`Step ${stepNum}: ${step.label}`}
+              aria-label={`${t('common.step')} ${stepNum}: ${t(`steps.${step.label.toLowerCase()}`)}`}
             >
               {done ? '✓' : stepNum}
             </button>

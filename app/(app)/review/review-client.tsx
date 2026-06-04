@@ -6,17 +6,19 @@ import { toast } from 'sonner'
 import { Star, Heart, Lightbulb, AlertTriangle, MessageSquare } from 'lucide-react'
 import { GlassCard } from '@/components/common/GlassCard'
 import { PillButton } from '@/components/common/PillButton'
+import { useT } from '@/components/i18n/I18nProvider'
 
 type FeedbackType = 'praise' | 'review' | 'suggestion' | 'complaint'
 
-const TYPES: { key: FeedbackType; label: string; icon: typeof Heart; color: string; description: string }[] = [
-  { key: 'praise',     label: 'Praise',     icon: Heart,         color: 'var(--success)',       description: 'Something you loved' },
-  { key: 'review',     label: 'Review',     icon: Star,          color: 'var(--warning)',       description: 'Overall experience' },
-  { key: 'suggestion', label: 'Suggestion', icon: Lightbulb,     color: 'var(--accent-cyan)',   description: 'An idea or improvement' },
-  { key: 'complaint',  label: 'Complaint',  icon: AlertTriangle, color: 'var(--error)',         description: 'Something that broke or frustrated you' },
+const TYPES: { key: FeedbackType; labelKey: string; icon: typeof Heart; color: string; descKey: string }[] = [
+  { key: 'praise',     labelKey: 'review.praiseLabel',     icon: Heart,         color: 'var(--success)',       descKey: 'review.praiseDesc' },
+  { key: 'review',     labelKey: 'review.reviewLabel',     icon: Star,          color: 'var(--warning)',       descKey: 'review.reviewDesc' },
+  { key: 'suggestion', labelKey: 'review.suggestionLabel', icon: Lightbulb,     color: 'var(--accent-cyan)',   descKey: 'review.suggestionDesc' },
+  { key: 'complaint',  labelKey: 'review.complaintLabel',  icon: AlertTriangle, color: 'var(--error)',         descKey: 'review.complaintDesc' },
 ]
 
 export function ReviewClient({ userEmail }: { userEmail: string | null }) {
+  const tr = useT()
   const router = useRouter()
   const [type, setType] = useState<FeedbackType>('review')
   const [rating, setRating] = useState(5)
@@ -26,7 +28,7 @@ export function ReviewClient({ userEmail }: { userEmail: string | null }) {
 
   async function submit() {
     if (!message.trim()) {
-      toast.error('Please tell us a bit more')
+      toast.error(tr('review.pleaseTellMore'))
       return
     }
     setSubmitting(true)
@@ -38,12 +40,12 @@ export function ReviewClient({ userEmail }: { userEmail: string | null }) {
       })
       const data = await res.json()
       if (!res.ok) {
-        toast.error(data.error ?? 'Could not submit')
+        toast.error(data.error ?? tr('review.couldNotSubmit'))
         return
       }
       setSubmitted(true)
     } catch {
-      toast.error('Network error')
+      toast.error(tr('review.networkError'))
     } finally {
       setSubmitting(false)
     }
@@ -54,16 +56,16 @@ export function ReviewClient({ userEmail }: { userEmail: string | null }) {
       <div className="mx-auto max-w-2xl space-y-6 p-6 lg:p-8">
         <GlassCard className="space-y-4 p-8 text-center">
           <MessageSquare size={32} className="mx-auto text-[var(--accent-violet)]" />
-          <h1 className="display-sm text-[var(--ink-1)]">Thank you</h1>
+          <h1 className="display-sm text-[var(--ink-1)]">{tr('review.thankYou')}</h1>
           <p className="body text-[var(--ink-2)]">
-            Your feedback went straight to the team. We read every message.
+            {tr('review.thankYouBody')}
           </p>
           <div className="flex justify-center gap-2 pt-2">
             <PillButton variant="secondary" size="sm" onClick={() => { setSubmitted(false); setMessage(''); setRating(5); setType('review') }}>
-              Submit another
+              {tr('review.submitAnother')}
             </PillButton>
             <PillButton size="sm" onClick={() => router.push('/studio')}>
-              Back to studio
+              {tr('review.backToStudio')}
             </PillButton>
           </div>
         </GlassCard>
@@ -74,33 +76,33 @@ export function ReviewClient({ userEmail }: { userEmail: string | null }) {
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-6 lg:p-8">
       <div>
-        <h1 className="display-sm text-[var(--ink-1)]">Tell us how it&apos;s going</h1>
+        <h1 className="display-sm text-[var(--ink-1)]">{tr('review.title')}</h1>
         <p className="body mt-1 text-[var(--ink-2)]">
-          Praise, complaints, ideas, anything. We read every message and it shapes what we build next.
+          {tr('review.subtitle')}
         </p>
       </div>
 
       {/* Type picker */}
       <div className="grid gap-3 sm:grid-cols-2">
-        {TYPES.map((t) => {
-          const Icon = t.icon
-          const active = t.key === type
+        {TYPES.map((item) => {
+          const Icon = item.icon
+          const active = item.key === type
           return (
             <button
-              key={t.key}
-              onClick={() => setType(t.key)}
+              key={item.key}
+              onClick={() => setType(item.key)}
               className="flex items-start gap-3 rounded-[var(--radius-md)] border p-4 text-left transition-all"
               style={{
-                borderColor: active ? t.color : 'var(--line-2)',
-                background: active ? `${t.color}10` : 'var(--bg-2)',
+                borderColor: active ? item.color : 'var(--line-2)',
+                background: active ? `${item.color}10` : 'var(--bg-2)',
               }}
             >
-              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ background: `${t.color}20` }}>
-                <Icon size={16} style={{ color: t.color }} />
+              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ background: `${item.color}20` }}>
+                <Icon size={16} style={{ color: item.color }} />
               </span>
               <div>
-                <p className="body font-semibold text-[var(--ink-1)]">{t.label}</p>
-                <p className="body-sm text-[var(--ink-3)]">{t.description}</p>
+                <p className="body font-semibold text-[var(--ink-1)]">{tr(item.labelKey)}</p>
+                <p className="body-sm text-[var(--ink-3)]">{tr(item.descKey)}</p>
               </div>
             </button>
           )
@@ -110,13 +112,13 @@ export function ReviewClient({ userEmail }: { userEmail: string | null }) {
       {/* Star rating (only for reviews) */}
       {type === 'review' && (
         <GlassCard className="space-y-3 p-5">
-          <p className="body-sm font-semibold text-[var(--ink-1)]">How would you rate your experience?</p>
+          <p className="body-sm font-semibold text-[var(--ink-1)]">{tr('review.rateExperience')}</p>
           <div className="flex gap-2">
             {[1, 2, 3, 4, 5].map((n) => (
               <button
                 key={n}
                 onClick={() => setRating(n)}
-                aria-label={`${n} star${n > 1 ? 's' : ''}`}
+                aria-label={`${n} ${n > 1 ? tr('review.stars') : tr('review.star')}`}
                 className="transition-transform hover:scale-110"
               >
                 <Star
@@ -133,7 +135,7 @@ export function ReviewClient({ userEmail }: { userEmail: string | null }) {
       {/* Message */}
       <GlassCard className="space-y-3 p-5">
         <label className="body-sm font-semibold text-[var(--ink-1)]" htmlFor="feedback-message">
-          Your message
+          {tr('review.yourMessage')}
         </label>
         <textarea
           id="feedback-message"
@@ -141,10 +143,10 @@ export function ReviewClient({ userEmail }: { userEmail: string | null }) {
           onChange={(e) => setMessage(e.target.value)}
           rows={6}
           placeholder={
-            type === 'praise' ? 'What made you smile?' :
-            type === 'review' ? 'Tell us about your overall experience…' :
-            type === 'suggestion' ? 'What would make this better for you?' :
-            'What broke or frustrated you?'
+            type === 'praise' ? tr('review.phPraise') :
+            type === 'review' ? tr('review.phReview') :
+            type === 'suggestion' ? tr('review.phSuggestion') :
+            tr('review.phComplaint')
           }
           className="w-full resize-none rounded-[var(--radius-sm)] border bg-[var(--bg-3)] p-3 body text-[var(--ink-1)] placeholder:text-[var(--ink-4)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-violet)]"
           style={{ borderColor: 'var(--line-2)' }}
@@ -152,16 +154,16 @@ export function ReviewClient({ userEmail }: { userEmail: string | null }) {
         />
         <div className="flex items-center justify-between">
           <p className="body-sm text-[var(--ink-4)]">{message.length} / 4000</p>
-          {userEmail && <p className="body-sm text-[var(--ink-4)]">From {userEmail}</p>}
+          {userEmail && <p className="body-sm text-[var(--ink-4)]">{tr('review.fromPrefix')}{userEmail}</p>}
         </div>
       </GlassCard>
 
       <div className="flex justify-end gap-2">
         <PillButton variant="secondary" size="sm" onClick={() => router.push('/studio')}>
-          Cancel
+          {tr('review.cancel')}
         </PillButton>
         <PillButton size="sm" onClick={submit} disabled={submitting || !message.trim()}>
-          {submitting ? 'Sending…' : 'Send feedback'}
+          {submitting ? tr('review.sending') : tr('review.sendFeedback')}
         </PillButton>
       </div>
     </div>

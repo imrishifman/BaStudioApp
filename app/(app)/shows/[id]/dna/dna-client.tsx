@@ -23,6 +23,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
+import { useT } from '@/components/i18n/I18nProvider'
 
 type EpisodeSection = { id: string; name: string; minutes: number; purpose: string }
 
@@ -36,13 +37,6 @@ const TIMELINE_COLORS = [
   '#30d158',
   '#ffd60a',
   '#ff9f0a',
-]
-
-const DEFAULT_SECTIONS: EpisodeSection[] = [
-  { id: 's1', name: 'Intro', minutes: 2, purpose: 'Welcome and set the scene' },
-  { id: 's2', name: 'Part 1', minutes: 15, purpose: 'Origin story and background' },
-  { id: 's3', name: 'Part 2', minutes: 20, purpose: 'Core insight and deep dive' },
-  { id: 's4', name: 'Outro', minutes: 3, purpose: 'Wrap up and call to action' },
 ]
 
 const TONE: { key: keyof Show; label: string; options: { value: string; label: string }[] }[] = [
@@ -111,7 +105,7 @@ const inputCls =
   'bg-[var(--bg-3)] border-[var(--line-2)] text-[var(--ink-1)] placeholder:text-[var(--ink-4)]'
 const labelCls = 'body-sm text-[var(--ink-2)]'
 
-function parseSections(raw: unknown): EpisodeSection[] {
+function parseSections(raw: unknown, defaults: EpisodeSection[]): EpisodeSection[] {
   if (Array.isArray(raw) && raw.length) {
     return raw.map((s, i) => {
       const o = s as Record<string, unknown>
@@ -123,14 +117,54 @@ function parseSections(raw: unknown): EpisodeSection[] {
       }
     })
   }
-  return DEFAULT_SECTIONS
+  return defaults
 }
 
 export function ShowDnaClient({ show }: { show: Show }) {
+  const tr = useT()
+  // Logical tab keys stay English (they index state); labels are translated.
+  const TAB_LABELS: Record<Tab, string> = {
+    Structure: tr('dna.tabStructure'),
+    'Tone & Style': tr('dna.tabTone'),
+    Signature: tr('dna.tabSignature'),
+    Audience: tr('dna.tabAudience'),
+    'AI Instructions': tr('dna.tabAi'),
+  }
+  const TONE_LABELS: Record<string, string> = {
+    interviewStyle: tr('dna.toneInterviewStyle'),
+    hostEnergy: tr('dna.toneHostEnergy'),
+    languageLevel: tr('dna.toneLanguageLevel'),
+    humorLevel: tr('dna.toneHumorLevel'),
+    pacing: tr('dna.tonePacing'),
+  }
+  const OPT_LABELS: Record<string, string> = {
+    conversational: tr('dna.optConversational'), deep_dive: tr('dna.optDeepDive'),
+    fast_paced: tr('dna.optFastPaced'), philosophical: tr('dna.optPhilosophical'),
+    challenging: tr('dna.optChallenging'), supportive: tr('dna.optSupportive'),
+    comedic: tr('dna.optComedic'), warm_casual: tr('dna.optWarmCasual'),
+    professional_structured: tr('dna.optProfessionalStructured'),
+    curious_exploratory: tr('dna.optCuriousExploratory'),
+    edgy_provocative: tr('dna.optEdgyProvocative'), inspirational: tr('dna.optInspirational'),
+    simple_accessible: tr('dna.optSimple'), moderate: tr('dna.optModerate'),
+    advanced_technical: tr('dna.optAdvancedTechnical'), none: tr('dna.optNone'),
+    light: tr('dna.optLight'), medium: tr('dna.optMedium'), heavy: tr('dna.optHeavy'),
+    slow_deep: tr('dna.optSlowDeep'), balanced: tr('dna.optBalanced'),
+    fast_punchy: tr('dna.optFastPunchy'),
+    host_reads_bio: tr('dna.optHostReadsBio'),
+    guest_introduces_themselves: tr('dna.optGuestIntroduces'),
+    host_tells_a_story_about_guest: tr('dna.optHostTellsStory'),
+    no_intro_dive_straight_in: tr('dna.optDiveStraightIn'),
+  }
+  const defaultSections: EpisodeSection[] = [
+    { id: 's1', name: tr('dna.secIntroName'), minutes: 2, purpose: tr('dna.secIntroPurpose') },
+    { id: 's2', name: tr('dna.secP1Name'), minutes: 15, purpose: tr('dna.secP1Purpose') },
+    { id: 's3', name: tr('dna.secP2Name'), minutes: 20, purpose: tr('dna.secP2Purpose') },
+    { id: 's4', name: tr('dna.secOutroName'), minutes: 3, purpose: tr('dna.secOutroPurpose') },
+  ]
   const [tab, setTab] = useState<Tab>('Structure')
   const [fields, setFields] = useState<Partial<Show>>(show)
   const [sections, setSections] = useState<EpisodeSection[]>(
-    parseSections(show.episodeSections)
+    parseSections(show.episodeSections, defaultSections)
   )
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const firstRender = useRef(true)
@@ -164,17 +198,17 @@ export function ShowDnaClient({ show }: { show: Show }) {
   // DNA completeness + gentle nudge toward the next high-impact field
   const checks: { label: string; done: boolean; tab: Tab }[] = [
     {
-      label: 'episode structure',
+      label: tr('dna.chkStructure'),
       done: sections.length > 0 && sections.every((s) => s.name.trim() !== ''),
       tab: 'Structure',
     },
-    { label: 'an opening line', done: !!(fields.openingLine ?? '').trim(), tab: 'Signature' },
-    { label: 'a closing question', done: !!(fields.closingQuestion ?? '').trim(), tab: 'Signature' },
-    { label: 'your show values', done: !!(fields.showValues ?? '').trim(), tab: 'Signature' },
-    { label: 'your audience', done: !!(fields.targetAudience ?? '').trim(), tab: 'Audience' },
-    { label: 'research instructions', done: !!(fields.aiResearchInstructions ?? '').trim(), tab: 'AI Instructions' },
-    { label: 'question instructions', done: !!(fields.aiQuestionInstructions ?? '').trim(), tab: 'AI Instructions' },
-    { label: 'script instructions', done: !!(fields.aiScriptInstructions ?? '').trim(), tab: 'AI Instructions' },
+    { label: tr('dna.chkOpening'), done: !!(fields.openingLine ?? '').trim(), tab: 'Signature' },
+    { label: tr('dna.chkClosing'), done: !!(fields.closingQuestion ?? '').trim(), tab: 'Signature' },
+    { label: tr('dna.chkValues'), done: !!(fields.showValues ?? '').trim(), tab: 'Signature' },
+    { label: tr('dna.chkAudience'), done: !!(fields.targetAudience ?? '').trim(), tab: 'Audience' },
+    { label: tr('dna.chkResearch'), done: !!(fields.aiResearchInstructions ?? '').trim(), tab: 'AI Instructions' },
+    { label: tr('dna.chkQuestions'), done: !!(fields.aiQuestionInstructions ?? '').trim(), tab: 'AI Instructions' },
+    { label: tr('dna.chkScript'), done: !!(fields.aiScriptInstructions ?? '').trim(), tab: 'AI Instructions' },
   ]
   const completeness = Math.round(
     (checks.filter((c) => c.done).length / checks.length) * 100
@@ -217,19 +251,19 @@ export function ShowDnaClient({ show }: { show: Show }) {
           >
             <ArrowLeft size={14} /> {show.name}
           </Link>
-          <h1 className="display-sm mt-1 text-[var(--ink-1)]">Podcast DNA</h1>
+          <h1 className="display-sm mt-1 text-[var(--ink-1)]">{tr('shows.podcastDna')}</h1>
         </div>
         <div className="flex items-center gap-1.5 text-[var(--ink-3)]">
           {status === 'saving' && (
             <>
               <Loader2 size={14} className="animate-spin" />
-              <span className="body-sm">Saving…</span>
+              <span className="body-sm">{tr('common.saving')}</span>
             </>
           )}
           {status === 'saved' && (
             <>
               <Check size={14} style={{ color: 'var(--success)' }} />
-              <span className="body-sm">Saved</span>
+              <span className="body-sm">{tr('dna.saved')}</span>
             </>
           )}
         </div>
@@ -241,14 +275,14 @@ export function ShowDnaClient({ show }: { show: Show }) {
           <div>
             <p className="body-sm font-semibold text-[var(--ink-1)]">
               {completeness === 100
-                ? "Your show's DNA is fully tuned 🎙️"
-                : `Your show's DNA is ${completeness}% complete`}
+                ? tr('dna.meterComplete')
+                : `${tr('dna.meterPartialPrefix')} ${completeness}${tr('dna.meterPartialSuffix')}`}
             </p>
             <p className="body-sm text-[var(--ink-3)]">
               {completeness === 100
-                ? 'Every AI output will sound just like your show.'
+                ? tr('dna.meterDoneDesc')
                 : nextMissing
-                  ? `Add ${nextMissing.label} to make it stronger.`
+                  ? `${tr('dna.meterAddPrefix')} ${nextMissing.label} ${tr('dna.meterAddSuffix')}`
                   : ''}
             </p>
           </div>
@@ -278,23 +312,23 @@ export function ShowDnaClient({ show }: { show: Show }) {
         className="flex gap-1 overflow-x-auto rounded-full p-1"
         style={{ background: 'var(--bg-2)', border: '1px solid var(--line-1)' }}
       >
-        {TABS.map((t) => (
+        {TABS.map((tabKey) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
+            key={tabKey}
+            onClick={() => setTab(tabKey)}
             className={cn(
               'body-sm whitespace-nowrap rounded-full px-4 py-2 font-semibold transition-all',
-              tab === t
+              tab === tabKey
                 ? 'bg-[var(--ink-1)] text-[var(--bg-0)]'
                 : 'text-[var(--ink-3)] hover:text-[var(--ink-1)]'
             )}
           >
             <span className="inline-flex items-center gap-1.5">
-              {t}
-              {tabHasChecks(t) && (
+              {TAB_LABELS[tabKey]}
+              {tabHasChecks(tabKey) && (
                 <span
                   className="h-1.5 w-1.5 rounded-full"
-                  style={{ background: tabComplete(t) ? 'var(--success)' : 'var(--line-2)' }}
+                  style={{ background: tabComplete(tabKey) ? 'var(--success)' : 'var(--line-2)' }}
                 />
               )}
             </span>
@@ -308,8 +342,8 @@ export function ShowDnaClient({ show }: { show: Show }) {
           {/* Timeline */}
           <GlassCard className="p-5">
             <div className="mb-2 flex items-center justify-between">
-              <p className="body-sm font-semibold text-[var(--ink-1)]">Episode timeline</p>
-              <p className="body-sm text-[var(--ink-3)]">{totalMinutes} min total</p>
+              <p className="body-sm font-semibold text-[var(--ink-1)]">{tr('dna.episodeTimeline')}</p>
+              <p className="body-sm text-[var(--ink-3)]">{totalMinutes} {tr('dna.minTotal')}</p>
             </div>
             <div className="flex h-3 overflow-hidden rounded-full" style={{ background: 'var(--bg-3)' }}>
               {sections.map((s, i) => (
@@ -350,7 +384,7 @@ export function ShowDnaClient({ show }: { show: Show }) {
                                 <Input
                                   className={cn(inputCls, 'flex-1')}
                                   value={s.name}
-                                  placeholder="Section name"
+                                  placeholder={tr('dna.sectionNamePlaceholder')}
                                   onChange={(e) =>
                                     setSections((prev) =>
                                       prev.map((x) => (x.id === s.id ? { ...x, name: e.target.value } : x))
@@ -361,7 +395,7 @@ export function ShowDnaClient({ show }: { show: Show }) {
                                   type="number"
                                   className={cn(inputCls, 'w-24')}
                                   value={s.minutes}
-                                  placeholder="min"
+                                  placeholder={tr('dna.minPlaceholder')}
                                   onChange={(e) =>
                                     setSections((prev) =>
                                       prev.map((x) =>
@@ -374,7 +408,7 @@ export function ShowDnaClient({ show }: { show: Show }) {
                               <Input
                                 className={inputCls}
                                 value={s.purpose}
-                                placeholder="Purpose of this section"
+                                placeholder={tr('dna.purposePlaceholder')}
                                 onChange={(e) =>
                                   setSections((prev) =>
                                     prev.map((x) => (x.id === s.id ? { ...x, purpose: e.target.value } : x))
@@ -385,7 +419,7 @@ export function ShowDnaClient({ show }: { show: Show }) {
                             <button
                               onClick={() => setSections((prev) => prev.filter((x) => x.id !== s.id))}
                               className="mt-2 text-[var(--ink-4)] transition-colors hover:text-[var(--error)]"
-                              aria-label="Delete section"
+                              aria-label={tr('dna.deleteSectionAria')}
                             >
                               <Trash2 size={16} />
                             </button>
@@ -410,13 +444,13 @@ export function ShowDnaClient({ show }: { show: Show }) {
             className="body-sm flex w-full items-center justify-center gap-2 rounded-[var(--radius-md)] border border-dashed py-3 text-[var(--ink-3)] transition-colors hover:text-[var(--ink-1)]"
             style={{ borderColor: 'var(--line-2)' }}
           >
-            <Plus size={14} /> Add section
+            <Plus size={14} /> {tr('dna.addSection')}
           </button>
 
           {/* Typical length + optional steps */}
           <GlassCard className="space-y-4 p-5">
             <div className="flex flex-col gap-1.5">
-              <Label className={labelCls}>Typical episode length (minutes)</Label>
+              <Label className={labelCls}>{tr('dna.typicalLength')}</Label>
               <Input
                 type="number"
                 className={cn(inputCls, 'w-40')}
@@ -425,14 +459,14 @@ export function ShowDnaClient({ show }: { show: Show }) {
               />
             </div>
             <ToggleRow
-              label="Video / Media step"
-              desc="Adds a video intro upload step to the episode wizard"
+              label={tr('dna.videoStepLabel')}
+              desc={tr('dna.videoStepDesc')}
               checked={fields.includeVideoStep ?? false}
               onChange={(v) => setField('includeVideoStep', v)}
             />
             <ToggleRow
-              label="Promote / Social step"
-              desc="Adds social content generation to the episode wizard"
+              label={tr('dna.promoteStepLabel')}
+              desc={tr('dna.promoteStepDesc')}
               checked={fields.includePromoteStep ?? false}
               onChange={(v) => setField('includePromoteStep', v)}
             />
@@ -445,7 +479,7 @@ export function ShowDnaClient({ show }: { show: Show }) {
         <div className="space-y-6">
           {TONE.map((cat) => (
             <GlassCard key={cat.key as string} className="p-5">
-              <p className="body-sm mb-3 font-semibold text-[var(--ink-1)]">{cat.label}</p>
+              <p className="body-sm mb-3 font-semibold text-[var(--ink-1)]">{TONE_LABELS[cat.key as string] ?? cat.label}</p>
               <div className="flex flex-wrap gap-2">
                 {cat.options.map((opt) => {
                   const active = (fields[cat.key] as string) === opt.value
@@ -460,7 +494,7 @@ export function ShowDnaClient({ show }: { show: Show }) {
                           : 'border-[var(--line-2)] text-[var(--ink-2)] hover:text-[var(--ink-1)]'
                       )}
                     >
-                      {opt.label}
+                      {OPT_LABELS[opt.value] ?? opt.label}
                     </button>
                   )
                 })}
@@ -473,12 +507,12 @@ export function ShowDnaClient({ show }: { show: Show }) {
       {/* ---- Tab 3: Signature ---- */}
       {tab === 'Signature' && (
         <GlassCard className="space-y-4 p-6">
-          <TextField label="Opening line" placeholder="The exact phrase you open every episode with"
+          <TextField label={tr('dna.openingLineLabel')} placeholder={tr('dna.openingLinePh')}
             value={fields.openingLine ?? ''} onChange={(v) => setField('openingLine', v)} />
-          <TextField label="Closing question" placeholder="The last question you ask every guest"
+          <TextField label={tr('dna.closingQuestionLabel')} placeholder={tr('dna.closingQuestionPh')}
             value={fields.closingQuestion ?? ''} onChange={(v) => setField('closingQuestion', v)} />
           <div className="flex flex-col gap-1.5">
-            <Label className={labelCls}>Guest intro style</Label>
+            <Label className={labelCls}>{tr('dna.guestIntroStyleLabel')}</Label>
             <div className="flex flex-wrap gap-2">
               {GUEST_INTRO_OPTIONS.map((opt) => {
                 const active = (fields.guestIntroStyle as string) === opt.value
@@ -488,17 +522,17 @@ export function ShowDnaClient({ show }: { show: Show }) {
                     className={cn('body-sm rounded-full border px-4 py-2 font-medium transition-all',
                       active ? 'border-transparent bg-[var(--accent-violet)] text-[var(--bg-0)]'
                         : 'border-[var(--line-2)] text-[var(--ink-2)] hover:text-[var(--ink-1)]')}>
-                    {opt.label}
+                    {OPT_LABELS[opt.value] ?? opt.label}
                   </button>
                 )
               })}
             </div>
           </div>
-          <TextField label="Recurring segments" multiline placeholder="Fixed formats like rapid-fire rounds or 'Hot Take'"
+          <TextField label={tr('dna.recurringLabel')} multiline placeholder={tr('dna.recurringPh')}
             value={fields.recurringSegments ?? ''} onChange={(v) => setField('recurringSegments', v)} />
-          <TextField label="Topics to avoid" multiline placeholder="Things that should never come up (politics, religion…)"
+          <TextField label={tr('dna.topicsAvoidLabel')} multiline placeholder={tr('dna.topicsAvoidPh')}
             value={fields.topicsToAvoid ?? ''} onChange={(v) => setField('topicsToAvoid', v)} />
-          <TextField label="Show values" multiline placeholder="The editorial principles of your show"
+          <TextField label={tr('dna.showValuesLabel')} multiline placeholder={tr('dna.showValuesPh')}
             value={fields.showValues ?? ''} onChange={(v) => setField('showValues', v)} />
         </GlassCard>
       )}
@@ -507,15 +541,15 @@ export function ShowDnaClient({ show }: { show: Show }) {
       {tab === 'Audience' && (
         <GlassCard className="space-y-3 p-6">
           <div>
-            <p className="body font-semibold text-[var(--ink-1)]">Who is this show for?</p>
+            <p className="body font-semibold text-[var(--ink-1)]">{tr('dna.audienceTitle')}</p>
             <p className="body-sm text-[var(--ink-3)]">
-              The AI uses this to write questions and scripts that speak directly to your listeners.
+              {tr('dna.audienceDesc')}
             </p>
           </div>
           <Textarea
             className={inputCls}
             rows={6}
-            placeholder="e.g. Early-stage founders who care about craft over hype, mostly 25-40, technical but time-poor…"
+            placeholder={tr('dna.audiencePh')}
             value={fields.targetAudience ?? ''}
             onChange={(e) => setField('targetAudience', e.target.value)}
           />
@@ -526,19 +560,19 @@ export function ShowDnaClient({ show }: { show: Show }) {
       {tab === 'AI Instructions' && (
         <GlassCard className="space-y-4 p-6">
           <p className="body-sm text-[var(--ink-3)]">
-            Brief the AI like a smart producer. Auto-saves as you type.
+            {tr('dna.aiIntro')}
           </p>
-          <TextField label="Research instructions" multiline
-            placeholder="e.g. Find the failure story, not the Wikipedia page."
+          <TextField label={tr('dna.researchLabel')} multiline
+            placeholder={tr('dna.researchPh')}
             value={fields.aiResearchInstructions ?? ''} onChange={(v) => setField('aiResearchInstructions', v)} />
-          <TextField label="Question instructions" multiline
-            placeholder="e.g. Never ask yes/no - always find the unexplored angle."
+          <TextField label={tr('dna.questionsLabel')} multiline
+            placeholder={tr('dna.questionsPh')}
             value={fields.aiQuestionInstructions ?? ''} onChange={(v) => setField('aiQuestionInstructions', v)} />
-          <TextField label="Script instructions" multiline
-            placeholder="Voice, tone, and structure preferences for the intro and full script."
+          <TextField label={tr('dna.scriptLabel')} multiline
+            placeholder={tr('dna.scriptPh')}
             value={fields.aiScriptInstructions ?? ''} onChange={(v) => setField('aiScriptInstructions', v)} />
-          <TextField label="Social content instructions" multiline
-            placeholder="How LinkedIn, Twitter, and Instagram posts should sound."
+          <TextField label={tr('dna.socialLabel')} multiline
+            placeholder={tr('dna.socialPh')}
             value={fields.aiSocialInstructions ?? ''} onChange={(v) => setField('aiSocialInstructions', v)} />
         </GlassCard>
       )}

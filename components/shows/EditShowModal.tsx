@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { PillButton } from '@/components/common/PillButton'
 import { ImageUpload } from '@/components/common/ImageUpload'
+import { useT } from '@/components/i18n/I18nProvider'
 import type { Show } from '@prisma/client'
 
 const schema = z.object({
@@ -42,6 +43,15 @@ interface Props {
 }
 
 export function EditShowModal({ open, onOpenChange, show, onSaved, onCreated }: Props) {
+  const t = useT()
+  const CATEGORY_LABELS: Record<string, string> = {
+    interview: t('shows.catInterview'), solo: t('shows.catSolo'), narrative: t('shows.catNarrative'),
+    panel: t('shows.catPanel'), educational: t('shows.catEducational'), comedy: t('shows.catComedy'),
+  }
+  const FREQUENCY_LABELS: Record<string, string> = {
+    weekly: t('shows.freqWeekly'), biweekly: t('shows.freqBiweekly'),
+    monthly: t('shows.freqMonthly'), variable: t('shows.freqVariable'),
+  }
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
@@ -96,47 +106,47 @@ export function EditShowModal({ open, onOpenChange, show, onSaved, onCreated }: 
       <DialogContent className="max-w-md border-[var(--line-1)]" style={{ background: 'var(--bg-2)' }}>
         <DialogHeader>
           <DialogTitle className="display-sm text-[var(--ink-1)]">
-            {show ? 'Edit show' : 'New show'}
+            {show ? t('shows.editShow') : t('shows.newShowTitle')}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 pt-2">
           <div className="flex flex-col gap-1.5">
-            <Label className="body-sm text-[var(--ink-2)]">Show name *</Label>
+            <Label className="body-sm text-[var(--ink-2)]">{t('shows.showNameLabel')}</Label>
             <Input {...register('name')} className={fieldCls} />
-            {errors.name && <p className="body-sm text-[var(--error)]">{errors.name.message}</p>}
+            {errors.name && <p className="body-sm text-[var(--error)]">{t('shows.required')}</p>}
           </div>
 
           <ImageUpload
             value={coverImageUrl}
             onChange={setCoverImageUrl}
-            label="Show picture"
-            hint="Cover art shown on the show card. Square works best."
+            label={t('shows.showPicture')}
+            hint={t('shows.showPictureHint')}
           />
 
           <div className="flex flex-col gap-1.5">
-            <Label className="body-sm text-[var(--ink-2)]">Description</Label>
+            <Label className="body-sm text-[var(--ink-2)]">{t('shows.description')}</Label>
             <Textarea {...register('description')} rows={2} className={fieldCls} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label className="body-sm text-[var(--ink-2)]">Category</Label>
+              <Label className="body-sm text-[var(--ink-2)]">{t('shows.category')}</Label>
               <select {...register('category')} className={selectCls}>
-                <option value="">Select…</option>
+                <option value="">{t('shows.selectPlaceholder')}</option>
                 {CATEGORIES.map((c) => (
                   <option key={c} value={c} style={{ background: 'var(--bg-3)' }}>
-                    {c}
+                    {CATEGORY_LABELS[c] ?? c}
                   </option>
                 ))}
               </select>
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label className="body-sm text-[var(--ink-2)]">Publish frequency</Label>
+              <Label className="body-sm text-[var(--ink-2)]">{t('shows.publishFrequency')}</Label>
               <select {...register('publishFrequency')} className={selectCls}>
-                <option value="">Select…</option>
+                <option value="">{t('shows.selectPlaceholder')}</option>
                 {FREQUENCIES.map((f) => (
                   <option key={f} value={f} style={{ background: 'var(--bg-3)' }}>
-                    {f}
+                    {FREQUENCY_LABELS[f] ?? f}
                   </option>
                 ))}
               </select>
@@ -144,12 +154,12 @@ export function EditShowModal({ open, onOpenChange, show, onSaved, onCreated }: 
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label className="body-sm text-[var(--ink-2)]">Host name</Label>
+            <Label className="body-sm text-[var(--ink-2)]">{t('shows.hostName')}</Label>
             <Input {...register('hostName')} className={fieldCls} />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label className="body-sm text-[var(--ink-2)]">Target audience</Label>
+            <Label className="body-sm text-[var(--ink-2)]">{t('shows.targetAudience')}</Label>
             <Input {...register('targetAudience')} className={fieldCls} />
           </div>
 
@@ -158,16 +168,16 @@ export function EditShowModal({ open, onOpenChange, show, onSaved, onCreated }: 
               className="rounded-[var(--radius-sm)] px-3 py-2 text-[13px]"
               style={{ background: 'rgba(48,209,88,0.1)', color: 'var(--success)' }}
             >
-              👑 You&apos;ll automatically become the Manager of this show.
+              {t('shows.managerNote')}
             </p>
           )}
 
           <div className="flex gap-3 pt-2">
             <PillButton type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Saving…' : 'Save show'}
+              {isSubmitting ? t('common.saving') : t('shows.saveShow')}
             </PillButton>
             <PillButton variant="secondary" type="button" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t('common.cancel')}
             </PillButton>
           </div>
         </form>

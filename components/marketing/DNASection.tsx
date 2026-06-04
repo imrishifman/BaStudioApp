@@ -91,7 +91,10 @@ export function DNASection() {
                 setPaused(true)
               }}
               className={cn(
-                'body-sm relative px-6 py-4 font-semibold transition-colors',
+                // On phones the four tabs share the row equally (flex-1) with
+                // tighter padding and smaller text so all of them stay visible
+                // and tappable; desktop keeps the roomier auto-width layout.
+                'relative flex-1 whitespace-nowrap px-2 py-3 text-center text-xs font-semibold transition-colors sm:flex-none sm:px-6 sm:py-4 sm:text-left sm:text-[14px]',
                 activeTab === tab
                   ? 'text-[var(--ink-1)]'
                   : 'text-[var(--ink-3)] hover:text-[var(--ink-2)]'

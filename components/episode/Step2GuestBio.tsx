@@ -10,6 +10,7 @@ import { useAILoading } from './AILoadingContext'
 import { useConfirm } from '@/components/common/ConfirmDialog'
 import { SmartTextarea } from './SmartTextarea'
 import { postAI } from '@/lib/ai-client'
+import { useT } from '@/components/i18n/I18nProvider'
 
 interface Props {
   episode: Episode | null
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export function Step2GuestBio({ episode, onNext, onGoToStep, onEpisodeChange }: Props) {
+  const t = useT()
   const { runAI } = useAILoading()
   const confirm = useConfirm()
   const [bio, setBio] = useState(episode?.guestBio ?? '')
@@ -73,7 +75,7 @@ export function Step2GuestBio({ episode, onNext, onGoToStep, onEpisodeChange }: 
       if (mode === 'deep') setDeepDone(true)
     } catch (err) {
       if ((err as Error)?.name !== 'AbortError') {
-        toast.error(err instanceof Error ? err.message : 'Research failed')
+        toast.error(err instanceof Error ? err.message : t('episode.researchFailed'))
       }
     } finally {
       setLoading(false)
@@ -91,7 +93,7 @@ export function Step2GuestBio({ episode, onNext, onGoToStep, onEpisodeChange }: 
       })
       if (data.bio) setBio(data.bio)
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not regenerate')
+      toast.error(err instanceof Error ? err.message : t('episode.couldNotRegenerate'))
     } finally {
       setRegenLoading(false)
     }
@@ -106,10 +108,9 @@ export function Step2GuestBio({ episode, onNext, onGoToStep, onEpisodeChange }: 
   // (LinkedIn, website, context) that disambiguate the right person.
   async function wrongPerson() {
     const ok = await confirm({
-      title: 'Wrong person?',
-      message:
-        "We'll clear this research and take you back to add more sources (a LinkedIn, website, or extra context) so we can find the right person. Your guest name and links are kept.",
-      confirmLabel: 'Add more sources',
+      title: t('episode.wrongPerson'),
+      message: t('episode.wrongPersonMsg'),
+      confirmLabel: t('episode.addMoreSources'),
     })
     if (!ok) return
     if (episode?.id) {
@@ -140,15 +141,15 @@ export function Step2GuestBio({ episode, onNext, onGoToStep, onEpisodeChange }: 
   return (
     <div className="space-y-6">
       <div>
-        <p className="eyebrow mb-1 text-[var(--ink-3)]">Step 2 of 10</p>
-        <h2 className="display-sm text-[var(--ink-1)]">Review the research</h2>
-        <p className="body mt-1 text-[var(--ink-2)]">Web-researched and fact-checked. Edit anything, or dig deeper.</p>
+        <p className="eyebrow mb-1 text-[var(--ink-3)]">{t('episode.stepPrefix')}2{t('episode.of10')}</p>
+        <h2 className="display-sm text-[var(--ink-1)]">{t('episode.s2Title')}</h2>
+        <p className="body mt-1 text-[var(--ink-2)]">{t('episode.s2Body')}</p>
       </div>
 
       {loading ? (
         <GlassCard className="flex flex-col items-center gap-4 p-12 text-center">
           <div className="h-10 w-10 animate-spin rounded-full border-2 border-[var(--line-2)] border-t-[var(--accent-violet)]" />
-          <p className="body text-[var(--ink-2)]">Researching {episode?.guestName}…</p>
+          <p className="body text-[var(--ink-2)]">{t('episode.researchingPrefix')}{episode?.guestName}{t('episode.ellipsis')}</p>
         </GlassCard>
       ) : !hasResults ? (
         // No usable research came back — almost always too few sources to pin
@@ -156,20 +157,19 @@ export function Step2GuestBio({ episode, onNext, onGoToStep, onEpisodeChange }: 
         <GlassCard className="flex flex-col items-center gap-4 p-10 text-center">
           <SearchX size={32} className="text-[var(--ink-3)]" />
           <div>
-            <p className="body font-semibold text-[var(--ink-1)]">We couldn&apos;t find enough on {episode?.guestName || 'this guest'}</p>
+            <p className="body font-semibold text-[var(--ink-1)]">{t('episode.notEnoughPrefix')}{episode?.guestName || t('episode.thisGuest')}</p>
             <p className="body-sm mt-1 text-[var(--ink-2)]">
-              Add a few more sources (a LinkedIn, a website, a Twitter/X handle, or some
-              context) and we&apos;ll research again. The more sources, the sharper the result.
+              {t('episode.notEnoughBody')}
             </p>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-3">
             {onGoToStep && (
               <PillButton onClick={() => onGoToStep(1)}>
-                Add more sources
+                {t('episode.addMoreSources')}
               </PillButton>
             )}
             <PillButton variant="secondary" onClick={() => runResearch('initial')}>
-              <RefreshCw size={14} /> Try again
+              <RefreshCw size={14} /> {t('episode.tryAgain')}
             </PillButton>
           </div>
         </GlassCard>
@@ -177,9 +177,9 @@ export function Step2GuestBio({ episode, onNext, onGoToStep, onEpisodeChange }: 
         <div className="space-y-4">
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
-              <label className="body-sm text-[var(--ink-2)]">Quick bio</label>
+              <label className="body-sm text-[var(--ink-2)]">{t('episode.quickBio')}</label>
               <button onClick={regenerateBio} disabled={regenLoading} className="body-sm flex items-center gap-1 text-[var(--ink-3)] hover:text-[var(--ink-1)] disabled:opacity-50">
-                <RefreshCw size={12} className={regenLoading ? 'animate-spin' : ''} /> Regenerate
+                <RefreshCw size={12} className={regenLoading ? 'animate-spin' : ''} /> {t('episode.regenerate')}
               </button>
             </div>
             <SmartTextarea value={bio} onChange={setBio} rows={3} className="bg-[var(--bg-2)] border-[var(--line-2)] text-[var(--ink-1)]" />
@@ -187,7 +187,7 @@ export function Step2GuestBio({ episode, onNext, onGoToStep, onEpisodeChange }: 
 
           {funFacts.length > 0 && (
             <div className="flex flex-col gap-1.5">
-              <label className="body-sm text-[var(--ink-2)]">Fun facts</label>
+              <label className="body-sm text-[var(--ink-2)]">{t('episode.funFacts')}</label>
               <GlassCard className="space-y-1.5 p-4">
                 {funFacts.map((f, i) => (
                   <div key={i} className="flex gap-2">
@@ -201,7 +201,7 @@ export function Step2GuestBio({ episode, onNext, onGoToStep, onEpisodeChange }: 
 
           <div>
             <button onClick={() => setShowResearch(s => !s)} className="body-sm text-[var(--ink-3)] underline hover:text-[var(--ink-1)]">
-              {showResearch ? 'Hide' : 'Show'} full research
+              {showResearch ? t('episode.hideFullResearch') : t('episode.showFullResearch')}
             </button>
             {showResearch && (
               <div className="mt-2">
@@ -212,10 +212,10 @@ export function Step2GuestBio({ episode, onNext, onGoToStep, onEpisodeChange }: 
 
           <div className="flex flex-wrap gap-3">
             <PillButton variant="secondary" size="sm" onClick={() => runResearch('deep')} disabled={deepDone}>
-              <Telescope size={14} /> {deepDone ? 'Deep research done' : 'Deep research'}
+              <Telescope size={14} /> {deepDone ? t('episode.deepResearchDone') : t('episode.deepResearch')}
             </PillButton>
             <PillButton variant="secondary" size="sm" onClick={wrongPerson}>
-              <UserX size={14} /> Wrong person?
+              <UserX size={14} /> {t('episode.wrongPerson')}
             </PillButton>
           </div>
         </div>
@@ -223,7 +223,7 @@ export function Step2GuestBio({ episode, onNext, onGoToStep, onEpisodeChange }: 
 
       {!loading && hasResults && (
         <PillButton onClick={handleNext} disabled={!bio}>
-          Next <ArrowRight size={14} />
+          {t('episode.next')} <ArrowRight size={14} />
         </PillButton>
       )}
     </div>

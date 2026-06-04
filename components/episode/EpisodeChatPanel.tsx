@@ -5,6 +5,7 @@ import { X, Send } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/common/PillButton'
 import { initials, formatDate } from '@/lib/utils'
+import { useT } from '@/components/i18n/I18nProvider'
 
 interface Comment {
   id: string
@@ -25,6 +26,7 @@ export function EpisodeChatPanel({
   currentEmail: string
   onClose: () => void
 }) {
+  const t = useT()
   const [comments, setComments] = useState<Comment[]>([])
   const [draft, setDraft] = useState('')
   const [loading, setLoading] = useState(true)
@@ -72,18 +74,18 @@ export function EpisodeChatPanel({
       >
         <div className="flex items-center justify-between gap-3 p-4" style={{ borderBottom: '1px solid var(--line-1)' }}>
           <div className="min-w-0">
-            <p className="body-sm font-semibold text-[var(--ink-1)]">Episode chat</p>
+            <p className="body-sm font-semibold text-[var(--ink-1)]">{t('episode.chatTitle')}</p>
             <p className="truncate text-[12px] text-[var(--ink-3)]">{episodeTitle}</p>
           </div>
-          <button onClick={onClose} className="text-[var(--ink-3)] hover:text-[var(--ink-1)]" aria-label="Close">
+          <button onClick={onClose} className="text-[var(--ink-3)] hover:text-[var(--ink-1)]" aria-label={t('episode.chatClose')}>
             <X size={18} />
           </button>
         </div>
 
         <div className="flex-1 space-y-3 overflow-y-auto p-4">
-          {loading && <p className="body-sm text-center text-[var(--ink-4)]">Loading…</p>}
+          {loading && <p className="body-sm text-center text-[var(--ink-4)]">{t('episode.chatLoading')}</p>}
           {!loading && comments.length === 0 && (
-            <p className="body-sm py-8 text-center text-[var(--ink-4)]">No comments yet. Start the conversation.</p>
+            <p className="body-sm py-8 text-center text-[var(--ink-4)]">{t('episode.chatEmpty')}</p>
           )}
           {comments.map((c) => {
             const isMe = c.authorEmail === currentEmail
@@ -109,7 +111,7 @@ export function EpisodeChatPanel({
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && send()}
-            placeholder="Add a comment…"
+            placeholder={t('episode.chatPlaceholder')}
             className="flex-1 border-[var(--line-2)] bg-[var(--bg-3)] text-[var(--ink-1)] placeholder:text-[var(--ink-4)]"
           />
           <PillButton size="sm" onClick={send} disabled={!draft.trim()}>

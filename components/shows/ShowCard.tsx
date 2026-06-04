@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Mic, Plus, ArrowRight } from 'lucide-react'
 import { GlassCard } from '@/components/common/GlassCard'
 import { initials } from '@/lib/utils'
+import { useT } from '@/components/i18n/I18nProvider'
 import type { Show } from '@prisma/client'
 
 type ShowWithEpisodes = Show & { episodes: { status: string }[] }
@@ -27,6 +28,7 @@ function dnaPercent(show: Show): number {
 
 export function ShowCard({ show }: { show: ShowWithEpisodes }) {
   const router = useRouter()
+  const t = useT()
   const published = show.episodes.filter((e) => e.status === 'published').length
   const inProgress = show.episodes.length - published
   const dna = dnaPercent(show)
@@ -61,13 +63,13 @@ export function ShowCard({ show }: { show: ShowWithEpisodes }) {
           className="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
           style={{ borderColor: 'rgba(48,209,88,0.4)', color: 'var(--success)' }}
         >
-          {published} published
+          {published} {t('shows.cardPublished')}
         </span>
         <span
           className="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
           style={{ borderColor: 'rgba(255,214,10,0.4)', color: 'var(--warning)' }}
         >
-          {inProgress} in progress
+          {inProgress} {t('shows.cardInProgress')}
         </span>
       </div>
 
@@ -77,7 +79,7 @@ export function ShowCard({ show }: { show: ShowWithEpisodes }) {
           href={`/shows/${show.id}/dna`}
           className="text-[12px] font-semibold text-[var(--warning)] hover:underline"
         >
-          Set up Podcast DNA ({dna}%)
+          {t('shows.cardSetupDna')} ({dna}%)
         </Link>
       )}
 
@@ -86,7 +88,7 @@ export function ShowCard({ show }: { show: ShowWithEpisodes }) {
         <button
           onClick={() => router.push('/team')}
           className="flex items-center -space-x-2"
-          aria-label="View team"
+          aria-label={t('shows.cardViewTeamAria')}
         >
           {team.slice(0, 4).map((email) => (
             <span
@@ -119,14 +121,14 @@ export function ShowCard({ show }: { show: ShowWithEpisodes }) {
           className="body-sm flex flex-1 items-center justify-center gap-1.5 rounded-full border py-2 font-semibold text-[var(--ink-2)] transition-colors hover:text-[var(--ink-1)]"
           style={{ borderColor: 'var(--line-2)' }}
         >
-          <Plus size={13} /> New Episode
+          <Plus size={13} /> {t('common.newEpisode')}
         </button>
         <button
           onClick={() => router.push(`/shows/${show.id}`)}
           className="body-sm flex items-center justify-center gap-1.5 rounded-full px-4 py-2 font-semibold"
           style={{ background: 'var(--ink-1)', color: 'var(--bg-0)' }}
         >
-          View <ArrowRight size={13} />
+          {t('common.view')} <ArrowRight size={13} />
         </button>
       </div>
     </GlassCard>

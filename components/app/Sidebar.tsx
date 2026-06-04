@@ -21,6 +21,7 @@ import {
 import { cn, initials } from '@/lib/utils'
 import { canAccess, isAdmin } from '@/lib/plan-gating'
 import { ThemeToggle } from '@/components/common/ThemeToggle'
+import { useT } from '@/components/i18n/I18nProvider'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,7 +31,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 
 interface NavItem {
-  label: string
+  labelKey: string
   href: string
   icon: LucideIcon
   requiredPlan?: 'solo' | 'master'
@@ -38,25 +39,25 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Studio', href: '/studio', icon: LayoutDashboard },
-  { label: 'Episodes', href: '/dashboard', icon: BookOpen },
-  { label: 'Shows', href: '/shows', icon: Tv2, requiredPlan: 'solo' },
-  { label: 'Calendar', href: '/calendar', icon: Calendar, requiredPlan: 'solo' },
-  { label: 'Hub', href: '/team', icon: Users, requiredPlan: 'master' },
+  { labelKey: 'nav.studio', href: '/studio', icon: LayoutDashboard },
+  { labelKey: 'nav.episodes', href: '/dashboard', icon: BookOpen },
+  { labelKey: 'nav.shows', href: '/shows', icon: Tv2, requiredPlan: 'solo' },
+  { labelKey: 'nav.calendar', href: '/calendar', icon: Calendar, requiredPlan: 'solo' },
+  { labelKey: 'nav.hub', href: '/team', icon: Users, requiredPlan: 'master' },
 ]
 
 const BOTTOM_ITEMS: NavItem[] = [
-  { label: 'Account', href: '/account', icon: Settings },
-  { label: 'Pricing', href: '/pricing', icon: CreditCard },
+  { labelKey: 'nav.account', href: '/account', icon: Settings },
+  { labelKey: 'nav.pricing', href: '/pricing', icon: CreditCard },
 ]
 
 // Only rendered when the user is also an Influencer (matched server-side in
 // the (app) layout via email lookup and passed in as a prop).
-const PARTNER_ITEM: NavItem = { label: 'Partner', href: '/partner', icon: Handshake }
+const PARTNER_ITEM: NavItem = { labelKey: 'nav.partner', href: '/partner', icon: Handshake }
 
 const ADMIN_ITEMS: NavItem[] = [
-  { label: 'Admin', href: '/admin', icon: ShieldCheck, adminOnly: true },
-  { label: 'Influencers', href: '/admin/influencers', icon: Users, adminOnly: true },
+  { labelKey: 'nav.admin', href: '/admin', icon: ShieldCheck, adminOnly: true },
+  { labelKey: 'nav.influencers', href: '/admin/influencers', icon: Users, adminOnly: true },
 ]
 
 const PLAN_LABELS = { solo: 'Solo', master: 'Master' }
@@ -65,6 +66,7 @@ export function Sidebar({ isPartner = false }: { isPartner?: boolean }) {
   const pathname = usePathname()
   const { data: session } = useSession()
   const user = session?.user
+  const t = useT()
 
   function isActive(href: string) {
     return pathname === href || pathname.startsWith(href + '/')
@@ -175,12 +177,12 @@ export function Sidebar({ isPartner = false }: { isPartner?: boolean }) {
             >
               <DropdownMenuItem asChild>
                 <Link href="/account" className="body-sm text-[var(--ink-1)]">
-                  Account
+                  {t('nav.account')}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/pricing" className="body-sm text-[var(--ink-1)]">
-                  Pricing
+                  {t('nav.pricing')}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-[var(--line-1)]" />
@@ -189,7 +191,7 @@ export function Sidebar({ isPartner = false }: { isPartner?: boolean }) {
                 className="body-sm text-[var(--ink-2)]"
               >
                 <LogOut size={14} className="mr-2" />
-                Sign out
+                {t('common.signOut')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -209,6 +211,7 @@ function SidebarItem({
   user: NonNullable<ReturnType<typeof useSession>['data']>['user'] | undefined
 }) {
   const Icon = item.icon
+  const t = useT()
   const locked =
     item.requiredPlan &&
     !canAccess(user as Parameters<typeof canAccess>[0], item.requiredPlan)
@@ -231,7 +234,7 @@ function SidebarItem({
         />
       )}
       <Icon size={18} className={cn('shrink-0', active ? 'text-[var(--ink-1)]' : 'text-[var(--ink-3)]')} aria-hidden />
-      <span className="body flex-1 font-medium">{item.label}</span>
+      <span className="body flex-1 font-medium">{t(item.labelKey)}</span>
       {locked && item.requiredPlan && (
         <span
           className="body-sm rounded-full px-2 py-0.5 font-semibold"

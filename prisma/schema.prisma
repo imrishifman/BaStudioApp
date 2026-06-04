@@ -203,6 +203,8 @@ model User {
   googleCalendarRefreshToken String?
   skippedDnaSetup            Boolean        @default(false)
   onboardingComplete         Boolean        @default(false)
+  // UI + AI-output language preference ("en" default, "he" = Hebrew/RTL).
+  language                   String         @default("en")
   emailConnected             Boolean        @default(false)
   connectedEmail             String?
   emailProvider              String?

@@ -19,6 +19,7 @@ import { ArrowRight, Plus, Clock, CheckCircle2, Mic2, BookOpen, Pencil, Trash2, 
 import Link from 'next/link'
 import { toast } from 'sonner'
 import type { Session } from 'next-auth'
+import { useT } from '@/components/i18n/I18nProvider'
 
 type ShowWithEpisodes = Show & { episodes: { status: string }[] }
 
@@ -31,12 +32,6 @@ interface Props {
   sessionUser: Session['user']
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  draft: 'Draft', researching: 'Researching', focusing: 'Focusing',
-  questions: 'Questions', intro: 'Intro', script: 'Script',
-  video: 'Video', review: 'Review', approved: 'Approved', published: 'Published',
-}
-
 const STATUS_COLOR: Record<string, string> = {
   draft: 'var(--ink-3)', researching: 'var(--accent-violet)', focusing: 'var(--accent-cyan)',
   questions: 'var(--accent-cyan)', intro: 'var(--accent-pink)', script: 'var(--accent-pink)',
@@ -46,6 +41,7 @@ const STATUS_COLOR: Record<string, string> = {
 export function StudioClient({ episodes, shows, user, guestCount, publishedDates, sessionUser }: Props) {
   const router = useRouter()
   const confirm = useConfirm()
+  const t = useT()
   const [lockOpen, setLockOpen] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(
     !user?.onboardingComplete && !user?.skippedDnaSetup
@@ -66,9 +62,11 @@ export function StudioClient({ episodes, shows, user, guestCount, publishedDates
   async function deleteSelected() {
     if (selectedIds.size === 0) return
     const ok = await confirm({
-      title: 'Delete episodes?',
-      message: `Delete ${selectedIds.size} episode${selectedIds.size > 1 ? 's' : ''}? This cannot be undone.`,
-      confirmLabel: 'Delete',
+      title: t('episodes.deleteConfirmTitle'),
+      message: selectedIds.size === 1
+        ? t('episodes.deleteConfirmBodyOne')
+        : `${t('episodes.deleteConfirmBodyPrefix')} ${selectedIds.size} ${t('episodes.deleteConfirmBodyMany')}`,
+      confirmLabel: t('common.delete'),
       destructive: true,
     })
     if (!ok) return
@@ -79,12 +77,12 @@ export function StudioClient({ episodes, shows, user, guestCount, publishedDates
           fetch(`/api/episodes/${id}`, { method: 'DELETE' })
         )
       )
-      toast.success(`Deleted ${selectedIds.size}`)
+      toast.success(`${t('episodes.deletedToast')} ${selectedIds.size}`)
       setSelectedIds(new Set())
       setEditMode(false)
       router.refresh()
     } catch {
-      toast.error('Could not delete some episodes')
+      toast.error(t('episodes.deleteError'))
     } finally {
       setDeleting(false)
     }
@@ -131,18 +129,19 @@ export function StudioClient({ episodes, shows, user, guestCount, publishedDates
   }
 
   const hour = new Date().getHours()
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
-  const name = user?.fullName?.split(' ')[0] ?? 'there'
+  const greeting = hour < 12 ? t('studio.goodMorning') : hour < 17 ? t('studio.goodAfternoon') : t('studio.goodEvening')
+  const name = user?.fullName?.split(' ')[0] ?? t('studio.there')
 
   return (
     <div className="mx-auto max-w-5xl space-y-8 p-6 lg:p-8">
       {/* Header */}
       <div>
         <p className="eyebrow mb-1 text-[var(--ink-3)]">{greeting}, {name}</p>
-        <h1 className="display-sm text-[var(--ink-1)]">Studio.</h1>
+        <h1 className="display-sm text-[var(--ink-1)]">{t('studio.title')}</h1>
         {inProgressCount > 0 && (
           <p className="body mt-1 text-[var(--ink-2)]">
-            You have {inProgressCount} episode{inProgressCount !== 1 ? 's' : ''} in progress.
+            {t('studio.youHave')} {inProgressCount}{' '}
+            {inProgressCount !== 1 ? t('studio.episodesInProgressMany') : t('studio.episodesInProgressOne')}
           </p>
         )}
       </div>
@@ -151,7 +150,7 @@ export function StudioClient({ episodes, shows, user, guestCount, publishedDates
       <button
         data-tour="new-episode"
         onClick={handleNewEpisode}
-        aria-label="Create a new episode"
+        aria-label={t('studio.newEpisodeAria')}
         className="group block w-full rounded-[var(--radius-lg)] px-8 py-7 text-center text-white transition-transform duration-200 hover:scale-[1.01] active:scale-[0.99]"
         style={{
           background: 'linear-gradient(180deg, #a78bfa 0%, #7c5cff 100%)',
@@ -159,7 +158,7 @@ export function StudioClient({ episodes, shows, user, guestCount, publishedDates
         }}
       >
         <Plus size={28} strokeWidth={3} className="mx-auto" />
-        <span className="mt-1.5 block text-[22px] font-bold tracking-tight">New Episode</span>
+        <span className="mt-1.5 block text-[22px] font-bold tracking-tight">{t('studio.newEpisodeBanner')}</span>
       </button>
 
       {/* Onboarding quest */}
@@ -171,22 +170,22 @@ export function StudioClient({ episodes, shows, user, guestCount, publishedDates
       {episodes.length === 0 && (
         <GlassCard className="flex items-center justify-between gap-4 p-6">
           <div>
-            <p className="display-sm mb-1 text-[var(--ink-1)]">Create your first episode</p>
+            <p className="display-sm mb-1 text-[var(--ink-1)]">{t('studio.createFirstTitle')}</p>
             <p className="body text-[var(--ink-2)]">
-              Add a guest name and Ba-Studio handles the research, questions, and script.
+              {t('studio.createFirstBody')}
             </p>
           </div>
-          <PillButton onClick={handleNewEpisode}>Start <ArrowRight size={14} /></PillButton>
+          <PillButton onClick={handleNewEpisode}>{t('common.start')} <ArrowRight size={14} /></PillButton>
         </GlassCard>
       )}
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {[
-          { label: 'Total', value: totalCount, icon: BookOpen },
-          { label: 'In progress', value: inProgressCount, icon: Clock },
-          { label: 'Approved', value: approvedCount, icon: CheckCircle2 },
-          { label: 'Published', value: publishedCount, icon: Mic2 },
+          { label: t('studio.statTotal'), value: totalCount, icon: BookOpen },
+          { label: t('studio.statInProgress'), value: inProgressCount, icon: Clock },
+          { label: t('studio.statApproved'), value: approvedCount, icon: CheckCircle2 },
+          { label: t('studio.statPublished'), value: publishedCount, icon: Mic2 },
         ].map(({ label, value, icon: Icon }) => (
           <GlassCard key={label} className="flex flex-col gap-2 p-5">
             <Icon size={16} className="text-[var(--ink-3)]" aria-hidden />
@@ -205,7 +204,7 @@ export function StudioClient({ episodes, shows, user, guestCount, publishedDates
       {plan !== 'master' && (
         <GlassCard className="p-5">
           <div className="mb-2 flex items-center justify-between">
-            <p className="body-sm font-semibold text-[var(--ink-1)]">Episodes this month</p>
+            <p className="body-sm font-semibold text-[var(--ink-1)]">{t('studio.episodesThisMonth')}</p>
             <p className="body-sm text-[var(--ink-3)]">
               {monthlyUsed} / {maxPerMonth === Infinity ? '∞' : maxPerMonth}
             </p>
@@ -221,8 +220,8 @@ export function StudioClient({ episodes, shows, user, guestCount, publishedDates
           </div>
           {monthlyUsed >= maxPerMonth && (
             <p className="body-sm mt-2 text-[var(--error)]">
-              Limit reached.{' '}
-              <Link href="/pricing" className="underline">Upgrade to continue.</Link>
+              {t('studio.limitReached')}{' '}
+              <Link href="/pricing" className="underline">{t('studio.upgradeToContinue')}</Link>
             </p>
           )}
         </GlassCard>
@@ -232,8 +231,8 @@ export function StudioClient({ episodes, shows, user, guestCount, publishedDates
       {shows.length > 0 && (
         <div>
           <div className="mb-4 flex items-center justify-between">
-            <p className="body font-semibold text-[var(--ink-1)]">Your shows</p>
-            <Link href="/shows" className="body-sm text-[var(--ink-3)] hover:text-[var(--ink-1)]">See all</Link>
+            <p className="body font-semibold text-[var(--ink-1)]">{t('studio.yourShows')}</p>
+            <Link href="/shows" className="body-sm text-[var(--ink-3)] hover:text-[var(--ink-1)]">{t('common.seeAll')}</Link>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {shows.slice(0, 3).map(show => (
@@ -247,8 +246,8 @@ export function StudioClient({ episodes, shows, user, guestCount, publishedDates
       {ready.length > 0 && (
         <div>
           <div className="mb-3 flex items-center justify-between">
-            <p className="body font-semibold text-[var(--ink-1)]">Ready episodes</p>
-            <Link href="/dashboard" className="body-sm text-[var(--ink-3)] hover:text-[var(--ink-1)]">See all</Link>
+            <p className="body font-semibold text-[var(--ink-1)]">{t('studio.readyEpisodes')}</p>
+            <Link href="/dashboard" className="body-sm text-[var(--ink-3)] hover:text-[var(--ink-1)]">{t('common.seeAll')}</Link>
           </div>
           <div className="space-y-2">
             {ready.slice(0, 6).map(ep => (
@@ -261,7 +260,7 @@ export function StudioClient({ episodes, shows, user, guestCount, publishedDates
       {/* Awaiting review */}
       {awaiting.length > 0 && (
         <div>
-          <p className="body mb-3 font-semibold text-[var(--ink-1)]">Awaiting review</p>
+          <p className="body mb-3 font-semibold text-[var(--ink-1)]">{t('studio.awaitingReview')}</p>
           <div className="space-y-2">
             {awaiting.map(ep => (
               <EpisodeRow key={ep.id} episode={ep} />
@@ -274,7 +273,7 @@ export function StudioClient({ episodes, shows, user, guestCount, publishedDates
       {inProgress.length > 0 && (
         <div>
           <div className="mb-3 flex items-center justify-between">
-            <p className="body font-semibold text-[var(--ink-1)]">In progress</p>
+            <p className="body font-semibold text-[var(--ink-1)]">{t('studio.statInProgress')}</p>
             {editMode ? (
               <div className="flex items-center gap-2">
                 <button
@@ -283,14 +282,14 @@ export function StudioClient({ episodes, shows, user, guestCount, publishedDates
                   className="body-sm flex items-center gap-1 rounded-full px-3 py-1 font-semibold disabled:opacity-50"
                   style={{ background: 'var(--error)', color: '#fff' }}
                 >
-                  <Trash2 size={13} /> Delete{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
+                  <Trash2 size={13} /> {t('common.delete')}{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
                 </button>
                 <button
                   onClick={() => { setEditMode(false); setSelectedIds(new Set()) }}
                   className="body-sm flex items-center gap-1 rounded-full border px-3 py-1 text-[var(--ink-2)]"
                   style={{ borderColor: 'var(--line-2)' }}
                 >
-                  <X size={13} /> Cancel
+                  <X size={13} /> {t('common.cancel')}
                 </button>
               </div>
             ) : (
@@ -299,7 +298,7 @@ export function StudioClient({ episodes, shows, user, guestCount, publishedDates
                 className="body-sm flex items-center gap-1 rounded-full border px-3 py-1 text-[var(--ink-2)] hover:text-[var(--ink-1)]"
                 style={{ borderColor: 'var(--line-2)' }}
               >
-                <Pencil size={13} /> Edit
+                <Pencil size={13} /> {t('common.edit')}
               </button>
             )}
           </div>
@@ -317,7 +316,7 @@ export function StudioClient({ episodes, shows, user, guestCount, publishedDates
         </div>
       )}
 
-      <FeatureLockModal open={lockOpen} onOpenChange={setLockOpen} requiredPlan="solo" featureName="More episodes" />
+      <FeatureLockModal open={lockOpen} onOpenChange={setLockOpen} requiredPlan="solo" featureName={t('studio.featureMoreEpisodes')} />
       {showOnboarding && <OnboardingWizard onDone={() => setShowOnboarding(false)} />}
       {!showOnboarding && <ProductTour />}
     </div>
@@ -335,6 +334,7 @@ function EpisodeRow({
   selected?: boolean
   onToggle?: () => void
 }) {
+  const t = useT()
   const inner = (
     <GlassCard
       hover={!editing}
@@ -356,14 +356,14 @@ function EpisodeRow({
           {episode.title ?? episode.guestName}
         </p>
         <p className="body-sm text-[var(--ink-3)]">
-          {episode.guestName} · Updated {formatDate(episode.updatedAt)}
+          {episode.guestName} · {t('common.updated')} {formatDate(episode.updatedAt)}
         </p>
       </div>
       <span
         className="body-sm shrink-0 rounded-full px-2.5 py-1 font-semibold"
         style={{ background: `${STATUS_COLOR[episode.status]}18`, color: STATUS_COLOR[episode.status] }}
       >
-        {STATUS_LABEL[episode.status]}
+        {t(`status.${episode.status}`)}
       </span>
     </GlassCard>
   )

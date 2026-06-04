@@ -13,6 +13,17 @@ import { formatFocusAnswers } from '@/lib/focus-questions'
 // never uses em dashes, in AI output as well as the UI.
 const NO_EM_DASH = 'WRITING STYLE: never use em dashes (—) anywhere in the output. Use commas, periods, or hyphens instead.'
 
+// When the user's language is Hebrew, every AI generation (research, questions,
+// script, social, chat) should come back in fluent Hebrew. Appended to the
+// prompt content at the route level, where the user's language is known. Proper
+// nouns / brand names stay in their original script.
+export function languageDirective(lang: string | null | undefined): string {
+  if (lang === 'he') {
+    return '\n\nLANGUAGE: Write the ENTIRE response in natural, fluent Hebrew (עברית). Keep people\'s names, brand names, and URLs in their original script. Do not add any English translation.'
+  }
+  return ''
+}
+
 type DnaShow = Pick<
   Show,
   | 'name'

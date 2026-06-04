@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import type { Show } from '@prisma/client'
 import { FolderPlus, FolderCheck, ChevronDown, Check } from 'lucide-react'
+import { useT } from '@/components/i18n/I18nProvider'
 
 // Inline dropdown to move the current episode into one of the user's shows
 // (or unassign). Used in the wizard header. Lives in client-only state and
@@ -18,6 +19,7 @@ export function ShowPicker({
   onChange: (showId: string | null) => void | Promise<void>
   disabled?: boolean
 }) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const current = shows.find((s) => s.id === currentShowId) ?? null
@@ -48,10 +50,10 @@ export function ShowPicker({
         }}
         aria-haspopup="listbox"
         aria-expanded={open}
-        title={current ? `Part of ${current.name}` : 'Assign to a show'}
+        title={current ? `${t('episode.partOfPrefix')}${current.name}` : t('episode.assignToShow')}
       >
         {current ? <FolderCheck size={13} /> : <FolderPlus size={13} />}
-        <span className="max-w-[120px] truncate">{current ? current.name : 'No show'}</span>
+        <span className="max-w-[120px] truncate">{current ? current.name : t('episode.noShow')}</span>
         <ChevronDown size={12} />
       </button>
 
@@ -66,7 +68,7 @@ export function ShowPicker({
             onClick={() => { setOpen(false); onChange(null) }}
             className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-[var(--bg-3)]"
           >
-            <span className="body-sm text-[var(--ink-2)]">No show (unassign)</span>
+            <span className="body-sm text-[var(--ink-2)]">{t('episode.noShowUnassign')}</span>
             {!current && <Check size={14} className="text-[var(--accent-violet)]" />}
           </button>
           <div style={{ borderTop: '1px solid var(--line-1)' }} />

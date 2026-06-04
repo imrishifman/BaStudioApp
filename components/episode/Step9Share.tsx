@@ -8,6 +8,7 @@ import { ImageUpload } from '@/components/common/ImageUpload'
 import { Input } from '@/components/ui/input'
 import { ArrowRight, Mail, Copy, CheckCheck } from 'lucide-react'
 import { toast } from 'sonner'
+import { useT } from '@/components/i18n/I18nProvider'
 
 interface Props {
   episode: Episode | null; show: Show | null; shows: Show[]
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export function Step9Share({ episode, onNext }: Props) {
+  const t = useT()
   const briefUrl = episode?.briefUrl ?? (episode?.id ? `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/brief/${episode.id}` : '')
   const [guestEmail, setGuestEmail] = useState('')
   const [sending, setSending] = useState(false)
@@ -32,31 +34,31 @@ export function Step9Share({ episode, onNext }: Props) {
     setSending(true)
     try {
       const res = await fetch('/api/email/brief', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ episodeId: episode.id, guestEmail }) })
-      if (res.ok) { toast.success('Brief sent!'); setGuestEmail('') }
-      else toast.error('Failed to send')
-    } catch { toast.error('Failed to send') } finally { setSending(false) }
+      if (res.ok) { toast.success(t('episode.briefSent')); setGuestEmail('') }
+      else toast.error(t('episode.failedToSend'))
+    } catch { toast.error(t('episode.failedToSend')) } finally { setSending(false) }
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <p className="eyebrow mb-1 text-[var(--ink-3)]">Step 9 of 10</p>
-        <h2 className="display-sm text-[var(--ink-1)]">Share with your guest</h2>
-        <p className="body mt-1 text-[var(--ink-2)]">Send a public brief link so your guest knows what to expect.</p>
+        <p className="eyebrow mb-1 text-[var(--ink-3)]">{t('episode.stepPrefix')}9{t('episode.of10')}</p>
+        <h2 className="display-sm text-[var(--ink-1)]">{t('episode.s9Title')}</h2>
+        <p className="body mt-1 text-[var(--ink-2)]">{t('episode.s9Body')}</p>
       </div>
 
       <GlassCard className="p-6">
         <ImageUpload
           value={coverImageUrl}
           onChange={setCoverImageUrl}
-          label="Episode picture"
-          hint="Cover art for this episode's page and listings. Square works best."
+          label={t('episode.episodePicture')}
+          hint={t('episode.episodePictureHint')}
         />
       </GlassCard>
 
       <GlassCard className="p-6 space-y-4">
         <div>
-          <p className="body-sm mb-2 text-[var(--ink-2)]">Guest brief link</p>
+          <p className="body-sm mb-2 text-[var(--ink-2)]">{t('episode.guestBriefLink')}</p>
           <div className="flex gap-2">
             <Input value={briefUrl} readOnly className="bg-[var(--bg-3)] border-[var(--line-2)] text-[var(--ink-1)] flex-1 font-mono text-sm" />
             <PillButton variant="secondary" size="sm" onClick={copyLink}>
@@ -68,7 +70,7 @@ export function Step9Share({ episode, onNext }: Props) {
         <div className="hairline" />
 
         <div>
-          <p className="body-sm mb-2 text-[var(--ink-2)]">Send via email</p>
+          <p className="body-sm mb-2 text-[var(--ink-2)]">{t('episode.sendViaEmail')}</p>
           <div className="flex gap-2">
             <Input
               type="email"
@@ -79,7 +81,7 @@ export function Step9Share({ episode, onNext }: Props) {
               onKeyDown={e => e.key === 'Enter' && sendEmail()}
             />
             <PillButton size="sm" onClick={sendEmail} disabled={sending || !guestEmail}>
-              <Mail size={14} /> {sending ? 'Sending…' : 'Send'}
+              <Mail size={14} /> {sending ? t('episode.sending') : t('episode.send')}
             </PillButton>
           </div>
         </div>
@@ -87,9 +89,9 @@ export function Step9Share({ episode, onNext }: Props) {
 
       <div className="flex gap-3">
         <PillButton onClick={() => onNext({ briefUrl, coverImageUrl: coverImageUrl ?? null, status: 'approved' })}>
-          Next <ArrowRight size={14} />
+          {t('episode.next')} <ArrowRight size={14} />
         </PillButton>
-        <PillButton variant="secondary" onClick={() => onNext({ briefUrl, coverImageUrl: coverImageUrl ?? null })}>Skip</PillButton>
+        <PillButton variant="secondary" onClick={() => onNext({ briefUrl, coverImageUrl: coverImageUrl ?? null })}>{t('episode.skip')}</PillButton>
       </div>
     </div>
   )
