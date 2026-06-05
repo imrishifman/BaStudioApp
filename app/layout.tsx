@@ -8,8 +8,10 @@ import { ScrollToTopOnNav } from '@/components/common/ScrollToTopOnNav'
 import { ReferralTracker } from '@/components/common/ReferralTracker'
 import { GtmRouteTracker } from '@/components/analytics/GtmRouteTracker'
 import { GtmSignupTracker } from '@/components/analytics/GtmSignupTracker'
+import { AttributionTracker } from '@/components/analytics/AttributionTracker'
 import { CookieBanner } from '@/components/analytics/CookieBanner'
 import { GTM_ID, gtmEnabled } from '@/lib/gtm'
+import { SITE_URL } from '@/lib/site'
 
 // Google Ads (gtag.js) global site tag.
 // NOTE: This is the one remaining hardcoded ad tag. Going forward all tags
@@ -45,13 +47,19 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'Ba Studio · AI Podcast Production',
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: 'Ba Studio · AI Podcast Production',
+    template: '%s · Ba Studio',
+  },
   description:
     'From the first idea to the final cut, in one studio that learns how you sound.',
   openGraph: {
     title: 'Ba Studio',
     description: 'AI-powered podcast production studio',
     type: 'website',
+    url: SITE_URL,
+    siteName: 'Ba Studio',
   },
 }
 
@@ -117,6 +125,7 @@ export default function RootLayout({
             <GtmRouteTracker />
           </Suspense>
           <GtmSignupTracker />
+          <AttributionTracker />
           {children}
           <CookieBanner />
         </Providers>

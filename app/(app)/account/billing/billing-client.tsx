@@ -60,13 +60,14 @@ export function BillingClient({ user }: { user: BillingUser | null }) {
         const res = await fetch(`/api/stripe/session?session_id=${encodeURIComponent(sessionId)}`)
         const data = await res.json()
         if (res.ok && data.paid) {
-          trackStartSubscription({
+          await trackStartSubscription({
             value: data.value,
             currency: data.currency,
             plan: data.plan,
             billingPeriod: data.billingPeriod,
             transactionId: data.transactionId,
             userId: data.userId,
+            email: data.email,
           })
           try {
             sessionStorage.setItem(dedupeKey, '1')

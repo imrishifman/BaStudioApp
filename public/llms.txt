@@ -1,0 +1,41 @@
+# Ba Studio
+
+> AI podcast production studio. From a guest's name to a finished, on-brand
+> episode in minutes, in one place that learns how you sound.
+
+Ba Studio turns the whole podcast workflow into a single guided flow: research a
+guest, shape the episode, generate a script and show notes in your voice, and
+prep everything for recording and publishing. The studio learns each show's
+"DNA" (tone, format, recurring segments) so output stays on-brand over time.
+
+## What it does
+
+- Guest research: go from a guest's name to a briefing and tailored questions.
+- Episode building: a step-by-step wizard from idea to ready-to-record outline.
+- Podcast DNA: capture a show's voice and format so AI output stays consistent.
+- Script, show notes, and titles generated in the host's voice.
+- Multi-language output (including Hebrew with full right-to-left support).
+- Team workflows: shows, episodes, calendar, guests, and review in one place.
+
+## Who it is for
+
+Podcast hosts, producers, and small media teams who want to produce more
+episodes without losing their voice or spending hours on prep and post.
+
+## Pricing
+
+- Free: $0. Get started and produce your first episodes.
+- Studio Solo: $19.99 / month. For individual creators producing regularly.
+- Master: $29.99 / month. For power users and small teams.
+
+Annual billing is available on the paid plans.
+
+## Links
+
+- Home: https://bastudiopodcast.com/
+- Pricing: https://bastudiopodcast.com/pricing
+- Podcast prep landing: https://bastudiopodcast.com/lp/podcast-prep
+
+## Contact
+
+Web: https://bastudiopodcast.com

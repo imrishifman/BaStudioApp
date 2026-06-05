@@ -57,6 +57,10 @@ export async function GET(req: Request) {
       billingPeriod: meta?.period ?? 'monthly',
       transactionId,
       userId: user.id,
+      // Used client-side only to build the SHA-256 enhanced-conversion hash.
+      // Prefer the email Stripe collected at checkout, fall back to the account
+      // email. The raw value never leaves the browser unhashed.
+      email: checkout.customer_details?.email ?? user.email ?? undefined,
     })
   } catch (err) {
     console.error('Stripe session lookup error:', err)

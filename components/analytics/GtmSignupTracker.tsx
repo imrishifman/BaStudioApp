@@ -35,7 +35,13 @@ export function GtmSignupTracker() {
     if (!method) return
     fired.current = true
     clearCookie(COOKIE)
-    trackSignUp({ method, userId: session?.user?.id })
+    // Fire-and-forget: trackSignUp is async (it hashes the email for enhanced
+    // conversions) but the dataLayer push happens synchronously once resolved.
+    void trackSignUp({
+      method,
+      userId: session?.user?.id,
+      email: session?.user?.email ?? undefined,
+    })
   }, [status, session])
 
   return null

@@ -15,21 +15,21 @@ export function CookieBanner() {
     <div
       role="dialog"
       aria-label="Cookie consent"
-      className="fixed inset-x-0 bottom-0 z-[100] px-4 pb-4 sm:px-6 sm:pb-6"
+      className="fixed bottom-0 left-0 z-[100] w-full p-4 sm:bottom-6 sm:left-6 sm:w-auto sm:p-0"
     >
       <div
-        className="mx-auto flex max-w-2xl flex-col gap-4 rounded-2xl p-5 shadow-2xl sm:flex-row sm:items-center"
+        className="flex w-full flex-col gap-4 rounded-2xl p-5 shadow-2xl sm:w-[360px]"
         style={{
           background: 'var(--bg-2)',
           border: '1px solid var(--line-1)',
           backdropFilter: 'blur(24px)',
         }}
       >
-        <p className="body-sm flex-1 text-[var(--ink-2)]">
+        <p className="body-sm text-[var(--ink-2)]">
           We use cookies to measure traffic and improve Ba Studio. You can accept
           analytics and advertising cookies, or continue with only the essentials.
         </p>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center justify-end gap-2">
           <button
             onClick={decline}
             className="body-sm rounded-full border px-4 py-2 font-semibold text-[var(--ink-2)] transition-colors hover:text-[var(--ink-1)]"

@@ -90,6 +90,40 @@ export function denyConsent(): void {
 export { CONSENT_KEYS }
 
 // ---------------------------------------------------------------------------
+// Enhanced conversions (web)
+// ---------------------------------------------------------------------------
+//
+// Google's enhanced conversions improve match rates by sending a hashed,
+// first-party identifier alongside the conversion. We only ever send a SHA-256
+// hash of the email (lowercased + trimmed), never raw PII. GTM reads
+// `enhanced_conversion_data.sha256_email_address` from the same dataLayer event
+// as the conversion and forwards it to the Google Ads / GA4 tags.
+
+// SHA-256 → lowercase hex. Returns undefined when crypto is unavailable (SSR /
+// very old browsers) or the input is empty, so callers can omit the field
+// cleanly rather than sending a bogus hash.
+export async function sha256Hex(value: string): Promise<string | undefined> {
+  const normalized = value.trim().toLowerCase()
+  if (!normalized) return undefined
+  if (typeof window === 'undefined' || !window.crypto?.subtle) return undefined
+  const bytes = new TextEncoder().encode(normalized)
+  const digest = await window.crypto.subtle.digest('SHA-256', bytes)
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+// Build the enhanced_conversion_data payload from a raw email. Resolves to
+// undefined when no usable hash can be produced.
+async function enhancedConversionData(
+  email?: string,
+): Promise<{ sha256_email_address: string } | undefined> {
+  if (!email) return undefined
+  const hash = await sha256Hex(email)
+  return hash ? { sha256_email_address: hash } : undefined
+}
+
+// ---------------------------------------------------------------------------
 // Funnel events
 // ---------------------------------------------------------------------------
 
@@ -105,9 +139,19 @@ export function trackBeginSignup(ctaLocation: CtaLocation): void {
   pushEvent('begin_signup', { cta_location: ctaLocation })
 }
 
-// A brand-new account was created. method is the auth method used.
-export function trackSignUp(args: { method: 'email' | 'google' | (string & {}); userId?: string }): void {
-  pushEvent('sign_up', { method: args.method, user_id: args.userId })
+// A brand-new account was created. method is the auth method used. When an email
+// is supplied we attach hashed enhanced-conversion data (never the raw email).
+export async function trackSignUp(args: {
+  method: 'email' | 'google' | (string & {})
+  userId?: string
+  email?: string
+}): Promise<void> {
+  const enhanced = await enhancedConversionData(args.email)
+  pushEvent('sign_up', {
+    method: args.method,
+    user_id: args.userId,
+    enhanced_conversion_data: enhanced,
+  })
 }
 
 export interface StartSubscriptionArgs {
@@ -117,12 +161,15 @@ export interface StartSubscriptionArgs {
   billingPeriod: 'monthly' | 'annual' | (string & {})
   transactionId: string
   userId?: string
+  email?: string
 }
 
 // A paid subscription was confirmed (fired only after Stripe confirms payment).
 // value must be a number (no currency symbol); transactionId must be unique per
-// purchase so the conversion is never double-counted.
-export function trackStartSubscription(args: StartSubscriptionArgs): void {
+// purchase so the conversion is never double-counted. When an email is supplied
+// we attach hashed enhanced-conversion data (never the raw email).
+export async function trackStartSubscription(args: StartSubscriptionArgs): Promise<void> {
+  const enhanced = await enhancedConversionData(args.email)
   pushEvent('start_subscription', {
     value: args.value,
     currency: args.currency,
@@ -130,5 +177,6 @@ export function trackStartSubscription(args: StartSubscriptionArgs): void {
     billing_period: args.billingPeriod,
     transaction_id: args.transactionId,
     user_id: args.userId,
+    enhanced_conversion_data: enhanced,
   })
 }
