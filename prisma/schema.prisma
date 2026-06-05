@@ -215,6 +215,13 @@ model User {
   // First-time milestone keys the user has already been prompted to review.
   // Each first-step review chat bubble fires once, then its key is recorded here.
   reviewedMilestones         String[]       @default([])
+  // Marketing email opt-in. Defaults true; flipped to false when the user
+  // clicks the unsubscribe link in any campaign email. Transactional emails
+  // (welcome, billing, password reset) ignore this flag.
+  marketingEmailOptIn        Boolean        @default(true)
+  // Lazily-generated opaque token used to authenticate the unsubscribe link.
+  // We never put the user id or email in the URL.
+  unsubscribeToken           String?        @unique
   createdAt                  DateTime       @default(now())
   updatedAt                  DateTime       @updatedAt
 
@@ -593,3 +600,31 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
+
+// Marketing email campaigns written from the admin page. The cron job picks the
+// oldest DRAFT (FIFO) on each scheduled run and sends it to every free-plan
+// user who hasn't unsubscribed. After it goes out the row is flipped to SENT so
+// the next run picks the next campaign in the queue.
+model MarketingEmailCampaign {
+  id          String                       @id @default(cuid())
+  subject     String
+  // Full HTML body (admin-authored). The cron path wraps it in the branded
+  // shell + unsubscribe footer before sending.
+  html        String
+  // Optional inbox-preview line. Falls back to a generic preheader when blank.
+  preheader   String?
+  status      MarketingEmailCampaignStatus @default(DRAFT)
+  sentAt      DateTime?
+  // How many recipients this campaign actually reached. Useful for the admin
+  // to see at a glance what coverage each send got.
+  sentCount   Int                          @default(0)
+  createdByEmail String
+  createdAt   DateTime                     @default(now())
+  updatedAt   DateTime                     @updatedAt
+}
+
+enum MarketingEmailCampaignStatus {
+  DRAFT
+  SENT
+}
+

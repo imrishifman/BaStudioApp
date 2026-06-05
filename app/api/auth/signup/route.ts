@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { findInfluencerByRefCode } from '@/lib/referrals'
+import { sendWelcomeEmail } from '@/lib/email/welcome'
 
 const signupSchema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -38,12 +39,20 @@ export async function POST(req: Request) {
 
   const passwordHash = await bcrypt.hash(password, 12)
 
-  await prisma.user.create({
+  const newUser = await prisma.user.create({
     data: {
       email,
       passwordHash,
       fullName: fullName ?? null,
     },
+  })
+
+  // Welcome email: best-effort, awaited but never throws. Resend's own retry
+  // logic handles transient failures.
+  void sendWelcomeEmail({
+    to: newUser.email,
+    firstName: newUser.fullName?.split(' ')[0] ?? null,
+    language: newUser.language,
   })
 
   // Attribute the new user to an influencer if a referral cookie is present

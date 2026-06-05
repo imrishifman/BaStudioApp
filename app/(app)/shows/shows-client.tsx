@@ -27,8 +27,11 @@ export function ShowsClient({ shows, guests }: Props) {
   const t = useT()
   const [tab, setTab] = useState<'shows' | 'guests'>('shows')
   const [createOpen, setCreateOpen] = useState(false)
-  // After creating a show we invite the user to set its Show DNA right away.
-  const [dnaPromptShow, setDnaPromptShow] = useState<Show | null>(null)
+  // After creating a show we open a "what's next?" prompt. Many users were
+  // stopping after the show step and never producing an episode, so the episode
+  // CTA is the primary action; setting Show DNA stays available as a secondary
+  // option and "Maybe later" closes the modal.
+  const [postCreateShow, setPostCreateShow] = useState<Show | null>(null)
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-6 lg:p-8">
@@ -90,11 +93,17 @@ export function ShowsClient({ shows, guests }: Props) {
         onOpenChange={setCreateOpen}
         show={null}
         onSaved={() => window.location.reload()}
-        onCreated={(show) => setDnaPromptShow(show)}
+        onCreated={(show) => setPostCreateShow(show)}
       />
 
-      {/* Post-create nudge: set the Show DNA now or later. */}
-      <Dialog open={!!dnaPromptShow} onOpenChange={(v) => { if (!v) { setDnaPromptShow(null); window.location.reload() } }}>
+      {/* Post-create nudge: primary CTA pushes the user into the episode wizard
+          so the show → first-episode funnel doesn't leak. The DNA path stays
+          available as a secondary option. Closing the modal (X or "Maybe later")
+          reloads so the new show card appears in the list. */}
+      <Dialog
+        open={!!postCreateShow}
+        onOpenChange={(v) => { if (!v) { setPostCreateShow(null); window.location.reload() } }}
+      >
         <DialogContent className="max-w-md border-[var(--line-1)]" style={{ background: 'var(--bg-2)' }}>
           <DialogHeader>
             <div
@@ -103,27 +112,40 @@ export function ShowsClient({ shows, guests }: Props) {
             >
               <Sparkles size={22} style={{ color: 'var(--accent-violet)' }} />
             </div>
-            <DialogTitle className="display-sm text-[var(--ink-1)]">{t('shows.dnaPromptTitle')}</DialogTitle>
+            <DialogTitle className="display-sm text-[var(--ink-1)]">
+              {t('shows.afterCreateTitle')}
+            </DialogTitle>
           </DialogHeader>
-          <p className="body text-[var(--ink-2)]">
-            {t('shows.dnaPromptBodyP1')} <span className="font-semibold text-[var(--ink-1)]">{t('shows.dnaPromptGood')}</span> {t('shows.dnaPromptBodyP2')} <span className="font-semibold text-[var(--ink-1)]">{t('shows.dnaPromptProfessional')}</span>{t('shows.dnaPromptBodyP3')}
-          </p>
-          <div className="flex gap-3 pt-2">
+          <p className="body text-[var(--ink-2)]">{t('shows.afterCreateBody')}</p>
+          <div className="flex flex-col gap-2 pt-2">
             <PillButton
               onClick={() => {
-                const id = dnaPromptShow?.id
-                setDnaPromptShow(null)
-                if (id) router.push(`/shows/${id}/dna`)
+                const id = postCreateShow?.id
+                setPostCreateShow(null)
+                // Pass the just-created show id so the wizard can preselect it
+                // (and harmlessly ignored if it doesn't).
+                router.push(id ? `/episodes/new?showId=${id}` : '/episodes/new')
               }}
             >
-              <Sparkles size={14} /> {t('shows.setItUpNow')}
+              <Plus size={14} /> {t('shows.createFirstEpisodeCta')}
             </PillButton>
             <PillButton
               variant="secondary"
-              onClick={() => { setDnaPromptShow(null); window.location.reload() }}
+              onClick={() => {
+                const id = postCreateShow?.id
+                setPostCreateShow(null)
+                if (id) router.push(`/shows/${id}/dna`)
+              }}
+            >
+              <Sparkles size={14} /> {t('shows.setShowDnaCta')}
+            </PillButton>
+            <button
+              type="button"
+              onClick={() => { setPostCreateShow(null); window.location.reload() }}
+              className="body-sm py-1 text-[var(--ink-3)] hover:text-[var(--ink-2)]"
             >
               {t('shows.maybeLater')}
-            </PillButton>
+            </button>
           </div>
         </DialogContent>
       </Dialog>

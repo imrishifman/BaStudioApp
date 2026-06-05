@@ -1,0 +1,269 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
+import { Plus, Send, Trash2, Pencil } from 'lucide-react'
+import { GlassCard } from '@/components/common/GlassCard'
+import { PillButton } from '@/components/common/PillButton'
+import { useConfirm } from '@/components/common/ConfirmDialog'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+
+interface Campaign {
+  id: string
+  subject: string
+  preheader: string | null
+  html: string
+  status: 'DRAFT' | 'SENT'
+  sentAt: string | null
+  sentCount: number
+  createdByEmail: string
+  createdAt: string
+  updatedAt: string
+}
+
+interface Props {
+  campaigns: Campaign[]
+  freeRecipientCount: number
+}
+
+function formatDate(iso: string | null): string {
+  if (!iso) return '-'
+  return new Date(iso).toLocaleString(undefined, {
+    month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  })
+}
+
+export function MarketingEmailsClient({ campaigns, freeRecipientCount }: Props) {
+  const router = useRouter()
+  const confirm = useConfirm()
+  const [editing, setEditing] = useState<Campaign | 'new' | null>(null)
+
+  return (
+    <div className="mx-auto max-w-5xl space-y-6 p-6 lg:p-8">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="display-sm text-[var(--ink-1)]">Marketing emails</h1>
+          <p className="body mt-1 text-[var(--ink-2)]">
+            Write campaigns and queue them up. The cron job sends the oldest DRAFT every Monday,
+            Wednesday, and Friday at 10am ET, to all free-plan users who haven't unsubscribed.
+            Current recipient cohort: <span className="font-semibold text-[var(--ink-1)]">{freeRecipientCount}</span> users.
+          </p>
+        </div>
+        <PillButton onClick={() => setEditing('new')}>
+          <Plus size={14} /> New campaign
+        </PillButton>
+      </div>
+
+      <GlassCard className="overflow-hidden">
+        <table className="w-full text-left">
+          <thead className="body-sm" style={{ background: 'var(--bg-2)', color: 'var(--ink-3)' }}>
+            <tr>
+              <th className="px-4 py-3 font-semibold">Subject</th>
+              <th className="px-4 py-3 font-semibold">Status</th>
+              <th className="px-4 py-3 font-semibold">Created</th>
+              <th className="px-4 py-3 font-semibold">Sent</th>
+              <th className="px-4 py-3" />
+            </tr>
+          </thead>
+          <tbody className="body-sm">
+            {campaigns.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-8 text-center text-[var(--ink-3)]">
+                  No campaigns yet. Click <strong>New campaign</strong> to write the first one.
+                </td>
+              </tr>
+            ) : (
+              campaigns.map((c) => (
+                <tr key={c.id} className="border-t" style={{ borderColor: 'var(--line-1)' }}>
+                  <td className="px-4 py-3 text-[var(--ink-1)]">
+                    <div className="font-semibold">{c.subject}</div>
+                    {c.preheader && (
+                      <div className="body-sm text-[var(--ink-3)]">{c.preheader}</div>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className="rounded-full px-2 py-0.5 text-xs font-semibold"
+                      style={{
+                        background:
+                          c.status === 'SENT'
+                            ? 'color-mix(in srgb, var(--accent-cyan) 18%, transparent)'
+                            : 'color-mix(in srgb, var(--accent-violet) 18%, transparent)',
+                        color: c.status === 'SENT' ? 'var(--accent-cyan)' : 'var(--accent-violet)',
+                      }}
+                    >
+                      {c.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-[var(--ink-2)]">{formatDate(c.createdAt)}</td>
+                  <td className="px-4 py-3 text-[var(--ink-2)]">
+                    {c.status === 'SENT' ? `${c.sentCount} at ${formatDate(c.sentAt)}` : '-'}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {c.status === 'DRAFT' ? (
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => setEditing(c)}
+                          className="rounded-full p-2 text-[var(--ink-3)] hover:text-[var(--ink-1)]"
+                          aria-label="Edit"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          onClick={async () => {
+                            const ok = await confirm({
+                              title: 'Delete campaign?',
+                              message: 'This campaign will be removed from the queue.',
+                              confirmLabel: 'Delete',
+                              cancelLabel: 'Keep',
+                              destructive: true,
+                            })
+                            if (!ok) return
+                            const res = await fetch(`/api/admin/marketing-emails/${c.id}`, { method: 'DELETE' })
+                            if (!res.ok) {
+                              const d = await res.json().catch(() => ({}))
+                              toast.error(d.error ?? 'Could not delete')
+                              return
+                            }
+                            toast.success('Deleted')
+                            router.refresh()
+                          }}
+                          className="rounded-full p-2 text-[var(--ink-3)] hover:text-[var(--error)]"
+                          aria-label="Delete"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="body-sm text-[var(--ink-3)]">,</span>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </GlassCard>
+
+      <EditCampaignDialog
+        open={!!editing}
+        campaign={editing && editing !== 'new' ? editing : null}
+        onClose={() => setEditing(null)}
+        onSaved={() => { setEditing(null); router.refresh() }}
+      />
+    </div>
+  )
+}
+
+// New/edit dialog. Posts to the admin API and refreshes the list.
+function EditCampaignDialog({
+  open, campaign, onClose, onSaved,
+}: {
+  open: boolean
+  campaign: Campaign | null
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const isEdit = !!campaign
+  const [subject, setSubject] = useState('')
+  const [preheader, setPreheader] = useState('')
+  const [html, setHtml] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  // Re-seed the form whenever the dialog opens for a new/different campaign so
+  // editing an existing one shows its current values and "New campaign" starts
+  // from a blank slate.
+  useEffect(() => {
+    if (!open) return
+    setSubject(campaign?.subject ?? '')
+    setPreheader(campaign?.preheader ?? '')
+    setHtml(campaign?.html ?? '')
+  }, [open, campaign])
+
+  async function save() {
+    if (!subject.trim() || !html.trim()) {
+      toast.error('Subject and body are required')
+      return
+    }
+    setBusy(true)
+    try {
+      const url = isEdit ? `/api/admin/marketing-emails/${campaign!.id}` : '/api/admin/marketing-emails'
+      const res = await fetch(url, {
+        method: isEdit ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject, preheader: preheader || null, html }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(data.error ?? 'Could not save')
+        return
+      }
+      toast.success(isEdit ? 'Updated' : 'Queued')
+      onSaved()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
+      <DialogContent
+        className="max-w-2xl border-[var(--line-1)]"
+        style={{ background: 'var(--bg-2)' }}
+      >
+        <DialogHeader>
+          <DialogTitle className="display-sm text-[var(--ink-1)]">
+            {isEdit ? 'Edit campaign' : 'New campaign'}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 pt-2">
+          <div>
+            <Label className="body-sm text-[var(--ink-2)]">Subject line</Label>
+            <Input
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="The one tip our top hosts use"
+              className="mt-1 border-[var(--line-2)] bg-[var(--bg-3)] text-[var(--ink-1)]"
+            />
+          </div>
+          <div>
+            <Label className="body-sm text-[var(--ink-2)]">Inbox preview (preheader)</Label>
+            <Input
+              value={preheader}
+              onChange={(e) => setPreheader(e.target.value)}
+              placeholder="Optional. Shown next to the subject in most inboxes."
+              className="mt-1 border-[var(--line-2)] bg-[var(--bg-3)] text-[var(--ink-1)]"
+            />
+          </div>
+          <div>
+            <Label className="body-sm text-[var(--ink-2)]">
+              Body (HTML allowed: &lt;p&gt;, &lt;a&gt;, &lt;strong&gt;, &lt;ul&gt;, etc.)
+            </Label>
+            <textarea
+              value={html}
+              onChange={(e) => setHtml(e.target.value)}
+              rows={14}
+              placeholder={'<p>Hi {firstName},</p>\n<p>This week we shipped...</p>'}
+              className="mt-1 w-full rounded-md border bg-[var(--bg-3)] p-3 font-mono text-sm text-[var(--ink-1)]"
+              style={{ borderColor: 'var(--line-2)' }}
+            />
+            <p className="body-sm mt-1 text-[var(--ink-3)]">
+              The branded shell and unsubscribe footer are added automatically.
+            </p>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <PillButton variant="secondary" onClick={onClose} disabled={busy}>Cancel</PillButton>
+            <PillButton onClick={save} disabled={busy}>
+              <Send size={14} /> {busy ? 'Saving...' : isEdit ? 'Save changes' : 'Queue campaign'}
+            </PillButton>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}

@@ -4,6 +4,7 @@ import Credentials from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { authConfig } from './auth.config'
+import { sendWelcomeEmail } from '@/lib/email/welcome'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -70,6 +71,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         } catch (err) {
           console.error('Could not set signup cookie for new OAuth user:', err)
         }
+        // Welcome email for the brand-new Google account. Best-effort.
+        void sendWelcomeEmail({
+          to: user.email,
+          firstName: user.name?.split(' ')[0] ?? null,
+          // Fresh OAuth user has no saved language preference yet; default to
+          // English. The next-time login will respect the user's choice.
+          language: 'en',
+        })
       }
       return true
     },
