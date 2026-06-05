@@ -64,9 +64,10 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'RESEND_API_KEY missing' }, { status: 500 })
   }
 
-  // Pick the oldest queued campaign. No-op if the queue is empty.
+  // Pick the oldest queued + approved campaign. No-op if the queue is empty
+  // or if every DRAFT is still awaiting human review (needsReview=true).
   const campaign = await prisma.marketingEmailCampaign.findFirst({
-    where: { status: 'DRAFT' },
+    where: { status: 'DRAFT', needsReview: false },
     orderBy: { createdAt: 'asc' },
   })
   if (!campaign) {

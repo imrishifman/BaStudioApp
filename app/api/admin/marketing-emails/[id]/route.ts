@@ -12,6 +12,8 @@ const updateSchema = z.object({
   preheader: z.string().trim().max(200).optional().nullable(),
   html: z.string().trim().min(1).optional(),
   audience: z.enum(['FREE', 'SOLO', 'MASTER', 'ALL']).optional(),
+  // Flip to false to approve an AI-drafted campaign for sending.
+  needsReview: z.boolean().optional(),
 })
 
 async function requireAdmin() {
@@ -53,6 +55,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       preheader: parsed.data.preheader === undefined ? existing.preheader : parsed.data.preheader,
       html: parsed.data.html ?? existing.html,
       audience: parsed.data.audience ?? existing.audience,
+      needsReview: parsed.data.needsReview ?? existing.needsReview,
     },
   })
   return NextResponse.json({ campaign: updated })

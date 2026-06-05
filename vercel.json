@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/send-marketing-email",
       "schedule": "0 14 * * 1,3,5"
+    },
+    {
+      "path": "/api/cron/generate-marketing-emails",
+      "schedule": "0 12 * * 0"
     }
   ]
 }

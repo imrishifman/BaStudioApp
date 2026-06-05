@@ -617,6 +617,10 @@ model MarketingEmailCampaign {
   // Which user cohort the cron sends this campaign to. Defaults to FREE so the
   // primary conversion funnel keeps working without an audience choice.
   audience    MarketingEmailCampaignAudience @default(FREE)
+  // True for AI-drafted campaigns that haven't been approved yet. The send cron
+  // ignores anything with needsReview=true so a fresh AI draft never ships
+  // without an admin Approve click.
+  needsReview Boolean                        @default(false)
   sentAt      DateTime?
   // How many recipients this campaign actually reached. Useful for the admin
   // to see at a glance what coverage each send got.

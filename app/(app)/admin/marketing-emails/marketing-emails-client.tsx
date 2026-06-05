@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Plus, Send, Trash2, Pencil } from 'lucide-react'
+import { Plus, Send, Trash2, Pencil, Check, Sparkles } from 'lucide-react'
 import { GlassCard } from '@/components/common/GlassCard'
 import { PillButton } from '@/components/common/PillButton'
 import { useConfirm } from '@/components/common/ConfirmDialog'
@@ -29,6 +29,7 @@ interface Campaign {
   html: string
   status: 'DRAFT' | 'SENT'
   audience: Audience
+  needsReview: boolean
   sentAt: string | null
   sentCount: number
   createdByEmail: string
@@ -123,18 +124,30 @@ export function MarketingEmailsClient({ campaigns, recipientCounts }: Props) {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <span
-                      className="rounded-full px-2 py-0.5 text-xs font-semibold"
-                      style={{
-                        background:
-                          c.status === 'SENT'
-                            ? 'color-mix(in srgb, var(--accent-cyan) 18%, transparent)'
-                            : 'color-mix(in srgb, var(--accent-violet) 18%, transparent)',
-                        color: c.status === 'SENT' ? 'var(--accent-cyan)' : 'var(--accent-violet)',
-                      }}
-                    >
-                      {c.status}
-                    </span>
+                    {c.needsReview ? (
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold"
+                        style={{
+                          background: 'color-mix(in srgb, var(--warning) 22%, transparent)',
+                          color: 'var(--warning)',
+                        }}
+                      >
+                        <Sparkles size={11} /> AI, awaiting review
+                      </span>
+                    ) : (
+                      <span
+                        className="rounded-full px-2 py-0.5 text-xs font-semibold"
+                        style={{
+                          background:
+                            c.status === 'SENT'
+                              ? 'color-mix(in srgb, var(--accent-cyan) 18%, transparent)'
+                              : 'color-mix(in srgb, var(--accent-violet) 18%, transparent)',
+                          color: c.status === 'SENT' ? 'var(--accent-cyan)' : 'var(--accent-violet)',
+                        }}
+                      >
+                        {c.status}
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-[var(--ink-2)]">{formatDate(c.createdAt)}</td>
                   <td className="px-4 py-3 text-[var(--ink-2)]">
@@ -143,6 +156,29 @@ export function MarketingEmailsClient({ campaigns, recipientCounts }: Props) {
                   <td className="px-4 py-3 text-right">
                     {c.status === 'DRAFT' ? (
                       <div className="flex justify-end gap-2">
+                        {c.needsReview && (
+                          <button
+                            onClick={async () => {
+                              const res = await fetch(`/api/admin/marketing-emails/${c.id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ needsReview: false }),
+                              })
+                              if (!res.ok) {
+                                const d = await res.json().catch(() => ({}))
+                                toast.error(d.error ?? 'Could not approve')
+                                return
+                              }
+                              toast.success('Approved. Will go out at the next send window.')
+                              router.refresh()
+                            }}
+                            className="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold"
+                            style={{ background: 'var(--success)', color: 'var(--bg-0)' }}
+                            aria-label="Approve"
+                          >
+                            <Check size={12} /> Approve
+                          </button>
+                        )}
                         <button
                           onClick={() => setEditing(c)}
                           className="rounded-full p-2 text-[var(--ink-3)] hover:text-[var(--ink-1)]"
