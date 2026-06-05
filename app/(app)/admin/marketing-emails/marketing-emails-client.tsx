@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Plus, Send, Trash2, Pencil, Check, Sparkles } from 'lucide-react'
+import { Plus, Send, Trash2, Pencil, Check, Sparkles, Wand2 } from 'lucide-react'
 import { GlassCard } from '@/components/common/GlassCard'
 import { PillButton } from '@/components/common/PillButton'
 import { useConfirm } from '@/components/common/ConfirmDialog'
@@ -53,6 +53,33 @@ export function MarketingEmailsClient({ campaigns, recipientCounts }: Props) {
   const router = useRouter()
   const confirm = useConfirm()
   const [editing, setEditing] = useState<Campaign | 'new' | null>(null)
+  const [generating, setGenerating] = useState(false)
+
+  async function generateNow() {
+    setGenerating(true)
+    try {
+      const res = await fetch('/api/admin/marketing-emails/generate', { method: 'POST' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(data.error ?? 'Could not generate drafts')
+        return
+      }
+      const ok = (data.results ?? []).filter((r: { campaignId?: string }) => r.campaignId).length
+      const failed = (data.results ?? []).length - ok
+      if (ok > 0) {
+        toast.success(
+          failed > 0
+            ? `Generated ${ok} draft${ok === 1 ? '' : 's'} (${failed} failed). Awaiting review.`
+            : `Generated ${ok} draft${ok === 1 ? '' : 's'}. Awaiting review.`,
+        )
+      } else {
+        toast.error('No drafts produced. Check the logs.')
+      }
+      router.refresh()
+    } finally {
+      setGenerating(false)
+    }
+  }
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-6 lg:p-8">
@@ -61,12 +88,18 @@ export function MarketingEmailsClient({ campaigns, recipientCounts }: Props) {
           <h1 className="display-sm text-[var(--ink-1)]">Marketing emails</h1>
           <p className="body mt-1 text-[var(--ink-2)]">
             Write campaigns and queue them up. The cron job sends the oldest DRAFT every Monday,
-            Wednesday, and Friday at 10am ET, to the audience you pick.
+            Wednesday, and Friday at 10am ET, to the audience you pick. After every send a new
+            AI draft is auto-generated for the same audience, so the queue stays one week ahead.
           </p>
         </div>
-        <PillButton onClick={() => setEditing('new')}>
-          <Plus size={14} /> New campaign
-        </PillButton>
+        <div className="flex gap-2">
+          <PillButton variant="secondary" onClick={generateNow} disabled={generating}>
+            <Wand2 size={14} /> {generating ? 'Generating...' : 'Generate now'}
+          </PillButton>
+          <PillButton onClick={() => setEditing('new')}>
+            <Plus size={14} /> New campaign
+          </PillButton>
+        </div>
       </div>
 
       {/* Live audience sizes (opt-ins only). Helps decide a campaign's target. */}

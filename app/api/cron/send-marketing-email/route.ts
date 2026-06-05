@@ -19,6 +19,7 @@ import { prisma } from '@/lib/prisma'
 import { getResend, RESEND_FROM } from '@/lib/email/client'
 import { buildMarketingHtml } from '@/lib/email/marketing'
 import { ensureUnsubscribeToken } from '@/lib/email/unsubscribe'
+import { generateCampaignForAudience, type GenAudience } from '@/lib/email/generate'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -119,5 +120,17 @@ export async function GET(req: Request) {
     data: { status: 'SENT', sentAt: new Date(), sentCount },
   })
 
-  return NextResponse.json({ ok: true, campaignId: campaign.id, sent: sentCount })
+  // Refill: queue a fresh AI draft for the same audience so the queue is
+  // always one slot ahead. Skipped when audience is ALL (one-off announcements
+  // don't need topping up) or when the AI key is unavailable. Best-effort:
+  // never block the SENT response on the refill.
+  let refill: { campaignId?: string; error?: string; skipped?: true } = {}
+  if (campaign.audience === 'ALL') {
+    refill = { skipped: true }
+  } else {
+    const result = await generateCampaignForAudience(campaign.audience as GenAudience)
+    refill = result
+  }
+
+  return NextResponse.json({ ok: true, campaignId: campaign.id, sent: sentCount, refill })
 }
