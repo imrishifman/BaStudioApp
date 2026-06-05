@@ -46,7 +46,9 @@ REAL FEATURES (talk about ONLY these):
 
 2. Show DNA — a structured profile per show with five tabs: Structure, Tone & Style, Signature, Audience, and AI Instructions. Teaches the AI the show's voice and format so generated drafts stay on-brand.
 
-3. Episode wizard — a 10-step guided flow that takes a host from a guest's name to a finished, recording-ready episode. The real step names are: Guest name, Guest bio (AI research), Focus, Style, Questions, Intro, Script, Video plan, Share, Promote.
+3. Creating an episode — a 10-step guided flow that takes a host from a guest's name to a finished, recording-ready episode. Users start it via the "Create episode" / "New episode" button. The 10 steps are: Guest name, Guest research, Focus, Style, Questions, Intro, Script, Video, Share, Promote.
+
+IMPORTANT vocabulary: users see this as "Create episode" or "New episode" inside Ba Studio. Never call it a "wizard" or "workflow" in user-facing copy. Say things like "the next time you create an episode", "Step 4 (Style)", "when you're building an episode", or "in the episode flow".
 
 4. AI guest research — type a guest's name (+ optional source links), get back a briefing and angles. Free plan: 1 use total. Paid: more uses.
 
