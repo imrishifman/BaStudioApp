@@ -11,6 +11,7 @@ const createSchema = z.object({
   subject: z.string().trim().min(1).max(200),
   preheader: z.string().trim().max(200).optional(),
   html: z.string().trim().min(1),
+  audience: z.enum(['FREE', 'SOLO', 'MASTER', 'ALL']).default('FREE'),
 })
 
 async function requireAdmin() {
@@ -54,6 +55,7 @@ export async function POST(req: Request) {
       subject: parsed.data.subject,
       preheader: parsed.data.preheader || null,
       html: parsed.data.html,
+      audience: parsed.data.audience,
       createdByEmail: auth.session.user.email,
     },
   })

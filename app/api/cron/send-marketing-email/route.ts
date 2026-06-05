@@ -14,6 +14,7 @@
 //   - Flip the campaign to SENT with sentCount + sentAt.
 
 import { NextResponse } from 'next/server'
+import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { getResend, RESEND_FROM } from '@/lib/email/client'
 import { buildMarketingHtml } from '@/lib/email/marketing'
@@ -72,15 +73,20 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: true, sent: 0, reason: 'no_draft_campaign' })
   }
 
-  // Recipient cohort. Free plan only + opted-in. We exclude users without an
-  // email (defensive) and avoid the admins' own accounts? No, admins should
-  // receive too if they're on free plan.
+  // Recipient cohort. Filters by the campaign's audience choice (FREE / SOLO /
+  // MASTER / ALL); always respects the marketing opt-in flag.
+  const where: Prisma.UserWhereInput = {
+    marketingEmailOptIn: true,
+    email: { not: '' },
+  }
+  switch (campaign.audience) {
+    case 'FREE':   where.plan = 'free'; break
+    case 'SOLO':   where.plan = 'solo'; break
+    case 'MASTER': where.plan = 'master'; break
+    case 'ALL':    /* no plan filter */ break
+  }
   const recipients = await prisma.user.findMany({
-    where: {
-      plan: 'free',
-      marketingEmailOptIn: true,
-      email: { not: '' },
-    },
+    where,
     select: { id: true, email: true, unsubscribeToken: true },
   })
 

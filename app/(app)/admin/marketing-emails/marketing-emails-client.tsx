@@ -13,12 +13,22 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
+type Audience = 'FREE' | 'SOLO' | 'MASTER' | 'ALL'
+
+const AUDIENCE_LABEL: Record<Audience, string> = {
+  FREE: 'Free plan',
+  SOLO: 'Studio Solo',
+  MASTER: 'Master',
+  ALL: 'All users',
+}
+
 interface Campaign {
   id: string
   subject: string
   preheader: string | null
   html: string
   status: 'DRAFT' | 'SENT'
+  audience: Audience
   sentAt: string | null
   sentCount: number
   createdByEmail: string
@@ -28,7 +38,7 @@ interface Campaign {
 
 interface Props {
   campaigns: Campaign[]
-  freeRecipientCount: number
+  recipientCounts: Record<Audience, number>
 }
 
 function formatDate(iso: string | null): string {
@@ -38,7 +48,7 @@ function formatDate(iso: string | null): string {
   })
 }
 
-export function MarketingEmailsClient({ campaigns, freeRecipientCount }: Props) {
+export function MarketingEmailsClient({ campaigns, recipientCounts }: Props) {
   const router = useRouter()
   const confirm = useConfirm()
   const [editing, setEditing] = useState<Campaign | 'new' | null>(null)
@@ -50,8 +60,7 @@ export function MarketingEmailsClient({ campaigns, freeRecipientCount }: Props) 
           <h1 className="display-sm text-[var(--ink-1)]">Marketing emails</h1>
           <p className="body mt-1 text-[var(--ink-2)]">
             Write campaigns and queue them up. The cron job sends the oldest DRAFT every Monday,
-            Wednesday, and Friday at 10am ET, to all free-plan users who haven't unsubscribed.
-            Current recipient cohort: <span className="font-semibold text-[var(--ink-1)]">{freeRecipientCount}</span> users.
+            Wednesday, and Friday at 10am ET, to the audience you pick.
           </p>
         </div>
         <PillButton onClick={() => setEditing('new')}>
@@ -59,11 +68,27 @@ export function MarketingEmailsClient({ campaigns, freeRecipientCount }: Props) 
         </PillButton>
       </div>
 
+      {/* Live audience sizes (opt-ins only). Helps decide a campaign's target. */}
+      <div className="grid gap-3 sm:grid-cols-4">
+        {(['FREE', 'SOLO', 'MASTER', 'ALL'] as Audience[]).map((aud) => (
+          <div
+            key={aud}
+            className="rounded-2xl p-4"
+            style={{ background: 'var(--bg-2)', border: '1px solid var(--line-1)' }}
+          >
+            <p className="eyebrow text-[var(--ink-3)]">{AUDIENCE_LABEL[aud]}</p>
+            <p className="display-sm mt-1 text-[var(--ink-1)]">{recipientCounts[aud]}</p>
+            <p className="body-sm text-[var(--ink-3)]">opted-in users</p>
+          </div>
+        ))}
+      </div>
+
       <GlassCard className="overflow-hidden">
         <table className="w-full text-left">
           <thead className="body-sm" style={{ background: 'var(--bg-2)', color: 'var(--ink-3)' }}>
             <tr>
               <th className="px-4 py-3 font-semibold">Subject</th>
+              <th className="px-4 py-3 font-semibold">Audience</th>
               <th className="px-4 py-3 font-semibold">Status</th>
               <th className="px-4 py-3 font-semibold">Created</th>
               <th className="px-4 py-3 font-semibold">Sent</th>
@@ -73,7 +98,7 @@ export function MarketingEmailsClient({ campaigns, freeRecipientCount }: Props) 
           <tbody className="body-sm">
             {campaigns.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-[var(--ink-3)]">
+                <td colSpan={6} className="px-4 py-8 text-center text-[var(--ink-3)]">
                   No campaigns yet. Click <strong>New campaign</strong> to write the first one.
                 </td>
               </tr>
@@ -85,6 +110,17 @@ export function MarketingEmailsClient({ campaigns, freeRecipientCount }: Props) 
                     {c.preheader && (
                       <div className="body-sm text-[var(--ink-3)]">{c.preheader}</div>
                     )}
+                  </td>
+                  <td className="px-4 py-3 text-[var(--ink-2)]">
+                    <span
+                      className="rounded-full px-2 py-0.5 text-xs font-semibold"
+                      style={{
+                        background: 'color-mix(in srgb, var(--ink-2) 14%, transparent)',
+                        color: 'var(--ink-1)',
+                      }}
+                    >
+                      {AUDIENCE_LABEL[c.audience]}
+                    </span>
                   </td>
                   <td className="px-4 py-3">
                     <span
@@ -153,6 +189,7 @@ export function MarketingEmailsClient({ campaigns, freeRecipientCount }: Props) 
       <EditCampaignDialog
         open={!!editing}
         campaign={editing && editing !== 'new' ? editing : null}
+        recipientCounts={recipientCounts}
         onClose={() => setEditing(null)}
         onSaved={() => { setEditing(null); router.refresh() }}
       />
@@ -162,10 +199,11 @@ export function MarketingEmailsClient({ campaigns, freeRecipientCount }: Props) 
 
 // New/edit dialog. Posts to the admin API and refreshes the list.
 function EditCampaignDialog({
-  open, campaign, onClose, onSaved,
+  open, campaign, recipientCounts, onClose, onSaved,
 }: {
   open: boolean
   campaign: Campaign | null
+  recipientCounts: Record<Audience, number>
   onClose: () => void
   onSaved: () => void
 }) {
@@ -173,6 +211,7 @@ function EditCampaignDialog({
   const [subject, setSubject] = useState('')
   const [preheader, setPreheader] = useState('')
   const [html, setHtml] = useState('')
+  const [audience, setAudience] = useState<Audience>('FREE')
   const [busy, setBusy] = useState(false)
 
   // Re-seed the form whenever the dialog opens for a new/different campaign so
@@ -183,6 +222,7 @@ function EditCampaignDialog({
     setSubject(campaign?.subject ?? '')
     setPreheader(campaign?.preheader ?? '')
     setHtml(campaign?.html ?? '')
+    setAudience(campaign?.audience ?? 'FREE')
   }, [open, campaign])
 
   async function save() {
@@ -196,7 +236,7 @@ function EditCampaignDialog({
       const res = await fetch(url, {
         method: isEdit ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subject, preheader: preheader || null, html }),
+        body: JSON.stringify({ subject, preheader: preheader || null, html, audience }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
@@ -222,6 +262,31 @@ function EditCampaignDialog({
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-2">
+          <div>
+            <Label className="body-sm text-[var(--ink-2)]">Audience</Label>
+            <div className="mt-1 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {(['FREE', 'SOLO', 'MASTER', 'ALL'] as Audience[]).map((aud) => {
+                const active = audience === aud
+                return (
+                  <button
+                    key={aud}
+                    type="button"
+                    onClick={() => setAudience(aud)}
+                    className="rounded-xl px-3 py-2 text-left transition-colors"
+                    style={{
+                      background: active ? 'var(--ink-1)' : 'var(--bg-3)',
+                      color: active ? 'var(--bg-0)' : 'var(--ink-2)',
+                      border: '1px solid var(--line-2)',
+                    }}
+                  >
+                    <div className="body-sm font-semibold">{AUDIENCE_LABEL[aud]}</div>
+                    <div className="text-xs opacity-80">{recipientCounts[aud]} people</div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
           <div>
             <Label className="body-sm text-[var(--ink-2)]">Subject line</Label>
             <Input

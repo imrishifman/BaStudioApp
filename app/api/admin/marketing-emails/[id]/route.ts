@@ -11,6 +11,7 @@ const updateSchema = z.object({
   subject: z.string().trim().min(1).max(200).optional(),
   preheader: z.string().trim().max(200).optional().nullable(),
   html: z.string().trim().min(1).optional(),
+  audience: z.enum(['FREE', 'SOLO', 'MASTER', 'ALL']).optional(),
 })
 
 async function requireAdmin() {
@@ -51,6 +52,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       subject: parsed.data.subject ?? existing.subject,
       preheader: parsed.data.preheader === undefined ? existing.preheader : parsed.data.preheader,
       html: parsed.data.html ?? existing.html,
+      audience: parsed.data.audience ?? existing.audience,
     },
   })
   return NextResponse.json({ campaign: updated })

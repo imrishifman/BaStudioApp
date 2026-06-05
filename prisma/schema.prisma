@@ -614,6 +614,9 @@ model MarketingEmailCampaign {
   // Optional inbox-preview line. Falls back to a generic preheader when blank.
   preheader   String?
   status      MarketingEmailCampaignStatus @default(DRAFT)
+  // Which user cohort the cron sends this campaign to. Defaults to FREE so the
+  // primary conversion funnel keeps working without an audience choice.
+  audience    MarketingEmailCampaignAudience @default(FREE)
   sentAt      DateTime?
   // How many recipients this campaign actually reached. Useful for the admin
   // to see at a glance what coverage each send got.
@@ -626,5 +629,14 @@ model MarketingEmailCampaign {
 enum MarketingEmailCampaignStatus {
   DRAFT
   SENT
+}
+
+// Cohort of users a campaign should reach. ALL = every opted-in user; the
+// others narrow to a single plan tier.
+enum MarketingEmailCampaignAudience {
+  FREE
+  SOLO
+  MASTER
+  ALL
 }
 

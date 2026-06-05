@@ -11,18 +11,24 @@ export default async function MarketingEmailsAdminPage() {
   if (!session) redirect('/?signin=1')
   if (!isAdmin(session.user.email)) redirect('/studio')
 
-  const [campaigns, freeRecipientCount] = await Promise.all([
+  // Pull the live recipient counts for each audience tier so the admin can see
+  // exactly how many people each option will reach before queuing a campaign.
+  const baseWhere = { marketingEmailOptIn: true }
+  const [campaigns, freeCount, soloCount, masterCount, allCount] = await Promise.all([
     prisma.marketingEmailCampaign.findMany({
       orderBy: { createdAt: 'desc' },
       take: 100,
     }),
-    prisma.user.count({ where: { plan: 'free', marketingEmailOptIn: true } }),
+    prisma.user.count({ where: { ...baseWhere, plan: 'free' } }),
+    prisma.user.count({ where: { ...baseWhere, plan: 'solo' } }),
+    prisma.user.count({ where: { ...baseWhere, plan: 'master' } }),
+    prisma.user.count({ where: baseWhere }),
   ])
 
   return (
     <MarketingEmailsClient
       campaigns={JSON.parse(JSON.stringify(campaigns))}
-      freeRecipientCount={freeRecipientCount}
+      recipientCounts={{ FREE: freeCount, SOLO: soloCount, MASTER: masterCount, ALL: allCount }}
     />
   )
 }
