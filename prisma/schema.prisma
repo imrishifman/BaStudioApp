@@ -644,3 +644,22 @@ enum MarketingEmailCampaignAudience {
   ALL
 }
 
+// WhatsApp 3-step episode prep conversation. One row per phone number; we
+// progress through steps as messages arrive.
+model WhatsAppConversation {
+  id          String       @id @default(cuid())
+  phoneNumber String       @unique  // e.g. "whatsapp:+972501234567"
+  step        WhatsAppStep @default(IDLE)
+  guestName   String?
+  angle       String?      // business / personal / craft
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+enum WhatsAppStep {
+  IDLE
+  AWAITING_GUEST_NAME
+  AWAITING_ANGLE
+  GENERATING
+}
+
