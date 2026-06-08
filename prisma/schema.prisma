@@ -644,20 +644,27 @@ enum MarketingEmailCampaignAudience {
   ALL
 }
 
-// WhatsApp 3-step episode prep conversation. One row per phone number; we
-// progress through steps as messages arrive.
+// WhatsApp 7-step episode prep conversation. One row per phone number;
+// progresses through steps as messages arrive. Linked to a Ba Studio User by
+// email so generated episodes save to the user's account.
 model WhatsAppConversation {
   id          String       @id @default(cuid())
   phoneNumber String       @unique  // e.g. "whatsapp:+972501234567"
   step        WhatsAppStep @default(IDLE)
+  // Account link. Set after the user verifies their Ba Studio email.
+  userEmail   String?
+  // The in-progress Episode this conversation is building. Created once the
+  // guest's name is known; updated as more data accumulates.
+  episodeId   String?
   guestName   String?
-  angle       String?      // business / personal / craft
+  angle       String?      // business / personal / craft / etc.
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 }
 
 enum WhatsAppStep {
   IDLE
+  AWAITING_EMAIL
   AWAITING_GUEST_NAME
   AWAITING_ANGLE
   GENERATING

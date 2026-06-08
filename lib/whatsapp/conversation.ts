@@ -1,18 +1,26 @@
-// WhatsApp episode-prep conversation. Three steps, in order:
-//   1. Ask for the guest's name
-//   2. Ask for the angle (1/2/3)
-//   3. Generate 10 interview questions and send them
+// WhatsApp episode-prep conversation.
 //
-// State is per phone number, persisted in MarketingEmailCampaign... err,
-// WhatsAppConversation. Each inbound message advances exactly one step, and
-// the state machine is idempotent: if the user sends a stray message during
-// the generation step we just say "still drafting" instead of restarting.
+// Flow per phone number (kept simple for the MVP; the full 7-step flow lands
+// in follow-up commits):
 //
-// Restart command: typing "restart" / "reset" / "start over" / "cancel" at
-// any point clears the state and starts again from step 1.
+//   1. First message ever from this phone -> AWAITING_EMAIL
+//        bot: "Welcome. What's your Ba Studio email?"
+//   2. User sends email -> verify it matches a real Ba Studio user
+//        match: linked, ask for guest name
+//        no match: send signup link, stay in AWAITING_EMAIL
+//   3. AWAITING_GUEST_NAME -> save name, create Episode draft tied to user,
+//        ask for angle
+//   4. AWAITING_ANGLE -> pick 1/2/3, kick off question generation
+//   5. GENERATING (deferred): Claude writes 10 questions, saves to Episode,
+//        sends them with a link to the saved draft on the web
+//
+// State is in WhatsAppConversation; each row also points to the in-progress
+// Episode so subsequent steps (research, intro, script, brief, promo) can keep
+// updating the same record as we add them.
 
 import Anthropic from '@anthropic-ai/sdk'
 import { prisma } from '@/lib/prisma'
+import { SITE_URL } from '@/lib/site'
 
 type AngleKey = 'business' | 'personal' | 'craft'
 const ANGLES: Record<'1' | '2' | '3', { key: AngleKey; label: string }> = {
@@ -21,8 +29,13 @@ const ANGLES: Record<'1' | '2' | '3', { key: AngleKey; label: string }> = {
   '3': { key: 'craft', label: 'Craft / expertise' },
 }
 
-const WELCOME =
-  "Hi! I'll help you prep a podcast episode in three quick steps.\n\nWhat's your guest's name?"
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
+
+const ASK_EMAIL =
+  "Welcome to Ba Studio on WhatsApp.\n\nWhat's the email on your Ba Studio account? I'll link this chat to your account so the episode you create here saves automatically."
+
+const ASK_GUEST_NAME =
+  "You're in. Let's prep an episode.\n\nWho's the guest? Reply with their name."
 
 function askAngle(name: string): string {
   return `Got it, ${name}.\n\nWhat angle do you want to take?\n1. Business\n2. Personal story\n3. Craft / expertise\n\nReply with 1, 2, or 3.`
@@ -43,14 +56,8 @@ function isRestart(input: string): boolean {
   return t === 'restart' || t === 'reset' || t === 'start over' || t === 'cancel'
 }
 
-// First reply we send IMMEDIATELY back through the Twilio webhook response.
-// Returned alongside `deferredJob`, which the webhook should run AFTER closing
-// the response (via Next's `after()` helper) so Twilio doesn't time out on long
-// AI calls.
 export interface ConversationStepResult {
   immediate: string
-  // Optional async job: produces a follow-up message we send via Twilio REST API
-  // after the webhook has already replied 200 OK.
   deferredJob?: () => Promise<string>
 }
 
@@ -60,14 +67,33 @@ export async function handleInboundMessage(
 ): Promise<ConversationStepResult> {
   const text = body.trim()
 
-  // Universal escape hatch.
+  // Universal restart. Keeps the userEmail (no need to re-auth) but clears
+  // the in-progress episode + guest data.
   if (isRestart(text)) {
+    const existing = await prisma.whatsAppConversation.findUnique({ where: { phoneNumber } })
+    if (existing?.userEmail) {
+      await prisma.whatsAppConversation.update({
+        where: { phoneNumber },
+        data: {
+          step: 'AWAITING_GUEST_NAME',
+          guestName: null,
+          angle: null,
+          episodeId: null,
+        },
+      })
+      return { immediate: ASK_GUEST_NAME }
+    }
     await prisma.whatsAppConversation.upsert({
       where: { phoneNumber },
-      create: { phoneNumber, step: 'AWAITING_GUEST_NAME' },
-      update: { step: 'AWAITING_GUEST_NAME', guestName: null, angle: null },
+      create: { phoneNumber, step: 'AWAITING_EMAIL' },
+      update: {
+        step: 'AWAITING_EMAIL',
+        guestName: null,
+        angle: null,
+        episodeId: null,
+      },
     })
-    return { immediate: WELCOME }
+    return { immediate: ASK_EMAIL }
   }
 
   // Find-or-create the conversation row.
@@ -79,24 +105,67 @@ export async function handleInboundMessage(
 
   switch (convo.step) {
     case 'IDLE': {
-      // Any inbound from idle restarts the flow.
+      // First message ever. Send straight to email capture.
       await prisma.whatsAppConversation.update({
         where: { phoneNumber },
-        data: { step: 'AWAITING_GUEST_NAME', guestName: null, angle: null },
+        data: { step: 'AWAITING_EMAIL' },
       })
-      return { immediate: WELCOME }
+      return { immediate: ASK_EMAIL }
+    }
+
+    case 'AWAITING_EMAIL': {
+      const email = text.toLowerCase()
+      if (!EMAIL_RE.test(email)) {
+        return {
+          immediate:
+            "That does not look like an email. Try again, for example you@example.com.\n\nOr reply 'restart' if you want to start over.",
+        }
+      }
+      const user = await prisma.user.findUnique({ where: { email }, select: { id: true, email: true, fullName: true } })
+      if (!user) {
+        return {
+          immediate: `No Ba Studio account found for ${email}.\n\nCreate one here, then come back and send your email again:\n${SITE_URL}/?signin=1`,
+        }
+      }
+      await prisma.whatsAppConversation.update({
+        where: { phoneNumber },
+        data: { step: 'AWAITING_GUEST_NAME', userEmail: user.email },
+      })
+      const greeting = user.fullName ? `Hi ${user.fullName.split(' ')[0]}.` : 'You are linked.'
+      return { immediate: `${greeting}\n\n${ASK_GUEST_NAME}` }
     }
 
     case 'AWAITING_GUEST_NAME': {
       if (text.length < 2 || text.length > 100) {
         return { immediate: "Please send the guest's name (just their name)." }
       }
-      const name = text
+      if (!convo.userEmail) {
+        // Defensive: shouldn't happen, but recover gracefully.
+        await prisma.whatsAppConversation.update({
+          where: { phoneNumber },
+          data: { step: 'AWAITING_EMAIL' },
+        })
+        return { immediate: ASK_EMAIL }
+      }
+      // Create the in-progress Episode now so all subsequent updates write to
+      // the same row. The user will see it in their /episodes list on the web.
+      const episode = await prisma.episode.create({
+        data: {
+          guestName: text,
+          createdByEmail: convo.userEmail,
+          status: 'draft',
+          currentStep: 1,
+        },
+      })
       await prisma.whatsAppConversation.update({
         where: { phoneNumber },
-        data: { step: 'AWAITING_ANGLE', guestName: name },
+        data: {
+          step: 'AWAITING_ANGLE',
+          guestName: text,
+          episodeId: episode.id,
+        },
       })
-      return { immediate: askAngle(name) }
+      return { immediate: askAngle(text) }
     }
 
     case 'AWAITING_ANGLE': {
@@ -108,6 +177,7 @@ export async function handleInboundMessage(
         }
       }
       const guestName = convo.guestName ?? 'your guest'
+      const episodeId = convo.episodeId
       await prisma.whatsAppConversation.update({
         where: { phoneNumber },
         data: { step: 'GENERATING', angle: angle.key },
@@ -116,26 +186,39 @@ export async function handleInboundMessage(
         immediate: `On it. Drafting 10 questions for ${guestName} (${angle.label} angle). Give me about 20 seconds.`,
         deferredJob: async () => {
           const questions = await generateQuestions(guestName, angle.label)
-          // Hand the user back to idle so the next message starts fresh.
+          // Save the questions onto the Episode row so they show up on the web.
+          if (episodeId) {
+            await prisma.episode.update({
+              where: { id: episodeId },
+              data: {
+                generatedQuestions: questions.list,
+                focusAnswers: { angle: angle.key, source: 'whatsapp' },
+                currentStep: 5,
+              },
+            })
+          }
           await prisma.whatsAppConversation.update({
             where: { phoneNumber },
             data: { step: 'IDLE' },
           })
-          return `Here are 10 questions for ${guestName} (${angle.label} angle):\n\n${questions}\n\nReply "restart" to prep another episode.`
+          const link = episodeId ? `\n\nOpen the saved episode on the web:\n${SITE_URL}/episodes/${episodeId}` : ''
+          return `Here are 10 questions for ${guestName} (${angle.label} angle):\n\n${questions.text}${link}\n\nReply "restart" to prep another episode.`
         },
       }
     }
 
     case 'GENERATING': {
-      // Stray message while we're still generating. Don't double-start.
       return { immediate: "Still drafting your questions. Sit tight." }
     }
   }
 }
 
-async function generateQuestions(guestName: string, angleLabel: string): Promise<string> {
+async function generateQuestions(
+  guestName: string,
+  angleLabel: string,
+): Promise<{ text: string; list: string[] }> {
   if (!process.env.ANTHROPIC_API_KEY) {
-    return '1. (AI not configured. Please contact Ba Studio support.)'
+    return { text: '1. (AI not configured. Contact Ba Studio support.)', list: [] }
   }
   const client = new Anthropic()
   const msg = await client.messages.create({
@@ -151,5 +234,11 @@ async function generateQuestions(guestName: string, angleLabel: string): Promise
     ],
   })
   const text = msg.content[0]?.type === 'text' ? msg.content[0].text.trim() : ''
-  return text || '1. (Could not generate questions. Try again.)'
+  // Pull each numbered line into an array for structured DB storage.
+  const list = text
+    .split('\n')
+    .map((line) => line.replace(/^\s*\d+[\.\)]\s*/, '').trim())
+    .filter(Boolean)
+    .slice(0, 10)
+  return { text: text || '1. (Could not generate questions. Try again.)', list }
 }
