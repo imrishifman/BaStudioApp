@@ -39,6 +39,42 @@ const ASK_EMAIL =
 const ASK_GUEST_NAME =
   "You're in. Let's prep an episode.\n\nWho's the guest? Reply with their full name."
 
+function askGuestLinks(name: string): string {
+  return `Got it, ${name}.\n\nAny links so I can research the right person? Send their LinkedIn, Twitter/X, Instagram, or website (you can send several, just paste the URLs).\n\nReply 'skip' if you don't have any.`
+}
+
+// Parse free-text containing one or more URLs into the Episode's typed social
+// slots (the same field names the web wizard uses).
+function parseGuestLinks(text: string): {
+  guestLinkedinUrl?: string
+  guestTwitterUrl?: string
+  guestInstagramUrl?: string
+  guestWebsiteUrl?: string
+} {
+  const urlRegex = /\b(?:https?:\/\/|www\.)[^\s]+|\b[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z]{2,})+(?:\/[^\s]*)?/gi
+  const matches = text.match(urlRegex) ?? []
+  const out: {
+    guestLinkedinUrl?: string
+    guestTwitterUrl?: string
+    guestInstagramUrl?: string
+    guestWebsiteUrl?: string
+  } = {}
+  for (const raw of matches) {
+    const normalized = raw.startsWith('http') ? raw : `https://${raw.replace(/^www\./i, '')}`
+    const lower = normalized.toLowerCase()
+    if (lower.includes('linkedin.com')) out.guestLinkedinUrl ??= normalized
+    else if (lower.includes('twitter.com') || lower.includes('x.com/')) out.guestTwitterUrl ??= normalized
+    else if (lower.includes('instagram.com')) out.guestInstagramUrl ??= normalized
+    else if (!out.guestWebsiteUrl) out.guestWebsiteUrl = normalized
+  }
+  return out
+}
+
+function isSkip(input: string): boolean {
+  const t = input.trim().toLowerCase()
+  return t === 'skip' || t === 'none' || t === 'no' || t === 'no links' || t === 'n'
+}
+
 function askAngle(name: string): string {
   return `Now pick an angle for the episode with ${name}:\n1. Business\n2. Personal story\n3. Craft / expertise\n\nReply with 1, 2, or 3.`
 }
@@ -149,29 +185,60 @@ export async function handleInboundMessage(
         })
         return { immediate: ASK_EMAIL }
       }
-      const userEmail = convo.userEmail
       const guestName = text
-      // Create the in-progress Episode now so the user sees it on the web.
+      // Create the in-progress Episode now (without links yet) so the user
+      // sees it on the web straight away.
       const episode = await prisma.episode.create({
         data: {
           guestName,
-          createdByEmail: userEmail,
+          createdByEmail: convo.userEmail,
           status: 'researching',
-          currentStep: 2,
+          currentStep: 1,
         },
       })
       await prisma.whatsAppConversation.update({
         where: { phoneNumber },
         data: {
-          step: 'GENERATING',
+          step: 'AWAITING_GUEST_LINKS',
           guestName,
           episodeId: episode.id,
         },
       })
-      const episodeId = episode.id
+      return { immediate: askGuestLinks(guestName) }
+    }
 
+    case 'AWAITING_GUEST_LINKS': {
+      if (!convo.userEmail || !convo.guestName || !convo.episodeId) {
+        // Defensive: shouldn't happen, but reset cleanly.
+        await prisma.whatsAppConversation.update({
+          where: { phoneNumber },
+          data: { step: 'AWAITING_EMAIL' },
+        })
+        return { immediate: ASK_EMAIL }
+      }
+      const userEmail = convo.userEmail
+      const guestName = convo.guestName
+      const episodeId = convo.episodeId
+
+      const links = isSkip(text) ? {} : parseGuestLinks(text)
+      // Save whatever the user gave us onto the Episode so subsequent steps
+      // and the web UI can use them.
+      if (Object.keys(links).length) {
+        await prisma.episode.update({
+          where: { id: episodeId },
+          data: links,
+        })
+      }
+      await prisma.whatsAppConversation.update({
+        where: { phoneNumber },
+        data: { step: 'GENERATING' },
+      })
+
+      const linksLine = Object.keys(links).length
+        ? `Using ${Object.keys(links).length} link${Object.keys(links).length === 1 ? '' : 's'} you sent. `
+        : 'No links, going off the name alone. '
       return {
-        immediate: `On it. Researching ${guestName} now (web search + bio + fun facts). Give me up to 60 seconds.`,
+        immediate: `${linksLine}Researching ${guestName} now (web search + bio + fun facts). Give me up to 60 seconds.`,
         deferredJob: async () => {
           try {
             const { bio, funFacts } = await runFullGuestResearch({
@@ -195,7 +262,6 @@ export async function handleInboundMessage(
             )
           } catch (err) {
             console.error('WhatsApp research job failed:', err)
-            // Park them at the angle step anyway so the flow doesn't dead-end.
             await prisma.whatsAppConversation.update({
               where: { phoneNumber },
               data: { step: 'AWAITING_ANGLE' },
