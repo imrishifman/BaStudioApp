@@ -294,7 +294,7 @@ export function EpisodeWizard({ episode: initialEpisode, shows, userEmail, userP
         </AlertDialogContent>
       </AlertDialog>
 
-      {showReady && <EpisodeReadyOverlay onContinue={() => setShowReady(false)} />}
+      {showReady && <EpisodeReadyOverlay episode={episode} onContinue={() => setShowReady(false)} />}
     </div>
     </AILoadingProvider>
   )
