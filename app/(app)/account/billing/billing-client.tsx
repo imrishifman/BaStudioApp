@@ -78,8 +78,16 @@ export function BillingClient({ user }: { user: BillingUser | null }) {
       } catch {
         /* analytics is best-effort; never disrupt the billing page */
       } finally {
-        // Clean the conversion params out of the URL so a manual refresh or a
-        // shared link won't re-enter this flow.
+        // Deep-link return: if checkout carried a `next` path (e.g. the episode
+        // the user was upgrading to unlock), send them straight back there.
+        // Validated to a same-site relative path to avoid open-redirects.
+        const next = params.get('next')
+        if (next && /^\/(?!\/)/.test(next)) {
+          window.location.href = next
+          return
+        }
+        // Otherwise clean the conversion params out of the URL so a manual
+        // refresh or a shared link won't re-enter this flow.
         const url = new URL(window.location.href)
         url.searchParams.delete('success')
         url.searchParams.delete('session_id')

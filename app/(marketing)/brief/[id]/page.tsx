@@ -1,16 +1,32 @@
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import { GlassCard } from '@/components/common/GlassCard'
-import { Mic, Calendar, Clock, FileText } from 'lucide-react'
+import { Mic, Calendar, Clock, FileText, Lock } from 'lucide-react'
 import { resolveSections, normalizeGenerated, chosenQuestionTexts, DEFAULT_CLOSING_QUESTION } from '@/lib/questions'
+import { isPaidPlan } from '@/lib/plan-access'
 
 export default async function BriefPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const episode = await prisma.episode.findUnique({
     where: { id },
-    include: { show: true },
+    include: { show: true, createdBy: { select: { plan: true } } },
   })
   if (!episode) notFound()
+
+  // The public guest brief is a paid feature. If the episode's owner is on the
+  // free plan the link does not resolve into a brief, even if someone has the
+  // raw URL. This is the server-side counterpart to the share gate in Step 9.
+  if (!isPaidPlan(episode.createdBy?.plan)) {
+    return (
+      <div className="mx-auto flex max-w-md flex-col items-center gap-4 px-6 py-24 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ background: 'var(--bg-2)', border: '1px solid var(--line-1)' }}>
+          <Lock size={20} className="text-[var(--ink-3)]" />
+        </div>
+        <h1 className="display-sm text-[var(--ink-1)]">This brief isn&apos;t available</h1>
+        <p className="body text-[var(--ink-2)]">The link owner needs an active Ba Studio plan to share guest briefs.</p>
+      </div>
+    )
+  }
 
   const sections = [
     { icon: Mic, label: 'Show', value: episode.show?.name },

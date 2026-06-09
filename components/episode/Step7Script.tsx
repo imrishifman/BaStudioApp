@@ -13,15 +13,21 @@ import { useAILoading } from './AILoadingContext'
 import { postAI } from '@/lib/ai-client'
 import { downloadScriptDocx } from '@/lib/docx-export'
 import { useT } from '@/components/i18n/I18nProvider'
+import { UpgradeModal } from '@/components/common/UpgradeModal'
+import { isPaidPlan } from '@/lib/plan-access'
+import { trackPaywallViewed } from '@/lib/gtm'
 
 interface Props {
   episode: Episode | null; show: Show | null; shows: Show[]
   onNext: (patch?: Partial<Episode>) => Promise<void>; userEmail: string
+  userPlan?: string
 }
 
-export function Step7Script({ episode, onNext }: Props) {
+export function Step7Script({ episode, onNext, userPlan = 'free' }: Props) {
   const t = useT()
   const { runAI } = useAILoading()
+  const canDownload = isPaidPlan(userPlan)
+  const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [script, setScript] = useState(episode?.fullScript ?? '')
   const [loading, setLoading] = useState(false)
   const [instruction, setInstruction] = useState('')
@@ -87,6 +93,12 @@ export function Step7Script({ episode, onNext }: Props) {
 
   function exportDocx() {
     if (!script) return
+    // Free users see the button but hit the upgrade wall instead of a download.
+    if (!canDownload) {
+      trackPaywallViewed('export')
+      setUpgradeOpen(true)
+      return
+    }
     downloadScriptDocx(
       {
         title: `${episode?.guestName ?? 'Episode'}${t('episode.docxTitleSuffix')}`,
@@ -98,6 +110,12 @@ export function Step7Script({ episode, onNext }: Props) {
 
   return (
     <div className="space-y-6">
+      <UpgradeModal
+        open={upgradeOpen}
+        onOpenChange={setUpgradeOpen}
+        gate="export"
+        returnTo={episode?.id ? `/episodes/${episode.id}` : undefined}
+      />
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="eyebrow mb-1 text-[var(--ink-3)]">{t('episode.stepPrefix')}7{t('episode.of10')}</p>

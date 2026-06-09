@@ -154,6 +154,19 @@ export async function trackSignUp(args: {
   })
 }
 
+// Paywall gates. Fired when a free user hits an upgrade wall (export, share
+// link, share email, episode image) and when they click an upgrade CTA. These
+// flow through GTM to GA4 alongside the rest of the funnel.
+export type PaywallGate = 'export' | 'share_link' | 'share_email' | 'episode_image'
+
+export function trackPaywallViewed(gate: PaywallGate): void {
+  pushEvent('paywall_viewed', { gate })
+}
+
+export function trackPaywallUpgradeClicked(gate: PaywallGate): void {
+  pushEvent('paywall_upgrade_clicked', { gate })
+}
+
 export interface StartSubscriptionArgs {
   value: number
   currency: string

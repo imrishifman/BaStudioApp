@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
+import { blockFreePlan } from '@/lib/plan-access.server'
 
 export async function POST(req: Request) {
   const resend = new Resend(process.env.RESEND_API_KEY)
@@ -9,6 +10,10 @@ export async function POST(req: Request) {
 
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // Sharing the guest brief by email is a paid feature.
+  const gate = await blockFreePlan(session.user.email)
+  if (gate) return gate
 
   const { episodeId, guestEmail } = await req.json()
   if (!episodeId) return NextResponse.json({ error: 'episodeId required' }, { status: 400 })

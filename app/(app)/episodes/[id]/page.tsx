@@ -30,6 +30,7 @@ export default async function EpisodeDetailPage({ params }: { params: Promise<{ 
       episode={JSON.parse(JSON.stringify(episode))}
       shows={JSON.parse(JSON.stringify(shows))}
       userEmail={session.user.email}
+      userPlan={session.user.plan}
     />
   )
 }

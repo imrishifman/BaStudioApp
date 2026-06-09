@@ -23,6 +23,7 @@ export default async function NewEpisodePage() {
       episode={null}
       shows={JSON.parse(JSON.stringify(shows))}
       userEmail={session.user.email}
+      userPlan={session.user.plan}
       seenWizardIntro={user?.seenWizardIntro ?? false}
     />
   )

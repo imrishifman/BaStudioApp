@@ -16,11 +16,16 @@ export async function POST(req: Request) {
 
   try {
     ensureStripeConfigured()
-    const { plan, period } = (await req.json()) as {
+    const { plan, period, returnTo } = (await req.json()) as {
       plan: 'solo' | 'master'
       period: 'monthly' | 'annual'
+      returnTo?: string
     }
     if (!plan || !period) return NextResponse.json({ error: 'plan and period required' }, { status: 400 })
+    // Deep-link return: only accept a same-site relative path (starts with a
+    // single "/"), never an absolute URL, to avoid open-redirects.
+    const safeReturnTo =
+      typeof returnTo === 'string' && /^\/(?!\/)/.test(returnTo) ? returnTo : null
 
     const priceId = resolvePriceId(plan, period)
     if (!priceId) {
@@ -66,7 +71,13 @@ export async function POST(req: Request) {
     const params: import('stripe').Stripe.Checkout.SessionCreateParams = {
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${baseUrl}/account/billing?success=1&session_id={CHECKOUT_SESSION_ID}`,
+      // After payment land back where the user was (deep-link return) when a
+      // safe returnTo was supplied; otherwise the billing page. The
+      // start_subscription conversion still fires from the billing page, so we
+      // route through it either way and carry the deep link in `next`.
+      success_url: safeReturnTo
+        ? `${baseUrl}/account/billing?success=1&session_id={CHECKOUT_SESSION_ID}&next=${encodeURIComponent(safeReturnTo)}`
+        : `${baseUrl}/account/billing?success=1&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/pricing?canceled=1`,
       allow_promotion_codes: true,
       client_reference_id: user.id,
