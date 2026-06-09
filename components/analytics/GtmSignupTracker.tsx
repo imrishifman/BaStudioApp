@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
-import { trackSignUp } from '@/lib/gtm'
+import { trackSignUp, trackTrialStarted } from '@/lib/gtm'
 
 const COOKIE = 'ba_signup_method'
 
@@ -42,6 +42,8 @@ export function GtmSignupTracker() {
       userId: session?.user?.id,
       email: session?.user?.email ?? undefined,
     })
+    // Every new signup starts a 7-day reverse trial.
+    trackTrialStarted()
   }, [status, session])
 
   return null

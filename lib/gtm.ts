@@ -154,6 +154,22 @@ export async function trackSignUp(args: {
   })
 }
 
+// Reverse-trial lifecycle. trial_started fires at signup, trial_expired when
+// the expiry modal is shown, trial_converted_to_paid on a real Stripe payment
+// by someone who was on a trial (the conversion we care about). The day-5
+// email event is server-side only and is logged in the cron, not pushed here.
+export function trackTrialStarted(): void {
+  pushEvent('trial_started')
+}
+
+export function trackTrialExpired(): void {
+  pushEvent('trial_expired')
+}
+
+export function trackTrialConvertedToPaid(): void {
+  pushEvent('trial_converted_to_paid')
+}
+
 // Paywall gates. Fired when a free user hits an upgrade wall (export, share
 // link, share email, episode image) and when they click an upgrade CTA. These
 // flow through GTM to GA4 alongside the rest of the funnel.

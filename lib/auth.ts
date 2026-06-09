@@ -4,7 +4,8 @@ import Credentials from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { authConfig } from './auth.config'
-import { sendWelcomeEmail } from '@/lib/email/welcome'
+import { sendTrialWelcomeEmail } from '@/lib/email/trial'
+import { TRIAL_LENGTH_MS, effectivePlan, isTrialActive } from '@/lib/trial'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -47,12 +48,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         where: { email: user.email },
         select: { id: true },
       })
+      // New Google accounts start the same 7-day reverse trial as email
+      // signups. Existing users are untouched (update: {}).
       await prisma.user.upsert({
         where: { email: user.email },
         create: {
           email: user.email,
           fullName: user.name ?? undefined,
           image: user.image ?? undefined,
+          plan: 'solo',
+          planStatus: 'trialing',
+          planOverride: true,
+          trialEndsAt: new Date(Date.now() + TRIAL_LENGTH_MS),
+          subscriptionStart: new Date(),
         },
         update: {},
       })
@@ -71,14 +79,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         } catch (err) {
           console.error('Could not set signup cookie for new OAuth user:', err)
         }
-        // Welcome email for the brand-new Google account. Best-effort.
-        void sendWelcomeEmail({
-          to: user.email,
-          firstName: user.name?.split(' ')[0] ?? null,
-          // Fresh OAuth user has no saved language preference yet; default to
-          // English. The next-time login will respect the user's choice.
-          language: 'en',
-        })
+        // Day-0 trial welcome email for the brand-new Google account.
+        void sendTrialWelcomeEmail(user.email, user.name?.split(' ')[0] ?? null)
       }
       return true
     },
@@ -90,18 +92,36 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             id: true,
             email: true,
             plan: true,
+            planStatus: true,
+            planOverride: true,
+            trialEndsAt: true,
+            stripeSubscriptionId: true,
+            trialEndedNoticeShown: true,
             role: true,
             onboardingComplete: true,
             skippedDnaSetup: true,
           },
         })
         if (dbUser) {
+          const now = Date.now()
           session.user.id = dbUser.id
           session.user.email = dbUser.email
-          session.user.plan = dbUser.plan
+          // Enforce the EFFECTIVE plan: an expired-but-not-yet-downgraded trial
+          // reads as 'free' immediately, so gates revoke the instant the clock
+          // passes the end date (before the daily cron rewrites the row).
+          session.user.plan = effectivePlan(dbUser, now) as typeof dbUser.plan
           session.user.role = dbUser.role
           session.user.onboardingComplete = dbUser.onboardingComplete
           session.user.skippedDnaSetup = dbUser.skippedDnaSetup
+          session.user.trialEndsAt = dbUser.trialEndsAt ? dbUser.trialEndsAt.toISOString() : null
+          session.user.isTrialActive = isTrialActive(dbUser, now)
+          // Show the expiry modal exactly once: a trial existed, it's past its
+          // end, the effective plan is now free, and the notice is unseen.
+          session.user.showTrialEndedNotice =
+            !!dbUser.trialEndsAt &&
+            now > new Date(dbUser.trialEndsAt).getTime() &&
+            effectivePlan(dbUser, now) === 'free' &&
+            !dbUser.trialEndedNoticeShown
         }
       }
       return session

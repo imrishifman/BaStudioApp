@@ -12,6 +12,8 @@ export function UpgradeBanner() {
   const [dismissed, setDismissed] = useState(false)
 
   if (dismissed || !session?.user) return null
+  // During an active reverse trial the TrialBanner owns the top strip.
+  if (session.user.isTrialActive) return null
   if (canAccess(session.user, 'master')) return null
 
   const isFree = session.user.plan === 'free'

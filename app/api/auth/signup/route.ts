@@ -4,7 +4,8 @@ import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { findInfluencerByRefCode } from '@/lib/referrals'
-import { sendWelcomeEmail } from '@/lib/email/welcome'
+import { sendTrialWelcomeEmail } from '@/lib/email/trial'
+import { TRIAL_LENGTH_MS } from '@/lib/trial'
 
 const signupSchema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -39,21 +40,25 @@ export async function POST(req: Request) {
 
   const passwordHash = await bcrypt.hash(password, 12)
 
+  // Reverse trial: every new signup gets 7 days of full Pro, no card. Mapped
+  // onto the existing plan fields (see lib/trial.ts) so the paywall treats them
+  // as paid automatically. The daily cron downgrades them when the clock runs.
+  const trialEndsAt = new Date(Date.now() + TRIAL_LENGTH_MS)
   const newUser = await prisma.user.create({
     data: {
       email,
       passwordHash,
       fullName: fullName ?? null,
+      plan: 'solo',
+      planStatus: 'trialing',
+      planOverride: true,
+      trialEndsAt,
+      subscriptionStart: new Date(),
     },
   })
 
-  // Welcome email: best-effort, awaited but never throws. Resend's own retry
-  // logic handles transient failures.
-  void sendWelcomeEmail({
-    to: newUser.email,
-    firstName: newUser.fullName?.split(' ')[0] ?? null,
-    language: newUser.language,
-  })
+  // Day-0 trial welcome email (best-effort, never throws).
+  void sendTrialWelcomeEmail(newUser.email, newUser.fullName?.split(' ')[0] ?? null)
 
   // Attribute the new user to an influencer if a referral cookie is present
   // and active. Anti-self-referral: block when the new user's email matches

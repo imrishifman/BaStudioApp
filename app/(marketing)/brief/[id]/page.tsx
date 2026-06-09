@@ -4,19 +4,24 @@ import { GlassCard } from '@/components/common/GlassCard'
 import { Mic, Calendar, Clock, FileText, Lock } from 'lucide-react'
 import { resolveSections, normalizeGenerated, chosenQuestionTexts, DEFAULT_CLOSING_QUESTION } from '@/lib/questions'
 import { isPaidPlan } from '@/lib/plan-access'
+import { effectivePlan } from '@/lib/trial'
 
 export default async function BriefPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const episode = await prisma.episode.findUnique({
     where: { id },
-    include: { show: true, createdBy: { select: { plan: true } } },
+    include: {
+      show: true,
+      createdBy: { select: { plan: true, planStatus: true, planOverride: true, trialEndsAt: true, stripeSubscriptionId: true } },
+    },
   })
   if (!episode) notFound()
 
   // The public guest brief is a paid feature. If the episode's owner is on the
-  // free plan the link does not resolve into a brief, even if someone has the
-  // raw URL. This is the server-side counterpart to the share gate in Step 9.
-  if (!isPaidPlan(episode.createdBy?.plan)) {
+  // (effective) free plan the link does not resolve, even with the raw URL.
+  // Trial-aware so an expired trial's briefs lock immediately.
+  const ownerPlan = episode.createdBy ? effectivePlan(episode.createdBy, Date.now()) : 'free'
+  if (!isPaidPlan(ownerPlan)) {
     return (
       <div className="mx-auto flex max-w-md flex-col items-center gap-4 px-6 py-24 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ background: 'var(--bg-2)', border: '1px solid var(--line-1)' }}>

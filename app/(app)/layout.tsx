@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { Sidebar } from '@/components/app/Sidebar'
 import { MobileNav } from '@/components/app/MobileNav'
 import { UpgradeBanner } from '@/components/common/UpgradeBanner'
+import { TrialBanner, TrialEndedModal } from '@/components/common/TrialBanner'
 import { FirstStepReview } from '@/components/common/FirstStepReview'
 import { ConfirmProvider } from '@/components/common/ConfirmDialog'
 import { HelpVideoButton } from '@/components/onboarding/HelpVideoButton'
@@ -60,6 +61,7 @@ export default async function AppLayout({
           <Sidebar isPartner={isPartner} />
           <div className="flex flex-1 flex-col overflow-hidden">
             <MobileNav isPartner={isPartner} />
+            <TrialBanner />
             <UpgradeBanner />
             <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">
               {children}
@@ -67,6 +69,7 @@ export default async function AppLayout({
           </div>
           <FirstStepReview pendingMilestone={pendingMilestone} />
           <HelpVideoButton />
+          <TrialEndedModal />
         </div>
       </ConfirmProvider>
     </I18nProvider>

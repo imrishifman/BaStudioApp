@@ -61,6 +61,9 @@ export async function GET(req: Request) {
       // Prefer the email Stripe collected at checkout, fall back to the account
       // email. The raw value never leaves the browser unhashed.
       email: checkout.customer_details?.email ?? user.email ?? undefined,
+      // True when this paying user came from the reverse trial, so the client
+      // can fire the trial_converted_to_paid event (the conversion we track).
+      wasTrial: !!user.trialEndsAt,
     })
   } catch (err) {
     console.error('Stripe session lookup error:', err)

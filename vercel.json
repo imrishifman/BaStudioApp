@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/generate-marketing-emails",
       "schedule": "0 12 * * 0"
+    },
+    {
+      "path": "/api/cron/expire-trials",
+      "schedule": "0 13 * * *"
     }
   ]
 }

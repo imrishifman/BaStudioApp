@@ -13,6 +13,10 @@ declare module 'next-auth' {
       role: Role
       onboardingComplete: boolean
       skippedDnaSetup: boolean
+      // Reverse-trial fields surfaced for the trial banner + expiry modal.
+      trialEndsAt?: string | null
+      isTrialActive?: boolean
+      showTrialEndedNotice?: boolean
     }
   }
 }

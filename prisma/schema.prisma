@@ -206,6 +206,12 @@ model User {
   // Wizard Step 1 onboarding strip: false until the user dismisses the
   // "First time? Rewatch the demo" banner.
   seenWizardIntro            Boolean        @default(false)
+  // Reverse trial: set true once the "your trial ended" modal has been shown,
+  // so it appears exactly once after expiry.
+  trialEndedNoticeShown      Boolean        @default(false)
+  // Reverse trial: set true once the day-5 "2 days left" email has gone out,
+  // so the daily cron never sends it twice.
+  trialReminderSent          Boolean        @default(false)
   // UI + AI-output language preference ("en" default, "he" = Hebrew/RTL).
   language                   String         @default("en")
   emailConnected             Boolean        @default(false)

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { trackStartSubscription } from '@/lib/gtm'
+import { trackStartSubscription, trackTrialConvertedToPaid } from '@/lib/gtm'
 import { GlassCard } from '@/components/common/GlassCard'
 import { PillButton } from '@/components/common/PillButton'
 import { useConfirm } from '@/components/common/ConfirmDialog'
@@ -69,6 +69,8 @@ export function BillingClient({ user }: { user: BillingUser | null }) {
             userId: data.userId,
             email: data.email,
           })
+          // Conversion we care about: a trial user who actually paid.
+          if (data.wasTrial) trackTrialConvertedToPaid()
           try {
             sessionStorage.setItem(dedupeKey, '1')
           } catch {
