@@ -97,6 +97,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             trialEndsAt: true,
             stripeSubscriptionId: true,
             trialEndedNoticeShown: true,
+            trialWelcomeSeen: true,
             role: true,
             onboardingComplete: true,
             skippedDnaSetup: true,
@@ -115,6 +116,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           session.user.skippedDnaSetup = dbUser.skippedDnaSetup
           session.user.trialEndsAt = dbUser.trialEndsAt ? dbUser.trialEndsAt.toISOString() : null
           session.user.isTrialActive = isTrialActive(dbUser, now)
+          // First-sign-in "Claim your 7 days" prompt: active trial, not yet seen.
+          session.user.showTrialWelcome = isTrialActive(dbUser, now) && !dbUser.trialWelcomeSeen
           // Show the expiry modal exactly once: a trial existed, it's past its
           // end, the effective plan is now free, and the notice is unseen.
           session.user.showTrialEndedNotice =

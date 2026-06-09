@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { trackTrialExpired } from '@/lib/gtm'
+import { pushEvent } from '@/lib/gtm'
+import { Sparkles } from 'lucide-react'
 
 // Reverse-trial chrome: a persistent thin top banner while the trial is active,
 // and a one-time modal when it has ended. Both read flags computed in the auth
@@ -39,6 +41,82 @@ export function TrialBanner() {
       >
         Upgrade now
       </button>
+    </div>
+  )
+}
+
+// Shown once on the user's first sign-in while their trial is active. The trial
+// already started automatically at signup; this surfaces it as a celebratory
+// "claim your 7 days" moment. "Claim the offer" marks it seen and drops them
+// into creating their first episode.
+function daysLeftFrom(trialEndsAt: string): number {
+  return Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / 86_400_000))
+}
+
+export function TrialWelcomeModal() {
+  const { data: session } = useSession()
+  const router = useRouter()
+  const [open, setOpen] = useState(false)
+  const firedRef = useRef(false)
+
+  useEffect(() => {
+    if (session?.user?.showTrialWelcome && !firedRef.current) {
+      firedRef.current = true
+      setOpen(true)
+      pushEvent('trial_welcome_shown')
+    }
+  }, [session])
+
+  function markSeen() {
+    void fetch('/api/me', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trialWelcomeSeen: true }),
+    })
+  }
+
+  function claim() {
+    pushEvent('trial_offer_claimed')
+    markSeen()
+    setOpen(false)
+    router.push('/episodes/new')
+  }
+
+  if (!open) return null
+  const days = session?.user?.trialEndsAt ? daysLeftFrom(session.user.trialEndsAt) : 7
+
+  return (
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.6)' }}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl p-6 text-center"
+        style={{ background: 'var(--bg-2)', border: '1px solid var(--line-1)' }}
+      >
+        <div
+          className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full"
+          style={{ background: 'color-mix(in srgb, var(--accent-violet) 18%, transparent)' }}
+        >
+          <Sparkles size={22} style={{ color: 'var(--accent-violet)' }} />
+        </div>
+        <h2 className="display-sm text-[var(--ink-1)]">Your {days}-day Pro trial is ready</h2>
+        <p className="body mt-2 text-[var(--ink-2)]">
+          Full Pro is on us for {days} days, no card. Unlimited episodes, downloadable
+          scripts, and shareable guest briefs. Claim it and prep your first episode now.
+        </p>
+        <div className="mt-5 flex flex-col gap-2">
+          <button onClick={claim} className="pill-primary w-full justify-center">
+            Claim the offer
+          </button>
+          <button
+            onClick={() => { markSeen(); setOpen(false) }}
+            className="body-sm py-1 text-[var(--ink-3)] hover:text-[var(--ink-1)]"
+          >
+            Maybe later
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

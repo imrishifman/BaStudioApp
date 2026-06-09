@@ -212,6 +212,9 @@ model User {
   // Reverse trial: set true once the day-5 "2 days left" email has gone out,
   // so the daily cron never sends it twice.
   trialReminderSent          Boolean        @default(false)
+  // Reverse trial: set true once the first-sign-in "Claim your 7 days" modal
+  // has been shown, so it appears exactly once.
+  trialWelcomeSeen           Boolean        @default(false)
   // UI + AI-output language preference ("en" default, "he" = Hebrew/RTL).
   language                   String         @default("en")
   emailConnected             Boolean        @default(false)

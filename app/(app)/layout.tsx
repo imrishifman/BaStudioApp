@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { Sidebar } from '@/components/app/Sidebar'
 import { MobileNav } from '@/components/app/MobileNav'
 import { UpgradeBanner } from '@/components/common/UpgradeBanner'
-import { TrialBanner, TrialEndedModal } from '@/components/common/TrialBanner'
+import { TrialBanner, TrialEndedModal, TrialWelcomeModal } from '@/components/common/TrialBanner'
 import { FirstStepReview } from '@/components/common/FirstStepReview'
 import { ConfirmProvider } from '@/components/common/ConfirmDialog'
 import { HelpVideoButton } from '@/components/onboarding/HelpVideoButton'
@@ -70,6 +70,7 @@ export default async function AppLayout({
           <FirstStepReview pendingMilestone={pendingMilestone} />
           <HelpVideoButton />
           <TrialEndedModal />
+          <TrialWelcomeModal />
         </div>
       </ConfirmProvider>
     </I18nProvider>

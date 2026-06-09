@@ -17,6 +17,7 @@ declare module 'next-auth' {
       trialEndsAt?: string | null
       isTrialActive?: boolean
       showTrialEndedNotice?: boolean
+      showTrialWelcome?: boolean
     }
   }
 }

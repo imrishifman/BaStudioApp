@@ -12,6 +12,7 @@ const TravelingMicCanvas = dynamic(
   () => import('@/components/three/TravelingMicCanvas').then((m) => m.TravelingMicCanvas),
   { ssr: false }
 )
+import { LandingVideo } from '@/components/marketing/LandingVideo'
 import { DNASection } from '@/components/marketing/DNASection'
 import { Numbers } from '@/components/marketing/Numbers'
 import { Quotes } from '@/components/marketing/Quotes'
@@ -103,6 +104,8 @@ export default function LandingPage() {
         <Hero />
         <TheWayItWorks />
       </div>
+      {/* Demo video sits directly under "How it works". */}
+      <LandingVideo />
       <DNASection />
       <Numbers />
       <Quotes />
