@@ -14,7 +14,7 @@ export async function PATCH(req: Request) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const body = await req.json()
-  const allowed = ['fullName', 'hostName', 'showName', 'showDescription', 'targetAudience', 'brandColors', 'brandLogoUrl', 'brandAppName', 'notifyTeamOnAvailability', 'onboardingComplete', 'skippedDnaSetup', 'language']
+  const allowed = ['fullName', 'hostName', 'showName', 'showDescription', 'targetAudience', 'brandColors', 'brandLogoUrl', 'brandAppName', 'notifyTeamOnAvailability', 'onboardingComplete', 'skippedDnaSetup', 'language', 'seenWizardIntro']
   const patch: Record<string, unknown> = {}
   for (const key of allowed) { if (key in body) patch[key] = body[key] }
   // Only accept a supported language code; ignore anything else.

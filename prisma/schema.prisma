@@ -203,6 +203,9 @@ model User {
   googleCalendarRefreshToken String?
   skippedDnaSetup            Boolean        @default(false)
   onboardingComplete         Boolean        @default(false)
+  // Wizard Step 1 onboarding strip: false until the user dismisses the
+  // "First time? Rewatch the demo" banner.
+  seenWizardIntro            Boolean        @default(false)
   // UI + AI-output language preference ("en" default, "he" = Hebrew/RTL).
   language                   String         @default("en")
   emailConnected             Boolean        @default(false)

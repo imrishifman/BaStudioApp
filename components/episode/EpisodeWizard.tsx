@@ -32,6 +32,7 @@ interface Props {
   episode: Episode | null
   shows: Show[]
   userEmail: string
+  seenWizardIntro?: boolean
 }
 
 function buildSteps(show: Show | null) {
@@ -51,7 +52,7 @@ function buildSteps(show: Show | null) {
   return steps
 }
 
-export function EpisodeWizard({ episode: initialEpisode, shows, userEmail }: Props) {
+export function EpisodeWizard({ episode: initialEpisode, shows, userEmail, seenWizardIntro = false }: Props) {
   const router = useRouter()
   const t = useT()
   const [episode, setEpisode] = useState<Episode | null>(initialEpisode)
@@ -165,7 +166,7 @@ export function EpisodeWizard({ episode: initialEpisode, shows, userEmail }: Pro
   function renderStep() {
     const label = steps[currentStep - 1]?.label
     switch (label) {
-      case 'Guest': return <Step1GuestName {...stepProps} onEpisodeCreated={ep => setEpisode(ep)} />
+      case 'Guest': return <Step1GuestName {...stepProps} onEpisodeCreated={ep => setEpisode(ep)} seenWizardIntro={seenWizardIntro} />
       case 'Bio': return <Step2GuestBio {...stepProps} />
       case 'Focus': return <Step3Focus {...stepProps} />
       case 'Style': return <Step4Style {...stepProps} />

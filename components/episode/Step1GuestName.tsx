@@ -7,9 +7,10 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { PillButton } from '@/components/common/PillButton'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Sparkles, ArrowRight } from 'lucide-react'
+import { Sparkles, ArrowRight, Play, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useT } from '@/components/i18n/I18nProvider'
+import { OnboardingVideoModal } from '@/components/onboarding/OnboardingVideoModal'
 
 interface Props {
   episode: Episode | null
@@ -18,11 +19,27 @@ interface Props {
   onNext: (patch: Partial<Episode>) => Promise<void>
   onEpisodeCreated: (ep: Episode) => void
   userEmail: string
+  seenWizardIntro?: boolean
 }
 
-export function Step1GuestName({ episode, show, shows, onNext, onEpisodeCreated, userEmail }: Props) {
+export function Step1GuestName({ episode, show, shows, onNext, onEpisodeCreated, userEmail, seenWizardIntro = false }: Props) {
   const t = useT()
   const [guestName, setGuestName] = useState(episode?.guestName ?? '')
+  // "First time? Rewatch demo" strip. Persists dismissal to /api/me so future
+  // visits never show it again. Local state makes the dismiss feel instant.
+  const [introStripVisible, setIntroStripVisible] = useState(!seenWizardIntro)
+  const [introModalOpen, setIntroModalOpen] = useState(false)
+
+  function dismissIntroStrip() {
+    setIntroStripVisible(false)
+    // Fire-and-forget. If the network call fails the strip will reappear on
+    // the next visit, which is acceptable.
+    void fetch('/api/me', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ seenWizardIntro: true }),
+    })
+  }
   const [showId, setShowId] = useState(episode?.showId ?? shows[0]?.id ?? '')
   const [guestLinkedinUrl, setLinkedin] = useState(episode?.guestLinkedinUrl ?? '')
   const [guestTwitterUrl, setTwitter] = useState(episode?.guestTwitterUrl ?? '')
@@ -68,6 +85,34 @@ export function Step1GuestName({ episode, show, shows, onNext, onEpisodeCreated,
 
   return (
     <div className="space-y-6">
+      {/* First-time onboarding strip. A quiet offer, not a billboard. Persists
+          dismissal so it never reappears. */}
+      {introStripVisible && (
+        <div
+          className="flex items-center justify-between gap-3 rounded-xl px-4 py-2.5"
+          style={{ background: 'var(--bg-2)', border: '1px solid var(--line-1)' }}
+        >
+          <button
+            type="button"
+            onClick={() => setIntroModalOpen(true)}
+            className="body-sm flex items-center gap-2 text-[var(--ink-2)] hover:text-[var(--ink-1)]"
+          >
+            <span className="font-semibold text-[var(--ink-1)]">First time?</span>
+            <Play size={12} className="text-[var(--accent-violet)]" />
+            <span>Rewatch the demo</span>
+          </button>
+          <button
+            type="button"
+            onClick={dismissIntroStrip}
+            aria-label="Dismiss"
+            className="rounded-full p-1 text-[var(--ink-3)] hover:text-[var(--ink-1)]"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+      <OnboardingVideoModal open={introModalOpen} onOpenChange={setIntroModalOpen} />
+
       <div>
         <p className="eyebrow mb-1 text-[var(--ink-3)]">{t('episode.stepPrefix')}1{t('episode.of10')}</p>
         <h2 className="display-sm text-[var(--ink-1)]">{t('episode.s1Title')}</h2>
