@@ -6,6 +6,7 @@ import { MobileNav } from '@/components/app/MobileNav'
 import { UpgradeBanner } from '@/components/common/UpgradeBanner'
 import { FirstStepReview } from '@/components/common/FirstStepReview'
 import { ConfirmProvider } from '@/components/common/ConfirmDialog'
+import { HelpVideoButton } from '@/components/onboarding/HelpVideoButton'
 import { MILESTONE_KEYS, type MilestoneKey } from '@/lib/milestones'
 import { I18nProvider } from '@/components/i18n/I18nProvider'
 import { dirFor, normalizeLang } from '@/lib/i18n/config'
@@ -65,6 +66,7 @@ export default async function AppLayout({
             </main>
           </div>
           <FirstStepReview pendingMilestone={pendingMilestone} />
+          <HelpVideoButton />
         </div>
       </ConfirmProvider>
     </I18nProvider>
