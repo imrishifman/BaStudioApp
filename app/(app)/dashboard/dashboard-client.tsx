@@ -7,6 +7,7 @@ import type { Session } from 'next-auth'
 import { GlassCard } from '@/components/common/GlassCard'
 import { PillButton } from '@/components/common/PillButton'
 import { useConfirm } from '@/components/common/ConfirmDialog'
+import { DashboardOnboardingHero } from '@/components/onboarding/DashboardOnboardingHero'
 import { Plus, ChevronRight, Pencil, Trash2, X, Check as CheckIcon } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -134,8 +135,12 @@ export function DashboardClient({ episodes, sessionUser }: Props) {
         ))}
       </div>
 
-      {/* Episode grid */}
-      {filtered.length === 0 ? (
+      {/* Empty state: hero video onboarding when the user has truly zero
+          episodes; a simple "no matches" line when they have episodes but the
+          active/published filter excludes everything. */}
+      {episodes.length === 0 ? (
+        <DashboardOnboardingHero />
+      ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center gap-4 py-16 text-center">
           <p className="display-sm text-[var(--ink-1)]">{t('dashboard.noEpisodes')}</p>
           <p className="body text-[var(--ink-2)]">{t('dashboard.noEpisodesBody')}</p>
