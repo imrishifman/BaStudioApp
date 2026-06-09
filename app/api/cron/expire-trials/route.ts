@@ -13,8 +13,8 @@
 
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { trialDaysLeft } from '@/lib/trial'
 import { sendTrialReminderEmail, sendTrialExpiredEmail } from '@/lib/email/trial'
+import { sendServerGa4Event } from '@/lib/ga4-server'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -52,6 +52,8 @@ export async function GET(req: Request) {
     const ok = await sendTrialReminderEmail(u.email, u.fullName?.split(' ')[0] ?? null)
     if (ok) {
       await prisma.user.update({ where: { email: u.email }, data: { trialReminderSent: true } })
+      // Server-side GA4 event (no browser in the loop here).
+      await sendServerGa4Event('trial_day_5_email_sent', {}, u.email)
       reminded++
     }
   }
