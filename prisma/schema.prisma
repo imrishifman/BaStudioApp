@@ -683,3 +683,23 @@ enum WhatsAppStep {
   GENERATING
 }
 
+
+// One row per founder-outreach email send (and any reply later captured).
+// Written by /api/admin/outreach. Idempotent: a userId with status 'sent' is
+// never emailed again. Table created by migration create_outreach_log.
+model OutreachLog {
+  id        String    @id @default(cuid())
+  userId    String
+  email     String
+  variant   String // 'activated' | 'bounced'
+  status    String    @default("pending") // pending | sent | failed | skipped
+  sentAt    DateTime?
+  error     String?
+  resendId  String?
+  repliedAt DateTime?
+  replyText String?
+  createdAt DateTime  @default(now())
+
+  @@index([email])
+  @@index([userId])
+}
