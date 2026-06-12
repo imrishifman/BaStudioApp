@@ -122,14 +122,12 @@ export function AILoadingScreen({ progress, onCancel }: Props) {
       role="status"
       aria-live="polite"
     >
-      {/* Broadcast b in coral: the arcs pulse while the AI works (the logo is
-          "transmitting"). Animation lives in globals.css (.ba-broadcast) and is
-          disabled under prefers-reduced-motion. */}
+      {/* Broadcast b in coral, front and center: the arcs pulse while the AI
+          works (the logo is "transmitting"). Animation lives in globals.css
+          (.ba-broadcast) and is disabled under prefers-reduced-motion. */}
       <div className="ba-broadcast" style={{ color: BRAND_CORAL }}>
-        <BaMark size={56} />
+        <BaMark size={120} />
       </div>
-
-      <div className="ai-orb" style={done ? { animation: 'ai-orb-complete 0.45s ease-out forwards' } : undefined} />
 
       <div className="flex h-12 items-center">
         <p
