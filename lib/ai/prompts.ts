@@ -111,6 +111,15 @@ Return a single Markdown brief. Include ONLY the items below that you actually f
 - Hobbies, passions, interests outside their work
 - Verified social media and website links
 
+ENVIRONMENT RESEARCH (mandatory when direct information about the person is sparse):
+If the guest has a small public footprint, do NOT stop at the thin direct findings. Pivot and research their ENVIRONMENT with the same rigor, then add a section titled "## Environment and context" containing:
+- Their company or venture: what it actually does, who it serves, founding year, size, market, competitors, anything newsworthy. Search the company name directly.
+- Their industry and role: what someone in exactly this role at exactly this kind of company deals with day to day (concrete, not generic).
+- Their scene: city, country, community, or niche they operate in, and what is currently happening in it that touches their work.
+- Their public activity: topics they post about, who they engage with, events they appear at, even when no article was written about them.
+From this environment you may draw CONCLUSIONS about the guest, but each conclusion must be (a) explicitly anchored to a verifiable environment fact, and (b) phrased as grounded inference, for example: "As the founder of a podcast-production startup launched in 2022, he has lived through X" only if X is true of that market. These conclusions are interview fuel: likely experiences, likely opinions, tensions in their market worth asking about.
+NO FLUFF RULE for this section: every sentence must contain a concrete, checkable claim (a name, a number, a year, a real market dynamic). Forbidden: horoscope-style filler that fits anyone ("passionate about innovation", "values hard work", "wears many hats", "navigating a fast-moving industry"). If a sentence would be true of any founder anywhere, delete it.
+
 CRITICAL GUARDRAILS:
 - Research broadly. Combine the provided links (if any) with general web search.
 - Only include facts you can verify. If something is uncertain, omit it.
@@ -192,9 +201,11 @@ export function buildFunFactsInstruction(
   const specific = opts.specific
     ? ' Each fact must be highly specific and surprising - include names, numbers, or dates wherever possible.'
     : ''
-  return `Extract up to ${count} interesting and accurate facts about ${guestName} based ONLY on the research and host-provided context above. IMPORTANT: Only include facts explicitly supported by that material. Do not invent or infer.${specific}
+  return `Extract up to ${count} interesting and accurate facts about ${guestName} based ONLY on the research and host-provided context above. IMPORTANT: Only include facts explicitly supported by that material. Do not invent.${specific}
 
-CRITICAL: Each item must be a real fact ABOUT THE PERSON. NEVER output statements about the research process or missing information, for example "could not be verified", "not publicly available", "no public information", "direct access was not available", "web searches did not", "according to provided context", or anything describing what was or wasn't found. If there are fewer than ${count} real facts, return fewer. If there are none, return an empty array. An empty list is correct and acceptable; disclaimers are not.
+When direct facts about the person are scarce, facts about their immediate environment COUNT, as long as they are concrete and tied to the guest: their company and what it does, their market, their role, their city or scene, topics they publicly post about. Example shape: "His company X, founded in Y, builds Z". NO FLUFF: every fact must contain something checkable (a name, number, year, or specific activity). Never include a statement that would be true of anyone ("hard-working", "passionate about his field").
+
+CRITICAL: Each item must be a real fact about the person or their environment. NEVER output statements about the research process or missing information, for example "could not be verified", "not publicly available", "no public information", "direct access was not available", "web searches did not", "according to provided context", or anything describing what was or wasn't found. If there are fewer than ${count} real facts, return fewer. If there are none, return an empty array. An empty list is correct and acceptable; disclaimers are not.
 
 Return JSON exactly in this shape: { "facts": ["fact 1", "fact 2", ...] } with at most ${count} items (fewer or zero is fine).`
 }
