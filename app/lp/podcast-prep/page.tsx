@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
-import Image from 'next/image'
 import { LpCta } from './LpCta'
+import { BaLogo } from '@/components/brand/BaLogo'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { absoluteUrl } from '@/lib/site'
 import {
@@ -127,14 +127,7 @@ export default function PodcastPrepLandingPage() {
           borderBottom: '1px solid var(--line-1)',
         }}
       >
-        <Image
-          src="/logo.png"
-          alt="Ba Studio"
-          width={120}
-          height={28}
-          priority
-          style={{ height: 28, width: 'auto' }}
-        />
+        <BaLogo size={28} className="text-[var(--ink-1)]" />
         <LpCta className="pill-primary pill-primary-sm">Try Ba Studio Free</LpCta>
       </header>
 

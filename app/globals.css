@@ -160,12 +160,30 @@
   --sidebar-border: oklch(0 0 0 / 8%);
 }
 
-/* The brand logo is pure white; invert it to black on the light theme. */
-[data-theme='light'] .brand-logo {
-  filter: invert(1);
+/* ===================== AI loading screen ===================== */
+/* "Broadcast b" brand moment: the mark's two signal arcs pulse in a staggered
+   loop so the logo feels like it is transmitting while the AI works. */
+.ba-broadcast .ba-arc-1 {
+  animation: ba-arc-pulse-1 1.6s ease-in-out infinite;
+}
+.ba-broadcast .ba-arc-2 {
+  animation: ba-arc-pulse-2 1.6s ease-in-out 0.3s infinite;
+}
+@keyframes ba-arc-pulse-1 {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 0.2; }
+}
+@keyframes ba-arc-pulse-2 {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 0.15; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ba-broadcast .ba-arc-1,
+  .ba-broadcast .ba-arc-2 {
+    animation: none;
+  }
 }
 
-/* ===================== AI loading screen ===================== */
 .ai-orb {
   width: 92px;
   height: 92px;

@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import {
@@ -19,6 +18,7 @@ import {
   X,
 } from 'lucide-react'
 import { ThemeToggle } from '@/components/common/ThemeToggle'
+import { BaLogo } from '@/components/brand/BaLogo'
 import { useT } from '@/components/i18n/I18nProvider'
 
 const PRIMARY = [
@@ -49,15 +49,8 @@ export function MobileNav({ isPartner = false }: { isPartner?: boolean }) {
         className="sticky top-0 z-40 flex h-14 items-center px-4 lg:hidden"
         style={{ background: 'var(--bg-1)', borderBottom: '1px solid var(--line-1)' }}
       >
-        <Link href="/studio" className="no-underline">
-          <Image
-            src="/logo.png"
-            alt="Ba Studio"
-            width={140}
-            height={60}
-            priority
-            className="brand-logo h-6 w-auto"
-          />
+        <Link href="/studio" className="no-underline" aria-label="Ba Studio studio home">
+          <BaLogo size={24} className="text-[var(--ink-1)]" />
         </Link>
       </header>
 

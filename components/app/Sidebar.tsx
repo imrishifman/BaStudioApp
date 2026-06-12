@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import {
@@ -21,6 +20,7 @@ import {
 import { cn, initials } from '@/lib/utils'
 import { canAccess, isAdmin } from '@/lib/plan-gating'
 import { ThemeToggle } from '@/components/common/ThemeToggle'
+import { BaLogo } from '@/components/brand/BaLogo'
 import { useT } from '@/components/i18n/I18nProvider'
 import {
   DropdownMenu,
@@ -87,15 +87,9 @@ export function Sidebar({ isPartner = false }: { isPartner?: boolean }) {
         className="flex h-14 items-center px-4"
         style={{ borderBottom: '1px solid var(--line-1)' }}
       >
-        <Link href="/studio" className="no-underline">
-          <Image
-            src="/logo.png"
-            alt="Ba Studio"
-            width={140}
-            height={60}
-            priority
-            className="brand-logo h-7 w-auto"
-          />
+        <Link href="/studio" className="no-underline" aria-label="Ba Studio studio home">
+          {/* Coral mark; wordmark follows the sidebar's ink color in both themes. */}
+          <BaLogo size={28} className="text-[var(--ink-1)]" />
         </Link>
       </div>
 

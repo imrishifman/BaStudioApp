@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { useSession, signIn } from 'next-auth/react'
+import { BaLogo } from '@/components/brand/BaLogo'
 import { Menu, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { trackBeginSignup } from '@/lib/gtm'
@@ -51,16 +51,9 @@ export function MarketingNav() {
         className="mx-auto flex h-full max-w-[1240px] items-center justify-between"
         style={{ padding: '0 clamp(20px, 5vw, 80px)' }}
       >
-        {/* Wordmark */}
-        <Link href="/" className="no-underline">
-          <Image
-            src="/logo.png"
-            alt="Ba Studio"
-            width={160}
-            height={69}
-            priority
-            className="brand-logo h-7 w-auto md:h-8"
-          />
+        {/* Brand lockup: coral mark, wordmark inherits the theme ink color. */}
+        <Link href="/" className="no-underline" aria-label="Ba Studio home">
+          <BaLogo size={28} className="text-[var(--ink-1)]" />
         </Link>
 
         {/* Desktop nav */}

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Image from 'next/image'
+import { BaMark, BRAND_CORAL } from '@/components/brand/BaLogo'
 import { useT } from '@/components/i18n/I18nProvider'
 
 export type AIStep = 'research' | 'focus' | 'questions' | 'intro' | 'script'
@@ -122,14 +122,12 @@ export function AILoadingScreen({ progress, onCancel }: Props) {
       role="status"
       aria-live="polite"
     >
-      <Image
-        src="/logo.png"
-        alt="Ba Studio"
-        width={150}
-        height={64}
-        priority
-        className="brand-logo h-8 w-auto"
-      />
+      {/* Broadcast b in coral: the arcs pulse while the AI works (the logo is
+          "transmitting"). Animation lives in globals.css (.ba-broadcast) and is
+          disabled under prefers-reduced-motion. */}
+      <div className="ba-broadcast" style={{ color: BRAND_CORAL }}>
+        <BaMark size={56} />
+      </div>
 
       <div className="ai-orb" style={done ? { animation: 'ai-orb-complete 0.45s ease-out forwards' } : undefined} />
 
