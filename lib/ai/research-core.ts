@@ -23,6 +23,8 @@ import {
   languageDirective,
 } from '@/lib/ai/prompts'
 import { extractJson } from '@/lib/ai/json'
+import { cleanBio, cleanFacts, fallbackBio } from '@/lib/ai/sanitize'
+import { enrichFromLinks } from '@/lib/ai/enrich'
 import { ensureGuestFromEpisode } from '@/lib/guest-sync'
 
 interface RunArgs {
@@ -90,11 +92,14 @@ export async function runFullGuestResearch({ userEmail, guestName, episodeId }: 
 
   // ─── Phase 1: Gemini web-search research ────────────────────────────────
   const genai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY })
+  // Read the pasted LinkedIn directly (when a provider key is configured) so the
+  // brief is anchored to the REAL person, not a name-only guess. Fail-soft.
+  const knownBio = await enrichFromLinks(socialLinks)
   const researchPrompt = buildResearchPrompt({
     guestName,
     socialLinks,
-    knownBio: null,
-    extraContext: null,
+    knownBio,
+    extraContext: ep?.guestExtraContext ?? null,
     mode: 'initial',
     show: null,
     existingResearch: null,
@@ -130,7 +135,7 @@ export async function runFullGuestResearch({ userEmail, guestName, episodeId }: 
 
   // ─── Phase 2: Claude Haiku → bio + fun facts in parallel ───────────────
   const anthropic = new Anthropic()
-  const prefix = buildResearchPrefix(research, guestName)
+  const prefix = buildResearchPrefix(research, guestName, ep?.guestExtraContext ?? null)
   const [bioMsg, factsMsg] = await Promise.all([
     anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
@@ -156,10 +161,10 @@ export async function runFullGuestResearch({ userEmail, guestName, episodeId }: 
     }),
   ])
 
-  const bio = allText(bioMsg)
+  const bio = cleanBio(allText(bioMsg)) || fallbackBio(guestName, ep?.guestExtraContext ?? null)
   let funFacts: string[] = []
   try {
-    funFacts = extractJson<{ facts?: string[] }>(allText(factsMsg)).facts ?? []
+    funFacts = cleanFacts(extractJson<{ facts?: string[] }>(allText(factsMsg)).facts ?? [])
   } catch {
     funFacts = []
   }

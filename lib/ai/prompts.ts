@@ -100,26 +100,27 @@ GUEST NAME: "${guestName}"${linksBlock}${bioBlock}${ctxBlock}${dnaBlock}${custom
 
 Research broadly. Run multiple Google searches across news, official sites, podcasts, articles, Wikipedia, social media. If PROFILE LINKS are provided above, treat them as primary sources - especially LinkedIn, where you should pull role, employer, work history, education, and languages directly into the brief.
 
-Return a single Markdown brief that covers:
+Return a single Markdown brief. Include ONLY the items below that you actually find real, verifiable information for, and OMIT the rest entirely (do not write a heading just to say nothing was found):
 - Full name and current title/role
-- Professional background and full work history with dates (4-6 sentences)
+- Professional background and work history with dates
 - Key achievements, awards, or recognition
 - Recent projects, books, companies, or news (last 2-3 years)
 - Core areas of expertise and thought leadership topics
 - Personal journey: origin story, formative experiences, turning points
-- Family background (parents, upbringing, siblings, spouse/children) - only what is publicly known
+- Family background (only what is publicly known)
 - Hobbies, passions, interests outside their work
 - Verified social media and website links
-- General web research that confirms this is the right person
 
 CRITICAL GUARDRAILS:
-- Research broadly. Combine LinkedIn (if provided) with general web search.
-- Extract LinkedIn content directly: role, employer, work history with dates, education, languages.
+- Research broadly. Combine the provided links (if any) with general web search.
 - Only include facts you can verify. If something is uncertain, omit it.
 - Do not fabricate achievements, dates, or quotes.
-- WRITING STYLE: never use em-dashes (-) in the output. Use hyphens, commas, or periods. Never apologize for missing information; just write what you found, even if it's brief.
+- OMIT, do not narrate, gaps. If you have nothing verified for a section, leave that section out completely. NEVER write filler such as "could not be verified", "not publicly available", "no information found", or "no recent news".
+- NEVER describe your own process or limitations. Do not say you cannot access or browse the links, that "direct access was not available", or that searches returned nothing. Simply present what you DID find from Google's index plus the host-provided context. If you found very little, a two-line brief is fine.
+- IDENTITY / ANTI-CONFLATION: The provided profile links and the host-provided context define exactly WHO this guest is. If web results surface a DIFFERENT person, or a different (even similar-sounding) company, do NOT attribute their facts, founders, history, or industry to this guest. When the host context names a company or role, trust it over a similarly-named entity you found in search. If you cannot confirm two results are the same person, leave it out rather than merging them. Better to say less than to describe the wrong person or company.
+- WRITING STYLE: never use em-dashes (-) in the output. Use hyphens, commas, or periods.
 
-Return the brief text only, no preamble.`
+Return the brief text only, no preamble. No apologies, no meta-commentary.`
   }
 
   // DEEP pass - find ONLY new info across the 12 categories.
@@ -157,8 +158,11 @@ Return the new findings only, as Markdown with one section per category that has
 // either a punchier regeneration or a richer 4-5 sentence "expanded bio".
 // Cacheable research prefix - kept byte-identical across bio + facts derive
 // calls so Anthropic's ephemeral prompt cache produces a hit on the 2nd call.
-export function buildResearchPrefix(research: string, guestName: string): string {
-  return `Guest: ${guestName}\n\nResearch (use ONLY this as ground truth):\n${research}`
+export function buildResearchPrefix(research: string, guestName: string, extraContext?: string | null): string {
+  const ctx = extraContext?.trim()
+    ? `\n\nHost-provided context about this guest (the host personally knows who this is; treat it as TRUE and use it to anchor the person's identity, especially their company/role):\n${extraContext.trim()}`
+    : ''
+  return `Guest: ${guestName}${ctx}\n\nResearch (use ONLY this and the host-provided context above as ground truth):\n${research}`
 }
 
 // Bio instruction without the research blob - paired with buildResearchPrefix
@@ -188,7 +192,11 @@ export function buildFunFactsInstruction(
   const specific = opts.specific
     ? ' Each fact must be highly specific and surprising - include names, numbers, or dates wherever possible.'
     : ''
-  return `Extract ${count} interesting and accurate facts about ${guestName} based ONLY on the research above. IMPORTANT: Only include facts explicitly supported by the research. Do not invent or infer.${specific}\n\nReturn JSON exactly in this shape: { "facts": ["fact 1", "fact 2", ...] } with ${count} items.`
+  return `Extract up to ${count} interesting and accurate facts about ${guestName} based ONLY on the research and host-provided context above. IMPORTANT: Only include facts explicitly supported by that material. Do not invent or infer.${specific}
+
+CRITICAL: Each item must be a real fact ABOUT THE PERSON. NEVER output statements about the research process or missing information, for example "could not be verified", "not publicly available", "no public information", "direct access was not available", "web searches did not", "according to provided context", or anything describing what was or wasn't found. If there are fewer than ${count} real facts, return fewer. If there are none, return an empty array. An empty list is correct and acceptable; disclaimers are not.
+
+Return JSON exactly in this shape: { "facts": ["fact 1", "fact 2", ...] } with at most ${count} items (fewer or zero is fine).`
 }
 
 export function buildBioPrompt(

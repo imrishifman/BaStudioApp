@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import type { Episode, Show } from '@prisma/client'
 import { PillButton } from '@/components/common/PillButton'
 import { GlassCard } from '@/components/common/GlassCard'
@@ -24,11 +25,18 @@ interface Props {
 
 export function Step2GuestBio({ episode, onNext, onGoToStep, onEpisodeChange }: Props) {
   const t = useT()
+  const router = useRouter()
   const { runAI } = useAILoading()
   const confirm = useConfirm()
   const [bio, setBio] = useState(episode?.guestBio ?? '')
   const [research, setResearch] = useState(episode?.guestResearch ?? '')
   const [funFacts, setFunFacts] = useState<string[]>((episode?.funFacts as string[]) ?? [])
+  // True when the guest has a very small public footprint, so we show an honest
+  // "limited info, add sources" note above the (still editable) result.
+  const [thin, setThin] = useState(false)
+  // True when research was blocked by the plan's monthly research limit, so we
+  // show a clear upgrade note instead of the misleading "not enough sources" card.
+  const [limitReached, setLimitReached] = useState(false)
   const [loading, setLoading] = useState(false)
   const [regenLoading, setRegenLoading] = useState(false)
   const [showResearch, setShowResearch] = useState(false)
@@ -44,6 +52,7 @@ export function Step2GuestBio({ episode, onNext, onGoToStep, onEpisodeChange }: 
   async function runResearch(mode: 'initial' | 'deep') {
     if (!episode?.id) return
     setLoading(true)
+    setLimitReached(false)
     try {
       // Split into two phases so each Vercel function call fits in 60s:
       //   1) research (web search) → saves guestResearch
@@ -56,7 +65,7 @@ export function Step2GuestBio({ episode, onNext, onGoToStep, onEpisodeChange }: 
           mode,
           phase: 'research',
         }, signal)
-        const d = await postAI<{ bio?: string; funFacts?: string[] }>('/api/ai/research', {
+        const d = await postAI<{ bio?: string; funFacts?: string[]; thin?: boolean }>('/api/ai/research', {
           episodeId: episode.id,
           guestName: episode.guestName,
           mode,
@@ -72,10 +81,18 @@ export function Step2GuestBio({ episode, onNext, onGoToStep, onEpisodeChange }: 
       setBio(data.bio ?? bio)
       setResearch(data.research ?? research)
       if (data.funFacts) setFunFacts(data.funFacts)
+      setThin(!!data.thin)
       if (mode === 'deep') setDeepDone(true)
     } catch (err) {
-      if ((err as Error)?.name !== 'AbortError') {
-        toast.error(err instanceof Error ? err.message : t('episode.researchFailed'))
+      if ((err as Error)?.name === 'AbortError') return
+      // The monthly research limit returns 403 with a "limit reached" message.
+      // Show a dedicated upgrade card rather than a misleading "no results" state.
+      const status = (err as { status?: number })?.status
+      const msg = err instanceof Error ? err.message : ''
+      if (status === 403 || /limit/i.test(msg)) {
+        setLimitReached(true)
+      } else {
+        toast.error(msg || t('episode.researchFailed'))
       }
     } finally {
       setLoading(false)
@@ -151,6 +168,19 @@ export function Step2GuestBio({ episode, onNext, onGoToStep, onEpisodeChange }: 
           <div className="h-10 w-10 animate-spin rounded-full border-2 border-[var(--line-2)] border-t-[var(--accent-violet)]" />
           <p className="body text-[var(--ink-2)]">{t('episode.researchingPrefix')}{episode?.guestName}{t('episode.ellipsis')}</p>
         </GlassCard>
+      ) : limitReached ? (
+        // The plan's monthly research limit was hit. Show a clear upgrade prompt
+        // rather than letting the research silently fail (which read like a bug).
+        <GlassCard className="flex flex-col items-center gap-4 p-10 text-center">
+          <Sparkles size={30} className="text-[var(--accent-violet)]" />
+          <div>
+            <p className="body font-semibold text-[var(--ink-1)]">{t('episode.researchLimitTitle')}</p>
+            <p className="body-sm mt-1 text-[var(--ink-2)]">{t('episode.researchLimitBody')}</p>
+          </div>
+          <PillButton onClick={() => router.push('/pricing')}>
+            {t('episode.researchLimitCta')} <ArrowRight size={14} />
+          </PillButton>
+        </GlassCard>
       ) : !hasResults ? (
         // No usable research came back — almost always too few sources to pin
         // down the right person. Send them back to Step 1 to add more.
@@ -175,6 +205,27 @@ export function Step2GuestBio({ episode, onNext, onGoToStep, onEpisodeChange }: 
         </GlassCard>
       ) : (
         <div className="space-y-4">
+          {thin && (
+            // Honest low-confidence note: we found little public info, so the
+            // result leans on the host's own context. Nudge them to add sources.
+            <div
+              className="flex items-start gap-2 rounded-xl p-3"
+              style={{ background: 'rgba(255,176,32,0.08)', border: '1px solid rgba(255,176,32,0.25)' }}
+            >
+              <SearchX size={16} className="mt-0.5 shrink-0" style={{ color: 'var(--warning)' }} />
+              <p className="body-sm text-[var(--ink-2)]">
+                {t('episode.thinResultsNote')}
+                {onGoToStep && (
+                  <>
+                    {' '}
+                    <button onClick={() => onGoToStep(1)} className="font-semibold text-[var(--ink-1)] underline">
+                      {t('episode.addMoreSources')}
+                    </button>
+                  </>
+                )}
+              </p>
+            </div>
+          )}
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <label className="body-sm text-[var(--ink-2)]">{t('episode.quickBio')}</label>

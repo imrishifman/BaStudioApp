@@ -12,6 +12,8 @@ import {
   languageDirective,
 } from '@/lib/ai/prompts'
 import { extractJson, aiErrorMessage } from '@/lib/ai/json'
+import { cleanBio, cleanFacts, fallbackBio } from '@/lib/ai/sanitize'
+import { enrichFromLinks } from '@/lib/ai/enrich'
 import { ensureGuestFromEpisode } from '@/lib/guest-sync'
 
 // Each phase is its own serverless invocation, so each call fits in 60s even
@@ -81,7 +83,7 @@ export async function POST(req: Request) {
         max_tokens: 400,
         messages: [{ role: 'user', content: buildBioPrompt(existing, guestName, show, { punchy: true }) + langSuffix }],
       })
-      const bio = allText(bioMsg)
+      const bio = cleanBio(allText(bioMsg)) || fallbackBio(guestName, extraContext)
       if (episodeId) await prisma.episode.updateMany({ where: { id: episodeId, createdByEmail: session.user.email }, data: { guestBio: bio } })
       return NextResponse.json({ bio })
     }
@@ -93,7 +95,7 @@ export async function POST(req: Request) {
       const isDeep = mode === 'deep'
       // Cached prefix is byte-identical across both parallel calls so the
       // second hits Anthropic's ephemeral cache (~90% cheaper input read).
-      const prefix = buildResearchPrefix(research, guestName)
+      const prefix = buildResearchPrefix(research, guestName, extraContext)
       const [bioMsg, factsMsg] = await Promise.all([
         anthropic.messages.create({
           model: 'claude-haiku-4-5-20251001',
@@ -118,16 +120,22 @@ export async function POST(req: Request) {
           }],
         }),
       ])
-      const bio = allText(bioMsg)
+      const bioFromModel = cleanBio(allText(bioMsg))
+      const bio = bioFromModel || fallbackBio(guestName, extraContext)
       let funFacts: string[] = []
       try {
-        funFacts = extractJson<{ facts?: string[] }>(allText(factsMsg)).facts ?? []
+        funFacts = cleanFacts(extractJson<{ facts?: string[] }>(allText(factsMsg)).facts ?? [])
       } catch { funFacts = [] }
+      // "Thin" = the public footprint was so small that no real facts survived
+      // or the model could not write a grounded bio (we fell back to host
+      // context). The UI uses this to show an honest "limited info" note instead
+      // of presenting a sparse result as if it were complete.
+      const thin = funFacts.length === 0 || !bioFromModel
       if (episodeId) {
         const updated = await prisma.episode.update({ where: { id: episodeId }, data: { guestBio: bio, funFacts } })
         await ensureGuestFromEpisode(session.user.email, updated)
       }
-      return NextResponse.json({ bio, funFacts })
+      return NextResponse.json({ bio, funFacts, thin })
     }
 
     // ── Phase 'research' (default): web-search research via Gemini 2.5 Flash ──
@@ -141,10 +149,13 @@ export async function POST(req: Request) {
       throw new Error('GOOGLE_API_KEY is not configured')
     }
     const genai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY })
+    // Read the pasted LinkedIn directly (when a provider key is configured) so
+    // the brief is anchored to the REAL person, not a name-only guess. Fail-soft.
+    const knownBio = !isDeep ? await enrichFromLinks(socialLinks) : null
     const researchPrompt = buildResearchPrompt({
       guestName,
       socialLinks,
-      knownBio: null,
+      knownBio,
       extraContext,
       mode,
       show,

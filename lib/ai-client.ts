@@ -28,6 +28,10 @@ export async function postAI<T = unknown>(
   }
 
   const err = (data as { error?: string })?.error
-  if (!res.ok || err) throw new Error(err ?? `Request failed (${res.status})`)
+  if (!res.ok || err) {
+    const error = new Error(err ?? `Request failed (${res.status})`) as Error & { status?: number }
+    error.status = res.status
+    throw error
+  }
   return data as T
 }
