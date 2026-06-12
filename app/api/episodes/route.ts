@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ensureGuestFromEpisode } from '@/lib/guest-sync'
+import { normalisePlan, maxEpisodesPerMonth } from '@/lib/plan-gating'
+import { effectivePlan } from '@/lib/trial'
+import { isAdmin } from '@/lib/admin'
 
 export async function GET() {
   const session = await auth()
@@ -17,6 +20,26 @@ export async function GET() {
 export async function POST(req: Request) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // Server-side monthly creation cap (the wizard gates at the door too; this
+  // makes the limit unbypassable). Trial users get their trial plan's quota;
+  // admins are never capped.
+  if (!isAdmin(session.user.email)) {
+    const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+    const [user, monthlyCount] = await Promise.all([
+      prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { plan: true, planStatus: true, planOverride: true, trialEndsAt: true },
+      }),
+      prisma.episode.count({
+        where: { createdByEmail: session.user.email, createdAt: { gte: firstOfMonth } },
+      }),
+    ])
+    const plan = normalisePlan(user ? effectivePlan(user, Date.now()) : 'free')
+    if (monthlyCount >= maxEpisodesPerMonth(plan)) {
+      return NextResponse.json({ error: 'episode_limit_reached' }, { status: 403 })
+    }
+  }
 
   const body = await req.json()
   const episode = await prisma.episode.create({
