@@ -30,7 +30,9 @@ export function emailLayout({ preheader, body, footerExtra, dir = 'ltr' }: Layou
           <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#16161d;border:1px solid #26262f;border-radius:18px;overflow:hidden;">
             <tr>
               <td style="padding:28px 32px 8px 32px;text-align:${align};">
-                <a href="${SITE_URL}" style="color:#eaeaf0;text-decoration:none;font-weight:700;letter-spacing:0.02em;font-size:18px;">Ba Studio</a>
+                <a href="${SITE_URL}" style="text-decoration:none;">
+                  <img src="${SITE_URL}/logo-dark.png" alt="ba studio" width="122" height="25" style="display:inline-block;border:0;outline:none;" />
+                </a>
               </td>
             </tr>
             <tr>
