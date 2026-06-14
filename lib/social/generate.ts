@@ -13,7 +13,9 @@ Positioning: BaStudio stands for readiness. Tagline "Walk in knowing." Pillars: 
 HARD RULES:
 - NEVER use em dashes or en dashes anywhere. Use commas, periods, or rewrite.
 - coralPhrase MUST be an exact, contiguous substring of headline (one short phrase, 1-3 words) that is the emotional peak. Emphasis is created by coloring that one phrase, never bold or underline.
-- headline: punchy, 3 to 7 words, Space Grotesk display. subline: one supporting line.
+- MINIMALISM IS THE RULE: the image shows the headline as the HERO in a huge font, with very little other text. The reader should get the message in one glance.
+- headline: SHORT and punchy, ideally 3 to 6 words (hard max ~7) so it renders big and bold. This is the single most important line.
+- subline: ONE short secondary line only (or omit if the headline says it all). Never stack multiple lines of supporting text.
 - caption: 2 to 4 short paragraphs, ending with a soft CTA like "Start free. Link in bio." No em dashes.
 - ctaVerb: a short unique action phrase for the button (e.g. "Try it free", "Get the brief", "See the questions"). Do not reuse the tagline.
 - hashtags: 10 to 14, space-separated, podcasting-relevant.

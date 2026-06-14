@@ -59,10 +59,18 @@ function headlineNode(spec: PostSpec, p: ReturnType<typeof palette>): VNode {
       flexWrap: 'wrap',
       fontFamily: 'Space Grotesk',
       fontWeight: 700,
-      fontSize: 84,
-      lineHeight: 1.08,
-      letterSpacing: -2.5,
-      marginTop: 24,
+      // Headline is the hero: scale it up, bigger when the line is shorter.
+      fontSize:
+        spec.headline.length <= 16
+          ? 132
+          : spec.headline.length <= 28
+            ? 112
+            : spec.headline.length <= 42
+              ? 94
+              : 80,
+      lineHeight: 1.04,
+      letterSpacing: -3,
+      marginTop: 28,
     },
     words,
   )
@@ -223,8 +231,7 @@ function tree(spec: PostSpec): VNode {
       el('div', { fontFamily: 'Space Grotesk', fontWeight: 500, fontSize: 42, letterSpacing: -0.5, color: p.slate, marginTop: 26, maxWidth: 936 }, spec.subline),
       // diagram (grows to fill)
       diagramNode(spec.diagram, p),
-      // caption
-      el('div', { fontFamily: 'Inter', fontWeight: 500, fontSize: 26, color: p.slate, maxWidth: 900 }, spec.caption.split('\n')[0]),
+      // (no caption on the image — it goes in the Instagram post text. Keep the image minimal.)
       // CTA pill
       el('div', { display: 'flex', alignSelf: 'center', marginTop: 28, backgroundColor: p.pillBg, borderRadius: 999, paddingTop: 22, paddingBottom: 22, paddingLeft: 48, paddingRight: 48 }, [
         el('div', { fontFamily: 'Inter', fontWeight: 600, fontSize: 26, color: p.pillText }, `${spec.ctaVerb} · bastudiopodcast.com`),
