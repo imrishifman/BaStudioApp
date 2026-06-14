@@ -5,6 +5,7 @@
 
 import satori from 'satori'
 import { Resvg } from '@resvg/resvg-js'
+import sharp from 'sharp'
 import { getFonts } from './fonts'
 import { TOKENS, broadcastBSvg, svgDataUri } from './brand'
 import type { PostSpec, DiagramSpec } from './types'
@@ -240,5 +241,7 @@ export async function renderPost(spec: PostSpec): Promise<Buffer> {
     fonts: fonts as never,
   })
   const resvg = new Resvg(svg, { fitTo: { mode: 'width', value: 1080 } })
-  return Buffer.from(resvg.render().asPng())
+  const png = Buffer.from(resvg.render().asPng())
+  // Instagram's content-publishing API requires JPEG, so convert before upload.
+  return sharp(png).jpeg({ quality: 90 }).toBuffer()
 }

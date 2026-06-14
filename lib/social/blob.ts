@@ -8,11 +8,11 @@ export async function uploadPostImage(buffer: Buffer, slug: string): Promise<str
     throw new Error('BLOB_READ_WRITE_TOKEN not configured')
   }
   const safe = slug.replace(/[^a-z0-9-]+/gi, '-').toLowerCase().slice(0, 60)
-  const blob = await put(`social/${safe}.png`, buffer, {
+  const blob = await put(`social/${safe}.jpg`, buffer, {
     access: 'public',
     token,
     addRandomSuffix: true,
-    contentType: 'image/png',
+    contentType: 'image/jpeg',
   })
   return blob.url
 }

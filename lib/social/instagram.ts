@@ -109,9 +109,29 @@ async function graphPost(path: string, body: Record<string, string>) {
   })
   const data = (await res.json()) as { id?: string; error?: unknown }
   if (!res.ok || !data.id) {
-    throw new InstagramError(`Graph POST ${path} failed`, data.error ?? data)
+    throw new InstagramError(
+      `Graph POST ${path} failed: ${JSON.stringify(data.error ?? data)}`,
+      data.error ?? data,
+    )
   }
   return data.id
+}
+
+// Image containers are usually ready instantly, but publishing too fast can
+// return a transient error. Poll the container status until FINISHED.
+async function waitForContainer(creationId: string, maxTries = 10): Promise<void> {
+  const token = await getAccessToken()
+  for (let i = 0; i < maxTries; i++) {
+    const res = await fetch(
+      `${GRAPH}/${VERSION}/${creationId}?fields=status_code,status&access_token=${encodeURIComponent(token)}`,
+    )
+    const data = (await res.json()) as { status_code?: string; status?: string }
+    if (data.status_code === 'FINISHED') return
+    if (data.status_code === 'ERROR') {
+      throw new InstagramError(`Media container failed processing: ${data.status ?? 'unknown'}`)
+    }
+    await new Promise((r) => setTimeout(r, 2000))
+  }
 }
 
 async function getPermalink(mediaId: string): Promise<string | null> {
@@ -153,6 +173,8 @@ export async function publishImage(
     image_url: input.imageUrl,
     caption: fullCaption,
   })
+  // Wait for Instagram to finish ingesting the image before publishing.
+  await waitForContainer(creationId)
   const mediaId = await graphPost(`${IG_BUSINESS_ACCOUNT_ID}/media_publish`, {
     creation_id: creationId,
   })
