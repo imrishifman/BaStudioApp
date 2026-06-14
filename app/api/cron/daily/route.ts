@@ -49,6 +49,21 @@ export async function GET(req: Request) {
   if (day === 0) {
     results.marketingGenerate = await run('/api/cron/generate-marketing-emails')
   }
+  // Daily, but the endpoint self-skips unless the IG token is within 20 days of
+  // expiry, so this is a cheap no-op most days.
+  results.igToken = await run('/api/cron/refresh-ig-token')
+
+  // Social auto-poster:
+  //   Sunday      -> generate next week's posts (emails Imri for approval)
+  //   every day   -> publish any APPROVED posts that are due
+  //   Monday      -> weekly recap email
+  if (day === 0) {
+    results.socialGenerate = await run('/api/social/generate')
+  }
+  results.socialPublish = await run('/api/social/publish')
+  if (day === 1) {
+    results.socialReport = await run('/api/social/report')
+  }
 
   return NextResponse.json({ ok: true, day, results })
 }
