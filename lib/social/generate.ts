@@ -2,7 +2,7 @@
 // Output is validated/sanitized before it ever reaches the renderer.
 
 import Anthropic from '@anthropic-ai/sdk'
-import type { PostSpec, DiagramType } from './types'
+import type { PostSpec, DiagramType, DiagramSpec } from './types'
 
 const DIAGRAMS: DiagramType[] = ['signal', 'stat', 'comparison', 'numbered_rows', 'dots', 'card']
 
@@ -31,8 +31,17 @@ DIAGRAM (visual of the claim). Pick the type that fits the hook and fill only it
 Return ONLY a JSON array of post objects, no prose. Each object:
 {"hookType","bg","eyebrow","headline","coralPhrase","subline","caption","hashtags","ctaVerb","diagram":{"type",...fields}}`
 
-interface RawSpec extends Partial<PostSpec> {
-  diagram?: Partial<PostSpec['diagram']>
+type RawSpec = {
+  hookType?: string
+  bg?: string
+  eyebrow?: string
+  headline?: string
+  coralPhrase?: string
+  subline?: string
+  caption?: string
+  hashtags?: string
+  ctaVerb?: string
+  diagram?: Partial<DiagramSpec>
 }
 
 function stripDashes(s: string): string {
@@ -44,7 +53,7 @@ function sanitize(raw: RawSpec): PostSpec | null {
   const headline = stripDashes(String(raw.headline)).trim()
   let coralPhrase = stripDashes(String(raw.coralPhrase ?? '')).trim()
   if (coralPhrase && !headline.includes(coralPhrase)) coralPhrase = '' // never color a phrase that is not in the headline
-  const type = DIAGRAMS.includes(raw.diagram.type as DiagramType)
+  const type: DiagramType = DIAGRAMS.includes(raw.diagram.type as DiagramType)
     ? (raw.diagram.type as DiagramType)
     : 'signal'
   return {
@@ -84,10 +93,7 @@ export async function generatePostSpecs(
       },
     ],
   })
-  const text = msg.content
-    .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
-    .map((b) => b.text)
-    .join('')
+  const text = msg.content.map((b) => (b.type === 'text' ? b.text : '')).join('')
   const arr = extractJsonArray(text)
   return arr.map((r) => sanitize(r as RawSpec)).filter((s): s is PostSpec => s !== null)
 }
