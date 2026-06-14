@@ -53,17 +53,9 @@ export async function GET(req: Request) {
   // expiry, so this is a cheap no-op most days.
   results.igToken = await run('/api/cron/refresh-ig-token')
 
-  // Social auto-poster:
-  //   Sunday      -> generate next week's posts (emails Imri for approval)
-  //   every day   -> publish any APPROVED posts that are due
-  //   Monday      -> weekly recap email
-  if (day === 0) {
-    results.socialGenerate = await run('/api/social/generate')
-  }
-  results.socialPublish = await run('/api/social/publish')
-  if (day === 1) {
-    results.socialReport = await run('/api/social/report')
-  }
+  // NOTE: the social auto-poster (generate / publish / report) runs on its own
+  // cron at /api/cron/social (17:00 UTC = 1 PM New York), not here, so the
+  // posting time is independent of these 13:00 UTC jobs.
 
   return NextResponse.json({ ok: true, day, results })
 }
