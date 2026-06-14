@@ -59,18 +59,21 @@ function headlineNode(spec: PostSpec, p: ReturnType<typeof palette>): VNode {
       flexWrap: 'wrap',
       fontFamily: 'Space Grotesk',
       fontWeight: 700,
-      // Headline is the hero: scale it up, bigger when the line is shorter.
+      // For stat posts the BIG NUMBER is the hero, so the headline steps back to
+      // a supporting line. Otherwise the headline is the hero, scaled by length.
       fontSize:
-        spec.headline.length <= 16
-          ? 132
-          : spec.headline.length <= 28
-            ? 112
-            : spec.headline.length <= 42
-              ? 94
-              : 80,
-      lineHeight: 1.04,
-      letterSpacing: -3,
-      marginTop: 28,
+        spec.diagram.type === 'stat'
+          ? 54
+          : spec.headline.length <= 14
+            ? 158
+            : spec.headline.length <= 24
+              ? 136
+              : spec.headline.length <= 36
+                ? 116
+                : 98,
+      lineHeight: spec.diagram.type === 'stat' ? 1.08 : 1.02,
+      letterSpacing: spec.diagram.type === 'stat' ? -1.5 : -3.5,
+      marginTop: 30,
     },
     words,
   )
@@ -196,8 +199,8 @@ function diagramNode(d: DiagramSpec, p: ReturnType<typeof palette>): VNode {
         cells.push(el('div', { width: 54, height: 54, borderRadius: 12, backgroundColor: i < coral ? p.coral : p.muted, opacity: i < coral ? 1 : 0.2, marginRight: 10, marginBottom: 10 }))
       }
       return el('div', { ...center, flexDirection: 'column' }, [
-        el('div', { fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: 150, color: p.coral, lineHeight: 1 }, d.bigNumber ?? ''),
-        d.unit ? el('div', { fontFamily: 'Inter', fontWeight: 600, fontSize: 24, letterSpacing: 4, color: p.slate, marginTop: 6, marginBottom: 28 }, d.unit.toUpperCase()) : el('div', { height: 28 }, undefined),
+        el('div', { fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: 250, color: p.coral, lineHeight: 0.95, letterSpacing: -6 }, d.bigNumber ?? ''),
+        d.unit ? el('div', { fontFamily: 'Inter', fontWeight: 600, fontSize: 36, letterSpacing: 6, color: p.slate, marginTop: 10, marginBottom: 30 }, d.unit.toUpperCase()) : el('div', { height: 28 }, undefined),
         el('div', { display: 'flex', flexWrap: 'wrap', maxWidth: 768, justifyContent: 'center' }, cells),
       ])
     }
@@ -228,7 +231,7 @@ function tree(spec: PostSpec): VNode {
       // headline
       headlineNode(spec, p),
       // sub-line
-      el('div', { fontFamily: 'Space Grotesk', fontWeight: 500, fontSize: 42, letterSpacing: -0.5, color: p.slate, marginTop: 26, maxWidth: 936 }, spec.subline),
+      el('div', { fontFamily: 'Inter', fontWeight: 500, fontSize: 30, letterSpacing: 0, color: p.slate, marginTop: 22, maxWidth: 880 }, spec.subline),
       // diagram (grows to fill)
       diagramNode(spec.diagram, p),
       // (no caption on the image — it goes in the Instagram post text. Keep the image minimal.)
