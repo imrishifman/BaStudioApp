@@ -703,3 +703,49 @@ model OutreachLog {
   @@index([email])
   @@index([userId])
 }
+
+// Rotating access token for a social provider (Instagram Login API).
+// Single row per provider. Seeded once via /api/social/token, then rotated by
+// the refresh cron before the ~60-day expiry. Stored in the DB (not env)
+// because serverless env vars are read-only at runtime and the token must be
+// updatable in place by the refresh job.
+model SocialToken {
+  id          String    @id @default(cuid())
+  provider    String    @unique // 'instagram'
+  accessToken String
+  expiresAt   DateTime?
+  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime  @default(now())
+}
+
+enum SocialPostStatus {
+  draft
+  pending_approval
+  approved
+  publishing
+  published
+  failed
+  rejected
+}
+
+// One row per social post moving through the pipeline:
+// generate -> render -> pending_approval -> approved -> published.
+// Nothing publishes while status != approved (the approval gate).
+model SocialPost {
+  id           String           @id @default(cuid())
+  status       SocialPostStatus @default(draft)
+  caption      String
+  hashtags     String? // space-separated
+  imageUrl     String? // public URL (Vercel Blob) that Instagram fetches
+  mediaType    String           @default("IMAGE") // IMAGE | REELS | CAROUSEL
+  igMediaId    String? // returned media id after publish
+  permalink    String?
+  fbPostId     String? // cross-post to the Facebook Page
+  error        String?
+  scheduledFor DateTime?
+  approvedAt   DateTime?
+  publishedAt  DateTime?
+  createdAt    DateTime         @default(now())
+
+  @@index([status])
+}
