@@ -93,6 +93,56 @@ export async function getTrafficBySourceMedium(startDate: string, endDate: strin
   }))
 }
 
+// AI assistants show up as referral sources. Configurable default list; the
+// dashboard isolates sessions whose sessionSource matches one of these so the
+// owner can see, e.g., the first visit from ChatGPT.
+export const AI_ASSISTANT_SOURCES = [
+  'chatgpt.com',
+  'chat.openai.com',
+  'perplexity.ai',
+  'gemini.google.com',
+  'copilot.microsoft.com',
+  'claude.ai',
+]
+
+export interface AiReferral {
+  total: number
+  perSource: { source: string; sessions: number }[]
+  series: { date: string; sessions: number }[]
+}
+
+export async function getAiAssistantTraffic(startDate: string, endDate: string): Promise<AiReferral> {
+  const aiFilter = {
+    filter: { fieldName: 'sessionSource', inListFilter: { values: AI_ASSISTANT_SOURCES } },
+  }
+  const [bySource, byDate] = await Promise.all([
+    runReport({
+      dateRanges: [{ startDate, endDate }],
+      dimensions: [{ name: 'sessionSource' }],
+      metrics: [{ name: 'sessions' }],
+      dimensionFilter: aiFilter,
+      orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+    }),
+    runReport({
+      dateRanges: [{ startDate, endDate }],
+      dimensions: [{ name: 'date' }],
+      metrics: [{ name: 'sessions' }],
+      dimensionFilter: aiFilter,
+      orderBys: [{ dimension: { dimensionName: 'date' } }],
+    }),
+  ])
+  const perSource = (bySource.rows ?? []).map((r) => ({
+    source: r.dimensionValues?.[0]?.value ?? '(unknown)',
+    sessions: num(r.metricValues?.[0]?.value),
+  }))
+  const series = (byDate.rows ?? []).map((r) => {
+    const d = r.dimensionValues?.[0]?.value ?? ''
+    const date = d.length === 8 ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}` : d
+    return { date, sessions: num(r.metricValues?.[0]?.value) }
+  })
+  return { total: perSource.reduce((s, x) => s + x.sessions, 0), perSource, series }
+}
+
 export interface Ga4PageRow {
   page: string
   sessions: number

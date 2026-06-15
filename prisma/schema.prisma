@@ -759,3 +759,15 @@ model SeoSnapshot {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// One stored daily SEO report (Claude-generated from GSC + GA4 + AI-referral
+// data). Surfaced in the admin "Daily Report" tab and optionally emailed.
+model SeoReport {
+  id        String   @id @default(cuid())
+  content   String // markdown report body
+  data      Json? // the structured summary the report was generated from
+  emailed   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

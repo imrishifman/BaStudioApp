@@ -3,8 +3,10 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
-import { TrendingUp, MousePointerClick, Eye, Percent, ArrowDownUp, AlertTriangle, ChevronLeft } from 'lucide-react'
+import { TrendingUp, MousePointerClick, Eye, Percent, ArrowDownUp, AlertTriangle, ChevronLeft, Sparkles, RefreshCw } from 'lucide-react'
+import { toast } from 'sonner'
 import { GlassCard } from '@/components/common/GlassCard'
+import { PillButton } from '@/components/common/PillButton'
 
 // Admin SEO & Traffic dashboard. English-only labels by design (internal admin
 // tool). Calls the Phase-1 admin API endpoints; never talks to Google directly.
@@ -29,6 +31,7 @@ interface GaData {
   sessions?: { date: string; sessions: number; users: number }[]
   sources?: { sourceMedium: string; sessions: number }[]
   landingPages?: { page: string; sessions: number }[]
+  aiReferrals?: { total: number; perSource: { source: string; sessions: number }[]; series: { date: string; sessions: number }[] }
 }
 
 const nf = new Intl.NumberFormat('en-US')
@@ -157,15 +160,122 @@ export function SeoClient() {
             )}
           </GlassCard>
 
+          {/* AI Assistant Traffic (GA4, filtered to assistant sources) */}
+          <GlassCard className="p-5">
+            <div className="mb-4 flex items-center gap-2">
+              <Sparkles size={16} style={{ color: 'var(--accent-violet)' }} />
+              <h2 className="body font-semibold text-[var(--ink-1)]">AI assistant traffic</h2>
+              {ga?.aiReferrals && <span className="body-sm text-[var(--ink-3)]">{nf.format(ga.aiReferrals.total)} sessions</span>}
+            </div>
+            {ga?.error ? (
+              <InlineError message={ga.error} />
+            ) : (ga?.aiReferrals?.perSource?.length ?? 0) === 0 ? (
+              <p className="body-sm py-2 text-[var(--ink-3)]">No visits from ChatGPT, Perplexity, Gemini, Copilot, or Claude in this period yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {ga!.aiReferrals!.perSource.map((s) => (
+                  <div key={s.source} className="flex items-center gap-3">
+                    <div className="w-44 shrink-0 truncate body-sm text-[var(--ink-2)]">{s.source}</div>
+                    <div className="h-2 flex-1 overflow-hidden rounded-full" style={{ background: 'var(--bg-3)' }}>
+                      <div className="h-full rounded-full" style={{ width: `${(s.sessions / Math.max(1, ...ga!.aiReferrals!.perSource.map((x) => x.sessions))) * 100}%`, background: 'var(--accent-cyan)' }} />
+                    </div>
+                    <div className="w-16 shrink-0 text-right body-sm text-[var(--ink-1)]">{nf.format(s.sessions)}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </GlassCard>
+
           {/* Tables */}
           <div className="grid gap-6 lg:grid-cols-2">
             <DataTable title="Top queries (Search Console)" error={sc?.error} rows={sc?.topQueries} kind="gsc" />
             <DataTable title="Top pages (Search Console)" error={sc?.error} rows={sc?.topPages} kind="gsc" />
           </div>
           <GaPagesTable error={ga?.error} rows={ga?.landingPages} />
+
+          {/* Daily AI report */}
+          <DailyReport />
         </div>
       )}
     </div>
+  )
+}
+
+// Daily AI report section: shows the latest report, a history list, and a
+// "Run report now" button. Self-contained (own fetch/state).
+function DailyReport() {
+  const [reports, setReports] = useState<{ id: string; content: string; emailed: boolean; createdAt: string }[]>([])
+  const [running, setRunning] = useState(false)
+  const [openId, setOpenId] = useState<string | null>(null)
+
+  const loadReports = useCallback(async () => {
+    try {
+      const j = await fetch('/api/admin/seo/reports', { cache: 'no-store' }).then((x) => x.json())
+      setReports(j.reports ?? [])
+      if (j.reports?.[0]) setOpenId(j.reports[0].id)
+    } catch { /* ignore */ }
+  }, [])
+  useEffect(() => { loadReports() }, [loadReports])
+
+  async function runNow() {
+    setRunning(true)
+    try {
+      const res = await fetch('/api/admin/seo/reports', { method: 'POST' })
+      const j = await res.json()
+      if (!res.ok) { toast.error(j.error ?? 'Could not generate the report'); return }
+      toast.success('Report generated')
+      await loadReports()
+    } catch {
+      toast.error('Could not generate the report')
+    } finally {
+      setRunning(false)
+    }
+  }
+
+  const open = reports.find((r) => r.id === openId) ?? reports[0]
+
+  return (
+    <GlassCard className="p-5">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="body font-semibold text-[var(--ink-1)]">Daily report</h2>
+        <PillButton size="sm" onClick={runNow} disabled={running}>
+          <RefreshCw size={13} className={running ? 'animate-spin' : ''} /> {running ? 'Generating…' : 'Run report now'}
+        </PillButton>
+      </div>
+      {reports.length === 0 ? (
+        <p className="body-sm py-2 text-[var(--ink-3)]">No reports yet. Click "Run report now" to generate the first one (or it runs automatically each day).</p>
+      ) : (
+        <>
+          {open && (
+            <article className="space-y-1 body-sm text-[var(--ink-2)]">
+              {open.content.split('\n').map((line, i) => {
+                const h = line.match(/^#{2,}\s+(.*)/)
+                if (h) return <h3 key={i} className="body mt-3 font-semibold text-[var(--ink-1)]">{h[1]}</h3>
+                const li = line.match(/^[-*]\s+(.*)/)
+                if (li) return <div key={i} className="flex gap-2"><span className="text-[var(--accent-violet)]">•</span><span>{li[1].replace(/\*\*/g, '')}</span></div>
+                if (!line.trim()) return null
+                return <p key={i}>{line.replace(/\*\*/g, '')}</p>
+              })}
+            </article>
+          )}
+          {reports.length > 1 && (
+            <div className="mt-4 flex flex-wrap gap-2 border-t pt-3" style={{ borderColor: 'var(--line-1)' }}>
+              <span className="body-sm text-[var(--ink-3)]">History:</span>
+              {reports.map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => setOpenId(r.id)}
+                  className="body-sm rounded-full px-2 py-0.5"
+                  style={r.id === open?.id ? { background: 'var(--bg-3)', color: 'var(--ink-1)' } : { color: 'var(--ink-3)' }}
+                >
+                  {new Date(r.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </GlassCard>
   )
 }
 

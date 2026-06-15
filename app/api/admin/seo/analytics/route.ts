@@ -4,7 +4,7 @@ import { isAdmin } from '@/lib/admin'
 import { SeoConfigError } from '@/lib/seo/google-auth'
 import { parseRange, rangeDates } from '@/lib/seo/range'
 import { getCached } from '@/lib/seo/cache'
-import { getSessionsOverTime, getTrafficBySourceMedium, getTopLandingPages } from '@/lib/seo/ga4-data'
+import { getSessionsOverTime, getTrafficBySourceMedium, getTopLandingPages, getAiAssistantTraffic } from '@/lib/seo/ga4-data'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -23,12 +23,13 @@ export async function GET(req: Request) {
 
   try {
     const data = await getCached(`analytics:${range}`, async () => {
-      const [sessions, sources, landingPages] = await Promise.all([
+      const [sessions, sources, landingPages, aiReferrals] = await Promise.all([
         getSessionsOverTime(startDate, endDate),
         getTrafficBySourceMedium(startDate, endDate),
         getTopLandingPages(startDate, endDate),
+        getAiAssistantTraffic(startDate, endDate),
       ])
-      return { sessions, sources, landingPages, range, startDate, endDate }
+      return { sessions, sources, landingPages, aiReferrals, range, startDate, endDate }
     })
     return NextResponse.json(data)
   } catch (err) {

@@ -12,6 +12,7 @@
 // CRON_SECRET for manual runs); this just orchestrates them.
 
 import { NextResponse } from 'next/server'
+import { generateSeoReport } from '@/lib/seo/report'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -52,6 +53,16 @@ export async function GET(req: Request) {
   // Daily, but the endpoint self-skips unless the IG token is within 20 days of
   // expiry, so this is a cheap no-op most days.
   results.igToken = await run('/api/cron/refresh-ig-token')
+
+  // Daily SEO report (Search Console + GA4 + AI referrals -> Claude). Called
+  // directly (not over HTTP) since it's a server function; failures are logged
+  // into the result, never break the cron.
+  try {
+    const report = await generateSeoReport()
+    results.seoReport = { ok: true, id: report.id, emailed: report.emailed }
+  } catch (err) {
+    results.seoReport = { error: err instanceof Error ? err.message : 'failed' }
+  }
 
   // NOTE: the social auto-poster (generate / publish / report) runs on its own
   // cron at /api/cron/social (17:00 UTC = 1 PM New York), not here, so the
