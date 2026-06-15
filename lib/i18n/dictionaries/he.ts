@@ -838,6 +838,7 @@ export const he: Dict = {
     tabFeedback: 'משוב',
     tabStats: 'נתונים',
     tabMarketing: 'שיווק',
+    tabSeo: 'SEO ותנועה',
     planUpdated: 'המסלול עודכן',
     couponCreated: 'הקופון נוצר',
     couponDeleted: 'הקופון נמחק',

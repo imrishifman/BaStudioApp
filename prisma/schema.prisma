@@ -749,3 +749,13 @@ model SocialPost {
 
   @@index([status])
 }
+
+// Short-TTL cache for SEO dashboard API responses (Search Console + GA4 are
+// slow and rate-limited). Keyed by source+range; freshness checked in code.
+model SeoSnapshot {
+  id        String   @id @default(cuid())
+  key       String   @unique // e.g. "search-console:28d"
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

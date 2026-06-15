@@ -837,6 +837,7 @@ export const en = {
     tabFeedback: 'Feedback',
     tabStats: 'Stats',
     tabMarketing: 'Marketing',
+    tabSeo: 'SEO & Traffic',
     planUpdated: 'Plan updated',
     couponCreated: 'Coupon created',
     couponDeleted: 'Coupon deleted',

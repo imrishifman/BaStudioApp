@@ -6,7 +6,7 @@ import { GlassCard } from '@/components/common/GlassCard'
 import { PillButton } from '@/components/common/PillButton'
 import { Input } from '@/components/ui/input'
 import { PlanBadge } from '@/components/common/PlanBadge'
-import { Users, Tag, BarChart2, Settings, MessageSquare, Heart, Lightbulb, AlertTriangle, Star, Activity, CheckCircle2, XCircle, DollarSign, Link2, GitBranch, RefreshCw, Mail } from 'lucide-react'
+import { Users, Tag, BarChart2, Settings, MessageSquare, Heart, Lightbulb, AlertTriangle, Star, Activity, CheckCircle2, XCircle, DollarSign, Link2, GitBranch, RefreshCw, Mail, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
 import type { User, CouponCode, UserFeedback } from '@prisma/client'
 import { useT } from '@/components/i18n/I18nProvider'
@@ -200,6 +200,13 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
           style={{ color: 'var(--ink-3)' }}
         >
           <Mail size={14} /> {t('admin.tabMarketing')}
+        </Link>
+        <Link
+          href="/admin/seo"
+          className="flex items-center gap-1.5 rounded-[var(--radius-sm)] px-3 py-1.5 body-sm transition-colors"
+          style={{ color: 'var(--ink-3)' }}
+        >
+          <TrendingUp size={14} /> {t('admin.tabSeo')}
         </Link>
       </div>
 

@@ -34,3 +34,22 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## SEO & Traffic dashboard (admin)
+
+The admin "SEO & Traffic" section reads Google Search Console + GA4 via a
+service account. Set these environment variables (Vercel + `.env.local`):
+
+- `GOOGLE_SERVICE_ACCOUNT_JSON` — the service-account key, as raw JSON or base64
+  of the JSON. Read-only scopes (`webmasters.readonly`, `analytics.readonly`).
+- `GSC_SITE_URL` — the Search Console property, e.g. `https://bastudiopodcast.com/`.
+- `GA4_PROPERTY_ID` — the numeric GA4 property id (GA4 Admin > Property Settings).
+
+Access setup (one time): add the service-account email (the `client_email` in
+the key) as a **user** in Search Console (Settings > Users and permissions) and
+as a **Viewer** on the GA4 property (Admin > Property Access Management). Until
+that's done the dashboard shows a clear "access denied / add the service
+account" message rather than data.
+
+Optional (later phases): an SEO-tool API key for rankings/backlinks, and
+`ANTHROPIC_API_KEY` (already set) for the daily AI report.
