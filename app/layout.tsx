@@ -61,6 +61,12 @@ export const metadata: Metadata = {
     url: SITE_URL,
     siteName: 'Ba Studio',
   },
+  // Google Search Console site verification (HTML-tag method) for the
+  // bastudiopodcast.com URL-prefix property. Renders a
+  // <meta name="google-site-verification"> tag in <head> on every page.
+  verification: {
+    google: 'DTGH6aH9EIRM2v_a9wzCWJNn4nhfzh3mopDOS5Tor6c',
+  },
 }
 
 // Set the saved theme before paint to avoid a flash. The landing page ('/') is
