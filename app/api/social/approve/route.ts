@@ -19,21 +19,36 @@ export async function GET(req: Request) {
   const v = token ? verifyApproval(token) : null
   if (!v) return page('Invalid link', 'This approval link is invalid or has been tampered with.')
 
-  const post = await prisma.socialPost.findUnique({ where: { id: v.postId } })
-  if (!post) return page('Not found', 'That post no longer exists.')
-  if (post.status === 'published' || post.status === 'publishing') {
-    return page('Already published', 'This post has already gone out.')
+  // One token can carry a single post id or a whole week (comma-joined).
+  const ids = v.postId.split(',').filter(Boolean)
+  const posts = await prisma.socialPost.findMany({ where: { id: { in: ids } } })
+  if (posts.length === 0) return page('Not found', 'Those posts no longer exist.')
+
+  let changed = 0
+  let alreadyOut = 0
+  for (const post of posts) {
+    if (post.status === 'published' || post.status === 'publishing') {
+      alreadyOut++
+      continue
+    }
+    await prisma.socialPost.update({
+      where: { id: post.id },
+      data:
+        v.action === 'approve'
+          ? { status: 'approved', approvedAt: new Date() }
+          : { status: 'rejected' },
+    })
+    changed++
   }
 
-  await prisma.socialPost.update({
-    where: { id: v.postId },
-    data:
-      v.action === 'approve'
-        ? { status: 'approved', approvedAt: new Date() }
-        : { status: 'rejected' },
-  })
-
-  return v.action === 'approve'
-    ? page('Approved', 'This post is queued and will publish to Instagram shortly.')
-    : page('Rejected', 'Got it. This post will not be published.')
+  const single = ids.length === 1
+  if (v.action === 'approve') {
+    if (changed === 0) return page('Already published', 'These posts have already gone out.')
+    const body = single
+      ? 'This post is queued and will publish at its scheduled day, 1 PM New York.'
+      : `${changed} post${changed === 1 ? '' : 's'} approved. They publish one per day at 1 PM New York.${alreadyOut ? ` (${alreadyOut} already out.)` : ''}`
+    return page('Approved', body)
+  }
+  if (changed === 0) return page('Already published', 'These posts have already gone out.')
+  return page('Rejected', single ? 'Got it. This post will not be published.' : `${changed} post${changed === 1 ? '' : 's'} rejected. They will not be published.`)
 }

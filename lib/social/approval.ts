@@ -20,6 +20,12 @@ export function signApproval(postId: string, action: Action): string {
   return Buffer.from(`${payload}.${sig}`).toString('base64url')
 }
 
+// Approve/reject a whole batch (a week) with one link. cuid ids contain no
+// dots or commas, so we join with "," and reuse the single-token format.
+export function signApprovalBatch(postIds: string[], action: Action): string {
+  return signApproval(postIds.join(','), action)
+}
+
 export function verifyApproval(token: string): { postId: string; action: Action } | null {
   try {
     const [postId, action, sig] = Buffer.from(token, 'base64url').toString().split('.')

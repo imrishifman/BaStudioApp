@@ -86,7 +86,8 @@ export async function generatePostSpecs(
   const anthropic = new Anthropic()
   const msg = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 3000,
+    // Room for a full week (7 posts) of captions without truncating the JSON.
+    max_tokens: 6000,
     system: SYSTEM,
     messages: [
       {
