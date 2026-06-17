@@ -27,6 +27,23 @@ interface Ga4Response {
   rows?: { dimensionValues?: { value: string }[]; metricValues?: { value: string }[] }[]
 }
 
+// Turn a non-2xx GA4 response into the right error: SeoConfigError for the two
+// fixable misconfigurations (no access / wrong property) so the UI shows a
+// helpful message, a generic Error otherwise. Shared by every GA4 call.
+async function ga4ErrorFor(res: Response, id: string): Promise<never> {
+  const txt = await res.text().catch(() => '')
+  if (res.status === 403) {
+    const email = serviceAccountEmail()
+    throw new SeoConfigError(
+      `GA4 access denied. Add ${email ?? 'the service-account email'} as a Viewer on property ${id} (GA4 Admin > Property Access Management).`,
+    )
+  }
+  if (res.status === 404) {
+    throw new SeoConfigError(`GA4 property ${id} not found. Check GA4_PROPERTY_ID.`)
+  }
+  throw new Error(`GA4 Data API error ${res.status}: ${txt.slice(0, 200)}`)
+}
+
 async function runReport(body: RunReportBody): Promise<Ga4Response> {
   const token = await getGoogleAccessToken()
   const id = propertyId()
@@ -35,19 +52,7 @@ async function runReport(body: RunReportBody): Promise<Ga4Response> {
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
-  if (!res.ok) {
-    const txt = await res.text().catch(() => '')
-    if (res.status === 403) {
-      const email = serviceAccountEmail()
-      throw new SeoConfigError(
-        `GA4 access denied. Add ${email ?? 'the service-account email'} as a Viewer on property ${id} (GA4 Admin > Property Access Management).`,
-      )
-    }
-    if (res.status === 404) {
-      throw new SeoConfigError(`GA4 property ${id} not found. Check GA4_PROPERTY_ID.`)
-    }
-    throw new Error(`GA4 Data API error ${res.status}: ${txt.slice(0, 200)}`)
-  }
+  if (!res.ok) await ga4ErrorFor(res, id)
   return (await res.json()) as Ga4Response
 }
 
@@ -160,4 +165,35 @@ export async function getTopLandingPages(startDate: string, endDate: string, lim
     page: row.dimensionValues?.[0]?.value ?? '(not set)',
     sessions: num(row.metricValues?.[0]?.value),
   }))
+}
+
+export interface RealtimeData {
+  activeUsers: number
+  byCountry: { country: string; activeUsers: number }[]
+}
+
+// Live "right now" snapshot from the GA4 Realtime API (last 30 minutes). Never
+// cached. A single country-dimensioned call gives both the total (summed across
+// rows) and a small per-country breakdown.
+export async function getRealtimeActiveUsers(): Promise<RealtimeData> {
+  const token = await getGoogleAccessToken()
+  const id = propertyId()
+  const res = await fetch(`${GA4_API}/properties/${id}:runRealtimeReport`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      dimensions: [{ name: 'country' }],
+      metrics: [{ name: 'activeUsers' }],
+      orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }],
+      limit: 10,
+    }),
+  })
+  if (!res.ok) await ga4ErrorFor(res, id)
+  const json = (await res.json()) as Ga4Response
+  const byCountry = (json.rows ?? []).map((row) => ({
+    country: row.dimensionValues?.[0]?.value || '(unknown)',
+    activeUsers: num(row.metricValues?.[0]?.value),
+  }))
+  const activeUsers = byCountry.reduce((s, x) => s + x.activeUsers, 0)
+  return { activeUsers, byCountry }
 }

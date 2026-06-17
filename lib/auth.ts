@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { authConfig } from './auth.config'
 import { sendTrialWelcomeEmail } from '@/lib/email/trial'
 import { TRIAL_LENGTH_MS, effectivePlan, isTrialActive } from '@/lib/trial'
+import { compGrantFor, compWelcomeMessage } from '@/lib/comp-grants'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -64,6 +65,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         },
         update: {},
       })
+      // Auto-comp: emails on the comp list (lib/comp-grants) get their plan the
+      // first time they sign in. updateMany gated on compGranted:false makes this
+      // run exactly once, so a later manual plan change is never overwritten on a
+      // subsequent login.
+      const comp = compGrantFor(user.email)
+      if (comp) {
+        await prisma.user.updateMany({
+          where: { email: user.email, compGranted: false },
+          data: {
+            plan: comp.plan,
+            planStatus: 'active',
+            planOverride: true,
+            trialEndsAt: null,
+            compGranted: true,
+          },
+        })
+      }
       // First-ever OAuth sign-in = a new account. Drop a one-shot cookie so the
       // client fires the `sign_up` conversion once after the redirect lands.
       // Best-effort: never block sign-in if cookie writing isn't available.
@@ -79,8 +97,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         } catch (err) {
           console.error('Could not set signup cookie for new OAuth user:', err)
         }
-        // Day-0 trial welcome email for the brand-new Google account.
-        void sendTrialWelcomeEmail(user.email, user.name?.split(' ')[0] ?? null)
+        // Day-0 trial welcome email, but NOT for comped accounts (they are not on
+        // a trial, they get the comp welcome modal instead).
+        if (!comp) void sendTrialWelcomeEmail(user.email, user.name?.split(' ')[0] ?? null)
       }
       return true
     },
@@ -91,6 +110,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           select: {
             id: true,
             email: true,
+            fullName: true,
             plan: true,
             planStatus: true,
             planOverride: true,
@@ -98,6 +118,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             stripeSubscriptionId: true,
             trialEndedNoticeShown: true,
             trialWelcomeSeen: true,
+            compGranted: true,
+            compWelcomeSeen: true,
             role: true,
             onboardingComplete: true,
             skippedDnaSetup: true,
@@ -125,6 +147,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             now > new Date(dbUser.trialEndsAt).getTime() &&
             effectivePlan(dbUser, now) === 'free' &&
             !dbUser.trialEndedNoticeShown
+          // Comp welcome: shown exactly once after a comped account is granted.
+          const comp = compGrantFor(dbUser.email)
+          session.user.showCompWelcome = !!comp && dbUser.compGranted && !dbUser.compWelcomeSeen
+          session.user.compWelcomeMessage =
+            session.user.showCompWelcome && comp
+              ? compWelcomeMessage(dbUser.fullName?.split(' ')[0] ?? null, comp)
+              : null
         }
       }
       return session

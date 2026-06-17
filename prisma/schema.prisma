@@ -215,6 +215,12 @@ model User {
   // Reverse trial: set true once the first-sign-in "Claim your 7 days" modal
   // has been shown, so it appears exactly once.
   trialWelcomeSeen           Boolean        @default(false)
+  // Comp grant: an email on the comp list (lib/comp-grants) is auto-upgraded to
+  // its plan on first sign-in. compGranted gates that to run exactly once (so a
+  // later manual plan change is respected); compWelcomeSeen gates the one-time
+  // "you got a free plan from Imri" welcome modal.
+  compGranted                Boolean        @default(false)
+  compWelcomeSeen            Boolean        @default(false)
   // UI + AI-output language preference ("en" default, "he" = Hebrew/RTL).
   language                   String         @default("en")
   emailConnected             Boolean        @default(false)

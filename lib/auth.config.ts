@@ -18,6 +18,9 @@ declare module 'next-auth' {
       isTrialActive?: boolean
       showTrialEndedNotice?: boolean
       showTrialWelcome?: boolean
+      // Comp-grant welcome, shown once for auto-upgraded accounts.
+      showCompWelcome?: boolean
+      compWelcomeMessage?: string | null
     }
   }
 }

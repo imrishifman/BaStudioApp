@@ -102,6 +102,9 @@ export function SeoClient() {
         </div>
       ) : (
         <div className="space-y-6" style={{ opacity: loading ? 0.6 : 1, transition: 'opacity 0.2s' }}>
+          {/* Live "visitors right now" (GA4 Realtime). Polls independently. */}
+          <RealtimeWidget />
+
           {/* KPI cards (Search Console) */}
           {sc?.error ? (
             <ErrorCard title="Search Console" message={sc.error} />
@@ -275,6 +278,62 @@ function DailyReport() {
           )}
         </>
       )}
+    </GlassCard>
+  )
+}
+
+// Live visitors-right-now card. Polls /api/admin/seo/realtime every 20s and
+// shows the active-user count plus a small per-country breakdown. Degrades to a
+// muted dash if GA4 isn't connected.
+function RealtimeWidget() {
+  const [data, setData] = useState<{ activeUsers: number; byCountry: { country: string; activeUsers: number }[] } | null>(null)
+  const [unavailable, setUnavailable] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    async function load() {
+      try {
+        const j = await fetch('/api/admin/seo/realtime', { cache: 'no-store' }).then((x) => x.json())
+        if (!alive) return
+        if (j && typeof j.activeUsers === 'number') { setData(j); setUnavailable(false) }
+        else setUnavailable(true)
+      } catch {
+        if (alive) setUnavailable(true)
+      }
+    }
+    load()
+    const id = setInterval(load, 20_000)
+    return () => { alive = false; clearInterval(id) }
+  }, [])
+
+  const live = !unavailable && (data?.activeUsers ?? 0) > 0
+
+  return (
+    <GlassCard className="flex flex-wrap items-center gap-x-6 gap-y-3 p-5">
+      <div className="flex items-center gap-3">
+        <span className="relative flex h-3 w-3">
+          {live && (
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75" style={{ background: 'var(--success)' }} />
+          )}
+          <span className="relative inline-flex h-3 w-3 rounded-full" style={{ background: unavailable ? 'var(--ink-4)' : 'var(--success)' }} />
+        </span>
+        <div>
+          <p className="body-sm text-[var(--ink-3)]">Visitors right now</p>
+          <p className="display-sm leading-tight text-[var(--ink-1)]">
+            {unavailable ? '—' : data ? nf.format(data.activeUsers) : '…'}
+          </p>
+        </div>
+      </div>
+      {!unavailable && data && data.byCountry.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {data.byCountry.slice(0, 5).map((c) => (
+            <span key={c.country} className="rounded-full px-2.5 py-1 body-sm" style={{ background: 'var(--bg-3)', color: 'var(--ink-2)' }}>
+              {c.country} · {nf.format(c.activeUsers)}
+            </span>
+          ))}
+        </div>
+      )}
+      <span className="ml-auto body-sm text-[var(--ink-4)]">{unavailable ? 'Realtime unavailable' : 'Live · last 30 min'}</span>
     </GlassCard>
   )
 }

@@ -2,10 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { toast } from 'sonner'
-import { Plus, Send, Trash2, Pencil, Check, Sparkles, Wand2 } from 'lucide-react'
+import { Plus, Send, Trash2, Pencil, Check, Sparkles, Wand2, TrendingUp } from 'lucide-react'
 import { GlassCard } from '@/components/common/GlassCard'
 import { PillButton } from '@/components/common/PillButton'
+
+const nf = new Intl.NumberFormat('en-US')
 import { useConfirm } from '@/components/common/ConfirmDialog'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -47,6 +50,65 @@ function formatDate(iso: string | null): string {
   return new Date(iso).toLocaleString(undefined, {
     month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
   })
+}
+
+// Compact traffic summary for the marketing page: live visitors now (GA4
+// Realtime, polled), last-7d sessions, and the top source. Links to the full
+// SEO & Traffic dashboard. Degrades to dashes if GA4 isn't connected.
+function TrafficGlance() {
+  const [rt, setRt] = useState<number | null>(null)
+  const [sessions7, setSessions7] = useState<number | null>(null)
+  const [topSource, setTopSource] = useState<string | null>(null)
+  const [connected, setConnected] = useState(true)
+
+  useEffect(() => {
+    let alive = true
+    async function loadRt() {
+      try {
+        const j = await fetch('/api/admin/seo/realtime', { cache: 'no-store' }).then((x) => x.json())
+        if (alive && typeof j?.activeUsers === 'number') setRt(j.activeUsers)
+      } catch { /* ignore */ }
+    }
+    async function loadGa() {
+      try {
+        const j = await fetch('/api/admin/seo/analytics?range=7d', { cache: 'no-store' }).then((x) => x.json())
+        if (!alive) return
+        if (j?.error) { setConnected(false); return }
+        setSessions7((j.sessions ?? []).reduce((s: number, d: { sessions: number }) => s + d.sessions, 0))
+        setTopSource(j.sources?.[0]?.sourceMedium ?? null)
+      } catch { /* ignore */ }
+    }
+    loadRt(); loadGa()
+    const id = setInterval(loadRt, 30_000)
+    return () => { alive = false; clearInterval(id) }
+  }, [])
+
+  return (
+    <GlassCard className="flex flex-wrap items-center gap-x-8 gap-y-3 p-5">
+      <div className="flex items-center gap-2">
+        <TrendingUp size={16} style={{ color: 'var(--accent-violet)' }} />
+        <p className="body font-semibold text-[var(--ink-1)]">Traffic</p>
+      </div>
+      <TrafficStat label="Visitors now" value={rt == null ? '…' : nf.format(rt)} live />
+      <TrafficStat label="Sessions (7d)" value={!connected ? '—' : sessions7 == null ? '…' : nf.format(sessions7)} />
+      <TrafficStat label="Top source (7d)" value={!connected ? '—' : topSource ?? '…'} />
+      <Link href="/admin/seo" className="ml-auto body-sm font-semibold text-[var(--accent-violet)] hover:underline">
+        Full dashboard →
+      </Link>
+    </GlassCard>
+  )
+}
+
+function TrafficStat({ label, value, live }: { label: string; value: string; live?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <div className="flex items-center gap-1.5">
+        {live && <span className="inline-block h-2 w-2 rounded-full" style={{ background: 'var(--success)' }} />}
+        <p className="body-sm text-[var(--ink-3)]">{label}</p>
+      </div>
+      <p className="display-sm max-w-[220px] truncate leading-tight text-[var(--ink-1)]" title={value}>{value}</p>
+    </div>
+  )
 }
 
 export function MarketingEmailsClient({ campaigns, recipientCounts }: Props) {
@@ -116,6 +178,9 @@ export function MarketingEmailsClient({ campaigns, recipientCounts }: Props) {
           </div>
         ))}
       </div>
+
+      {/* Traffic at a glance (GA4). Links through to the full SEO & Traffic dashboard. */}
+      <TrafficGlance />
 
       <GlassCard className="overflow-hidden">
         <table className="w-full text-left">
