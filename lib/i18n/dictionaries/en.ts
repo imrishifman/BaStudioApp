@@ -838,6 +838,7 @@ export const en = {
     tabStats: 'Stats',
     tabMarketing: 'Marketing',
     tabSeo: 'SEO & Traffic',
+    tabIntegrations: 'Integrations',
     planUpdated: 'Plan updated',
     couponCreated: 'Coupon created',
     couponDeleted: 'Coupon deleted',
