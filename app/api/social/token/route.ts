@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { isAdmin } from '@/lib/admin'
 import { getTokenStatus, setAccessToken, verifyConnection } from '@/lib/social/instagram'
+import { signTrigger } from '@/lib/social/approval'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -23,7 +24,11 @@ export async function GET() {
       connection = { error: e instanceof Error ? e.message : 'failed' }
     }
   }
-  return NextResponse.json({ ...status, connection })
+  // Capability link for the daily backstop scheduler: publishes any approved,
+  // due post the Vercel cron may have missed. Carries no secret.
+  const base = process.env.NEXT_PUBLIC_APP_URL ?? 'https://bastudiopodcast.com'
+  const publishTriggerUrl = `${base}/api/social/publish?token=${signTrigger('publish-due')}`
+  return NextResponse.json({ ...status, connection, publishTriggerUrl })
 }
 
 export async function POST(req: Request) {

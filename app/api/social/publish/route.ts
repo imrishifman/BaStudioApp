@@ -8,6 +8,7 @@ import { isAdmin } from '@/lib/admin'
 import { prisma } from '@/lib/prisma'
 import { publishImage } from '@/lib/social/instagram'
 import { crossPostToFacebook } from '@/lib/social/facebook'
+import { verifyTrigger } from '@/lib/social/approval'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -16,6 +17,10 @@ export const dynamic = 'force-dynamic'
 async function authorized(req: Request): Promise<boolean> {
   const secret = process.env.CRON_SECRET
   if (secret && req.headers.get('authorization') === `Bearer ${secret}`) return true
+  // A signed "publish-due" capability link (used by the daily backstop
+  // scheduler) publishes only already-approved, due posts. No raw secret needed.
+  const token = new URL(req.url).searchParams.get('token')
+  if (token && verifyTrigger(token, 'publish-due')) return true
   const session = await auth()
   return isAdmin(session?.user?.email)
 }
