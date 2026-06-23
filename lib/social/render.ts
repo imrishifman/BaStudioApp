@@ -181,10 +181,12 @@ function diagramNode(d: DiagramSpec, p: ReturnType<typeof palette>): VNode {
         }
         return el(
           'div',
-          { display: 'flex', flexDirection: 'column', width: 420, height: 360, padding: 36, borderRadius: 28, backgroundColor: p.card, marginRight: coral ? 0 : 24 },
+          { display: 'flex', flexDirection: 'column', width: 450, height: 384, padding: 32, borderRadius: 28, backgroundColor: p.card, marginRight: coral ? 0 : 24 },
           [
-            el('div', { fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: 40, color: coral ? p.coral : p.slate, marginBottom: 'auto' }, label),
-            el('div', { display: 'flex', alignItems: 'flex-end', height: 130 }, bars),
+            // Bold, top-aligned label; the bar strip is pinned to the bottom
+            // (marginTop:auto) so even a 3-line phrase keeps a clear gap above it.
+            el('div', { fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: 36, lineHeight: 1.15, color: coral ? p.coral : p.slate }, label),
+            el('div', { display: 'flex', alignItems: 'flex-end', height: 120, marginTop: 'auto' }, bars),
           ],
         )
       }
@@ -234,10 +236,10 @@ function tree(spec: PostSpec): VNode {
       el('div', { fontFamily: 'Inter', fontWeight: 500, fontSize: 30, letterSpacing: 0, color: p.slate, marginTop: 22, maxWidth: 880 }, spec.subline),
       // diagram (grows to fill)
       diagramNode(spec.diagram, p),
-      // (no caption on the image — it goes in the Instagram post text. Keep the image minimal.)
+      // (no caption on the image ‚Äî it goes in the Instagram post text. Keep the image minimal.)
       // CTA pill
       el('div', { display: 'flex', alignSelf: 'center', marginTop: 28, backgroundColor: p.pillBg, borderRadius: 999, paddingTop: 22, paddingBottom: 22, paddingLeft: 48, paddingRight: 48 }, [
-        el('div', { fontFamily: 'Inter', fontWeight: 600, fontSize: 26, color: p.pillText }, `${spec.ctaVerb} · bastudiopodcast.com`),
+        el('div', { fontFamily: 'Inter', fontWeight: 600, fontSize: 26, color: p.pillText }, `${spec.ctaVerb} ¬∑ bastudiopodcast.com`),
       ]),
     ],
   )
