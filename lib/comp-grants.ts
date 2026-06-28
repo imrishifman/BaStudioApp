@@ -17,6 +17,7 @@ export interface CompGrant {
 
 const GRANTS: Record<string, CompGrant> = {
   'shep@hyken.com': { plan: 'master', from: 'Imri' },
+  'asher@theoriststudios.com': { plan: 'master', from: 'Imri' },
 }
 
 export function compGrantFor(email?: string | null): CompGrant | null {
