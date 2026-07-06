@@ -68,6 +68,20 @@ export async function POST(req: Request) {
       subMetadata.influencerId = influencerId
       subMetadata.attributionSource = attributionSource
     }
+    // Pre-apply the attributed influencer's discount, if they have a LIVE promo
+    // (couponActive + a Stripe promotion code). Stripe forbids `discounts`
+    // together with `allow_promotion_codes`, so we branch: auto-applied promo
+    // when attribution carries one, otherwise the manual promo-code field.
+    // Attribution-only codes (no customer discount) skip this entirely.
+    let autoPromoId: string | null = null
+    if (influencerId) {
+      const inf = await prisma.influencer.findUnique({
+        where: { id: influencerId },
+        select: { stripePromotionCodeId: true, couponActive: true },
+      })
+      if (inf?.couponActive && inf.stripePromotionCodeId) autoPromoId = inf.stripePromotionCodeId
+    }
+
     const params: import('stripe').Stripe.Checkout.SessionCreateParams = {
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
@@ -79,10 +93,12 @@ export async function POST(req: Request) {
         ? `${baseUrl}/account/billing?success=1&session_id={CHECKOUT_SESSION_ID}&next=${encodeURIComponent(safeReturnTo)}`
         : `${baseUrl}/account/billing?success=1&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/pricing?canceled=1`,
-      allow_promotion_codes: true,
       client_reference_id: user.id,
       subscription_data: { metadata: subMetadata },
       metadata: subMetadata,
+      ...(autoPromoId
+        ? { discounts: [{ promotion_code: autoPromoId }] }
+        : { allow_promotion_codes: true }),
     }
     if (user.stripeCustomerId) params.customer = user.stripeCustomerId
     else params.customer_email = user.email

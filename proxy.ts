@@ -28,8 +28,12 @@ function applyAffiliateCookies(req: NextRequest, res: NextResponse) {
   const secure = process.env.NODE_ENV === 'production'
 
   if (ref && ref.trim() && !existingRef) {
+    // NOT httpOnly by design: bas_ref is a public marketing code, and the
+    // client ReferralTracker must see it in document.cookie to fire click
+    // logging (httpOnly cookies are invisible there, which silently disabled
+    // ReferralClick recording for ?ref= links).
     res.cookies.set(REF_COOKIE, ref.trim().slice(0, 64).toUpperCase(), {
-      httpOnly: true,
+      httpOnly: false,
       secure,
       sameSite: 'lax',
       maxAge: THIRTY_DAYS,

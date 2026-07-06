@@ -3,7 +3,7 @@ import { Resend } from 'resend'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { isAdmin } from '@/lib/admin'
-import { createStripePromo } from '@/lib/stripe-coupons'
+import { createInfluencer } from '@/lib/influencers/create'
 
 // GET ?token=xxx       — public: fetch the influencer matching a signature token.
 // GET (no token)       — admin: list all influencers.
@@ -143,53 +143,19 @@ export async function POST(req: Request) {
   }
   if (!name || !email) return NextResponse.json({ error: 'name and email required' }, { status: 400 })
 
-  const normalizedCoupon = couponCode?.toUpperCase().trim() || null
-  const discount = customerDiscount && customerDiscount > 0 ? customerDiscount : null
-
-  // Generate the signature token via Node's crypto.randomUUID (available in
-  // the Node.js runtime - matches the previous behaviour).
-  const token = crypto.randomUUID()
-
-  // If the influencer has both a code and a customer discount, create the
-  // matching Stripe promo NOW but keep it inactive — it activates when they
-  // sign the agreement (see /api/influencers/sign). Best-effort: a Stripe
-  // failure doesn't block influencer creation (the code still works as a
-  // referral link for commission tracking).
-  let stripeCouponId: string | null = null
-  let stripePromotionCodeId: string | null = null
-  let couponWarning: string | null = null
-  if (normalizedCoupon && discount) {
-    try {
-      const promo = await createStripePromo({
-        code: normalizedCoupon,
-        percentOff: discount,
-        active: false,
-      })
-      stripeCouponId = promo.stripeCouponId
-      stripePromotionCodeId = promo.stripePromotionCodeId
-    } catch (err) {
-      couponWarning = err instanceof Error ? err.message : 'Stripe coupon sync failed'
-      console.error('[influencer-coupon] Stripe sync failed:', err)
-    }
-  }
-
-  const influencer = await prisma.influencer.create({
-    data: {
-      name,
-      email,
-      handle: handle ?? null,
-      couponCode: normalizedCoupon,
-      commissionType: 'percentage',
-      commissionValue: commissionValue ?? 20,
-      customerDiscount: discount,
-      stripeCouponId,
-      stripePromotionCodeId,
-      agreementSignatureToken: token,
-      agreementSentDate: new Date(),
-    },
+  // Shared creation logic (also used by the Cold Call Manager intake endpoint):
+  // row + optional inactive Stripe promo + referral link. Admin flow keeps the
+  // invite-and-sign lifecycle: status pending, promo activates on signing.
+  const { influencer, couponWarning } = await createInfluencer({
+    name,
+    email,
+    handle: handle ?? null,
+    couponCode,
+    commissionValue,
+    customerDiscount,
   })
 
-  const inviteUrl = buildInviteUrl(token, origin)
+  const inviteUrl = buildInviteUrl(influencer.agreementSignatureToken!, origin)
   const emailResult = await sendInviteEmail({
     name: influencer.name,
     email: influencer.email!,
