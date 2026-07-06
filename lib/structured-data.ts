@@ -12,6 +12,33 @@ export function organizationJsonLd(): Record<string, unknown> {
     logo: absoluteUrl('/logo.png'),
     description:
       'AI podcast production studio. From a guest’s name to a finished, on-brand episode in minutes.',
+    sameAs: [
+      'https://www.producthunt.com/products/ba-studio',
+      'https://twitter.com/imrishifman',
+      'https://www.linkedin.com/in/imrishifman/',
+      'https://www.youtube.com/@bastudio',
+    ],
+  }
+}
+
+// WebSite with a SearchAction. Tells Google we have a site search and lets it
+// render a sitelinks search box for brand queries like "ba studio". Also
+// declares the canonical site name so brand SERPs cluster correctly.
+export function websiteJsonLd(): Record<string, unknown> {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'Ba Studio',
+    alternateName: 'BaStudio',
+    url: SITE_URL,
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: {
+        '@type': 'EntryPoint',
+        urlTemplate: `${SITE_URL}/?q={search_term_string}`,
+      },
+      'query-input': 'required name=search_term_string',
+    },
   }
 }
 

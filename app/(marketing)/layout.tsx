@@ -2,7 +2,11 @@ import { MarketingNav } from '@/components/marketing/MarketingNav'
 import { MarketingFooter } from '@/components/marketing/MarketingFooter'
 import { LenisScroll } from '@/components/marketing/LenisScroll'
 import { JsonLd } from '@/components/seo/JsonLd'
-import { organizationJsonLd, softwareApplicationJsonLd } from '@/lib/structured-data'
+import {
+  organizationJsonLd,
+  softwareApplicationJsonLd,
+  websiteJsonLd,
+} from '@/lib/structured-data'
 
 export default function MarketingLayout({
   children,
@@ -12,7 +16,13 @@ export default function MarketingLayout({
   return (
     <>
       {/* Site-wide structured data for the public marketing surface. */}
-      <JsonLd data={[organizationJsonLd(), softwareApplicationJsonLd()]} />
+      <JsonLd
+        data={[
+          organizationJsonLd(),
+          websiteJsonLd(),
+          softwareApplicationJsonLd(),
+        ]}
+      />
       <LenisScroll />
       <MarketingNav />
       <main className="min-h-screen">{children}</main>
