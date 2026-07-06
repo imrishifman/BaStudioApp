@@ -97,6 +97,14 @@ async function recordInfluencerConversion(
 // Apply a subscription snapshot to the User row. Single source of truth for
 // every subscription-touching event.
 async function applySubscriptionToUser(userId: string, sub: Stripe.Subscription) {
+  // Comped accounts (compGranted = true, e.g. gifted team/partner plans) are
+  // admin-managed and must NEVER be auto-changed by Stripe events - otherwise
+  // canceling their leftover Stripe subscription would downgrade them to free.
+  // compGranted is a precise comp marker (unlike planOverride, which is also set
+  // on every trial signup), so this doesn't affect trial-to-paid conversions.
+  const comped = await prisma.user.findUnique({ where: { id: userId }, select: { compGranted: true } })
+  if (comped?.compGranted) return
+
   const priceId = sub.items.data[0]?.price.id ?? null
   const map = getPriceMap()
   const meta = priceId ? map[priceId] : null
