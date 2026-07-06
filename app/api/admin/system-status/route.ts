@@ -10,13 +10,11 @@ export const runtime = 'nodejs'
 // Always fetch fresh data; polling endpoint should never be cached.
 export const dynamic = 'force-dynamic'
 
-// Normalize a recurring price to a per-month dollar amount, whatever its
-// billing interval (year/month/week/day) and interval_count.
-function priceToMonthly(price: Stripe.Price | null | undefined, quantity = 1): number {
-  if (!price?.unit_amount || !price.recurring) return 0
-  const amount = (price.unit_amount / 100) * quantity
-  const count = price.recurring.interval_count || 1
-  switch (price.recurring.interval) {
+// Normalize a dollar amount charged for one billing period to per-month,
+// based on the subscription's billing interval.
+function periodAmountToMonthly(amount: number, price: Stripe.Price | null | undefined): number {
+  const count = price?.recurring?.interval_count || 1
+  switch (price?.recurring?.interval) {
     case 'year': return amount / (12 * count)
     case 'month': return amount / count
     case 'week': return (amount * 52) / 12 / count
@@ -25,26 +23,15 @@ function priceToMonthly(price: Stripe.Price | null | undefined, quantity = 1): n
   }
 }
 
-// Apply any subscription-level discounts (coupon percent_off / amount_off) so a
-// 100%-off comp subscription nets $0 and is NOT counted as a paid member.
-function applyDiscounts(monthlyGross: number, sub: Stripe.Subscription): number {
-  // Newer API exposes `discounts` (array); older exposes a single `discount`.
-  // Newer Discount holds its coupon at `source.coupon`; legacy at `.coupon`.
-  const raw = (sub.discounts as unknown[] | undefined) ?? []
-  const legacy = (sub as unknown as { discount?: unknown }).discount
-  const discounts = [...raw, ...(legacy ? [legacy] : [])]
-  let net = monthlyGross
-  for (const d of discounts) {
-    if (typeof d !== 'object' || d === null) continue
-    const obj = d as { coupon?: unknown; source?: { coupon?: unknown } }
-    const rawCoupon = obj.source?.coupon ?? obj.coupon
-    const coupon =
-      typeof rawCoupon === 'object' && rawCoupon !== null ? (rawCoupon as Stripe.Coupon) : null
-    if (!coupon) continue
-    if (coupon.percent_off) net *= 1 - coupon.percent_off / 100
-    else if (coupon.amount_off) net = Math.max(0, net - coupon.amount_off / 100)
-  }
-  return net
+// Money actually COLLECTED on a subscription's most recent invoice. This is the
+// source of truth for "paid": gifted/comped accounts (100% off), trials, and
+// lapsed-coupon subscriptions whose renewal invoice was never actually paid all
+// have amount_paid = 0 and are excluded, regardless of the list price.
+function latestPaidAmount(sub: Stripe.Subscription): number {
+  const raw = (sub as unknown as { latest_invoice?: string | Stripe.Invoice | null }).latest_invoice
+  if (!raw || typeof raw === 'string') return 0
+  if (raw.status !== 'paid') return 0
+  return (raw.amount_paid ?? 0) / 100
 }
 
 interface StripeSubsSummary {
@@ -55,9 +42,10 @@ interface StripeSubsSummary {
   error: string | null
 }
 
-// Source of truth for revenue: live Stripe subscriptions, NOT the local DB.
-// Only subscriptions Stripe reports as `active` AND that net more than $0 after
-// discounts count as paid members. Paginates so we never miss anyone.
+// Source of truth for revenue: money actually collected by Stripe (the latest
+// invoice's amount_paid), NOT the local DB and NOT the subscription list price.
+// A subscription counts as a paid member only when Stripe reports its most
+// recent invoice as PAID with a real amount. Paginates so we never miss anyone.
 async function computeStripeSubscriptions(): Promise<StripeSubsSummary> {
   if (!process.env.STRIPE_SECRET_KEY) {
     return { paidMembers: 0, soloActive: 0, masterActive: 0, mrr: 0, error: 'Stripe not configured' }
@@ -81,22 +69,24 @@ async function computeStripeSubscriptions(): Promise<StripeSubsSummary> {
       const res = await stripe.subscriptions.list({
         status: 'active',
         limit: 100,
-        expand: ['data.discounts.source.coupon'],
+        expand: ['data.latest_invoice'],
         ...(startingAfter ? { starting_after: startingAfter } : {}),
       })
 
       for (const sub of res.data) {
-        let gross = 0
+        // Collected cash only: $0 latest invoice (gift, comp, trial, or an
+        // unpaid renewal) means NOT a paid member, whatever the list price.
+        const paid = latestPaidAmount(sub)
+        if (paid <= 0.001) continue
+        const monthly = periodAmountToMonthly(paid, sub.items.data[0]?.price)
+        if (monthly <= 0.001) continue
         let plan: 'solo' | 'master' | null = null
         for (const item of sub.items.data) {
-          gross += priceToMonthly(item.price, item.quantity ?? 1)
           if (soloPrices.has(item.price.id)) plan = 'solo'
           else if (masterPrices.has(item.price.id)) plan = 'master'
         }
-        const net = applyDiscounts(gross, sub)
-        if (net <= 0.001) continue // free / fully-comped — not a paid member
         paidMembers++
-        mrr += net
+        mrr += monthly
         if (plan === 'solo') soloActive++
         else if (plan === 'master') masterActive++
       }
