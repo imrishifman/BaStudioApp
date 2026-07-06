@@ -17,12 +17,22 @@ export const dynamic = 'force-dynamic'
 // Idempotent by email: an existing influencer is returned, never duplicated.
 
 function secretsMatch(provided: string | null): boolean {
-  const expected = process.env.INTAKE_SHARED_SECRET
-  if (!expected || !provided) return false
-  const a = Buffer.from(provided)
+  // Trim both sides: pasting into the Vercel env UI (or a curl header) easily
+  // picks up a trailing newline/space, which must not break a byte comparison.
+  const expected = process.env.INTAKE_SHARED_SECRET?.trim()
+  const given = provided?.trim()
+  if (!expected || !given) return false
+  const a = Buffer.from(given)
   const b = Buffer.from(expected)
   if (a.length !== b.length) return false
   return timingSafeEqual(a, b)
+}
+
+// 401 diagnostic that never leaks the secret: distinguishes "the server has no
+// secret configured" from "the provided secret does not match", so env-var
+// setup problems are debuggable from the response alone.
+function unauthorizedReason(): string {
+  return process.env.INTAKE_SHARED_SECRET?.trim() ? 'secret-mismatch' : 'server-secret-not-configured'
 }
 
 function shape(inf: { id: string; name: string; email: string | null; couponCode: string | null; status: string }) {
@@ -38,7 +48,7 @@ function shape(inf: { id: string; name: string; email: string | null; couponCode
 
 export async function POST(req: Request) {
   if (!secretsMatch(req.headers.get('x-intake-secret'))) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ error: 'Unauthorized', reason: unauthorizedReason() }, { status: 401 })
   }
 
   const body = await req.json().catch(() => ({}))
