@@ -15,6 +15,7 @@ import {
   ChevronDown,
   LogOut,
   Handshake,
+  Phone,
   type LucideIcon,
 } from 'lucide-react'
 import { cn, initials } from '@/lib/utils'
@@ -55,6 +56,10 @@ const BOTTOM_ITEMS: NavItem[] = [
 // the (app) layout via email lookup and passed in as a prop).
 const PARTNER_ITEM: NavItem = { labelKey: 'nav.partner', href: '/partner', icon: Handshake }
 
+// Only rendered when the user is a commission Caller (matched server-side by
+// email in the (app) layout and passed in as a prop).
+const CALLER_ITEM: NavItem = { labelKey: 'nav.caller', href: '/caller', icon: Phone }
+
 const ADMIN_ITEMS: NavItem[] = [
   { labelKey: 'nav.admin', href: '/admin', icon: ShieldCheck, adminOnly: true },
   { labelKey: 'nav.influencers', href: '/admin/influencers', icon: Users, adminOnly: true },
@@ -62,7 +67,7 @@ const ADMIN_ITEMS: NavItem[] = [
 
 const PLAN_LABELS = { solo: 'Solo', master: 'Master' }
 
-export function Sidebar({ isPartner = false }: { isPartner?: boolean }) {
+export function Sidebar({ isPartner = false, isCaller = false }: { isPartner?: boolean; isCaller?: boolean }) {
   const pathname = usePathname()
   const { data: session } = useSession()
   const user = session?.user
@@ -119,6 +124,14 @@ export function Sidebar({ isPartner = false }: { isPartner?: boolean }) {
           <SidebarItem
             item={PARTNER_ITEM}
             active={isActive(PARTNER_ITEM.href)}
+            user={user}
+          />
+        )}
+
+        {isCaller && (
+          <SidebarItem
+            item={CALLER_ITEM}
+            active={isActive(CALLER_ITEM.href)}
             user={user}
           />
         )}

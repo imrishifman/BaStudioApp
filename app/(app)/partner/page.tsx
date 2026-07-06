@@ -5,6 +5,9 @@ import { PartnerClient } from './partner-client'
 import { GlassCard } from '@/components/common/GlassCard'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
+import { periodOf } from '@/lib/commission/engine'
+
+const usd = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
 
 export default async function PartnerPage() {
   const session = await auth()
@@ -91,13 +94,58 @@ export default async function PartnerPage() {
     totalEarned: +((unpaidAgg._sum.commissionEarned ?? 0) + (paidAgg._sum.commissionEarned ?? 0)).toFixed(2),
   }
 
+  // Studio commission ledger (the new event-based 20% of collected gross).
+  // Separate from the legacy influencer conversions above.
+  const period = periodOf(new Date())
+  const [scMonth, scTotal, scPending, scHistory, referredActive] = await Promise.all([
+    prisma.commissionEvent.aggregate({ where: { recipientType: 'studio', recipientId: influencer.id, period }, _sum: { amount: true } }),
+    prisma.commissionEvent.aggregate({ where: { recipientType: 'studio', recipientId: influencer.id }, _sum: { amount: true } }),
+    prisma.commissionEvent.aggregate({ where: { recipientType: 'studio', recipientId: influencer.id, status: 'pending' }, _sum: { amount: true } }),
+    prisma.commissionEvent.groupBy({ by: ['period'], where: { recipientType: 'studio', recipientId: influencer.id }, _sum: { amount: true }, orderBy: { period: 'desc' }, take: 12 }),
+    prisma.referredUser.count({ where: { studioId: influencer.id, status: 'active' } }),
+  ])
+  const history = scHistory.map((h) => ({ period: h.period, amount: Math.round((h._sum.amount ?? 0) * 100) / 100 }))
+  const hasCommission = (scTotal._sum.amount ?? 0) !== 0 || referredActive > 0
+
   return (
-    <PartnerClient
-      influencer={JSON.parse(JSON.stringify(influencer))}
-      conversions={JSON.parse(JSON.stringify(conversions))}
-      payouts={JSON.parse(JSON.stringify(payouts))}
-      stats={stats}
-      referralUrl={referralUrl}
-    />
+    <>
+      {hasCommission && (
+        <div className="p-6 pb-0 lg:p-8 lg:pb-0">
+          <GlassCard className="p-5">
+            <h2 className="body font-semibold text-[var(--ink-1)] mb-4">Studio commission (20% of every payment)</h2>
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              {[
+                { label: 'This month', value: usd(Math.round((scMonth._sum.amount ?? 0) * 100) / 100) },
+                { label: 'Pending', value: usd(Math.round((scPending._sum.amount ?? 0) * 100) / 100) },
+                { label: 'Total earned', value: usd(Math.round((scTotal._sum.amount ?? 0) * 100) / 100) },
+                { label: 'Active referred users', value: String(referredActive) },
+              ].map((m) => (
+                <div key={m.label} className="rounded-[var(--radius-md)] p-3" style={{ background: 'var(--bg-2)' }}>
+                  <p className="body-sm text-[var(--ink-3)]">{m.label}</p>
+                  <p className="display-sm mt-0.5 text-[var(--ink-1)]">{m.value}</p>
+                </div>
+              ))}
+            </div>
+            {history.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2 border-t pt-3" style={{ borderColor: 'var(--line-1)' }}>
+                <span className="body-sm text-[var(--ink-3)]">History:</span>
+                {history.map((h) => (
+                  <span key={h.period} className="body-sm rounded-full px-2 py-0.5" style={{ background: 'var(--bg-3)', color: 'var(--ink-2)' }}>
+                    {h.period}: {usd(h.amount)}
+                  </span>
+                ))}
+              </div>
+            )}
+          </GlassCard>
+        </div>
+      )}
+      <PartnerClient
+        influencer={JSON.parse(JSON.stringify(influencer))}
+        conversions={JSON.parse(JSON.stringify(conversions))}
+        payouts={JSON.parse(JSON.stringify(payouts))}
+        stats={stats}
+        referralUrl={referralUrl}
+      />
+    </>
   )
 }

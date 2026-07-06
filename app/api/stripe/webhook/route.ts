@@ -4,11 +4,19 @@ import { prisma } from '@/lib/prisma'
 import { stripe } from '@/lib/stripe'
 import { getPriceMap, mapStripeStatus } from '@/lib/stripe-config'
 import { estimateProfit } from '@/lib/influencer-economics'
+import { recordInvoicePayment, recordChargeReversal, setReferredUserStatus } from '@/lib/commission/events'
 
 export const maxDuration = 30
 // Webhook handlers MUST read the raw request body to verify the signature,
 // so this route runs on Node.js (not Edge) and disables the default parsing.
 export const runtime = 'nodejs'
+
+// The invoice id behind a charge. Stripe's TS types in this version don't
+// expose `charge.invoice`, but the field is present at runtime.
+function chargeInvoiceId(charge: Stripe.Charge): string | null {
+  const inv = (charge as unknown as { invoice?: string | { id: string } | null }).invoice
+  return inv ? (typeof inv === 'string' ? inv : inv.id) : null
+}
 
 // Resolve our user by Stripe customer id OR by metadata.userId fallback.
 async function findUser(customerId: string | null, fallbackUserId?: string | null) {
@@ -168,6 +176,40 @@ export async function POST(req: Request) {
         const fallbackUserId = (sub.metadata?.userId as string | undefined) ?? null
         const user = await findUser(customerId, fallbackUserId)
         if (user) await applySubscriptionToUser(user.id, sub)
+        // Keep the commission ledger's referred-user status in sync so the
+        // activation cron never activates a lapsed subscription.
+        if (user && event.type === 'customer.subscription.deleted') {
+          try { await setReferredUserStatus(user.email, 'canceled') } catch (e) { console.error('commission setStatus:', e) }
+        }
+        break
+      }
+
+      // Commission tracking: every successful payment creates studio (+ caller)
+      // commission events; refunds/disputes reverse them. Wrapped so a
+      // commission failure never breaks the core subscription webhook.
+      case 'invoice.payment_succeeded': {
+        const invoice = event.data.object as Stripe.Invoice
+        try { await recordInvoicePayment(invoice) } catch (e) { console.error('commission recordInvoicePayment:', e) }
+        break
+      }
+
+      case 'charge.refunded': {
+        const charge = event.data.object as Stripe.Charge
+        try { await recordChargeReversal(chargeInvoiceId(charge), 'refund') } catch (e) { console.error('commission refund:', e) }
+        break
+      }
+
+      case 'charge.dispute.created': {
+        const dispute = event.data.object as Stripe.Dispute
+        const chargeId = typeof dispute.charge === 'string' ? dispute.charge : dispute.charge?.id ?? null
+        let invoiceId: string | null = null
+        if (chargeId) {
+          try {
+            const ch = await stripe.charges.retrieve(chargeId)
+            invoiceId = chargeInvoiceId(ch)
+          } catch { /* ignore */ }
+        }
+        try { await recordChargeReversal(invoiceId, 'dispute') } catch (e) { console.error('commission dispute:', e) }
         break
       }
 

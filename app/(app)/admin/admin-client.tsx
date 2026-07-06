@@ -215,6 +215,13 @@ export function AdminClient({ users: initialUsers, coupons: initialCoupons, feed
         >
           <Plug size={14} /> {t('admin.tabIntegrations')}
         </Link>
+        <Link
+          href="/admin/commissions"
+          className="flex items-center gap-1.5 rounded-[var(--radius-sm)] px-3 py-1.5 body-sm transition-colors"
+          style={{ color: 'var(--ink-3)' }}
+        >
+          <DollarSign size={14} /> {t('admin.tabCommissions')}
+        </Link>
       </div>
 
       {/* System */}

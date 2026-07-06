@@ -29,6 +29,13 @@ export default async function AppLayout({
   })
   const isPartner = !!partner
 
+  // Is this user a commission Caller? Surfaces a "Caller" entry in the sidebar.
+  const caller = await prisma.caller.findUnique({
+    where: { email: session.user.email.toLowerCase() },
+    select: { id: true },
+  })
+  const isCaller = !!caller
+
   // First-time milestone detection. We compute completion from cheap counts on
   // every app load (rather than instrumenting each action site) and surface the
   // first not-yet-reviewed completed milestone as a one-time review prompt.
@@ -59,7 +66,7 @@ export default async function AppLayout({
     <I18nProvider lang={lang}>
       <ConfirmProvider>
         <div dir={dir} className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-0)' }}>
-          <Sidebar isPartner={isPartner} />
+          <Sidebar isPartner={isPartner} isCaller={isCaller} />
           <div className="flex flex-1 flex-col overflow-hidden">
             <MobileNav isPartner={isPartner} />
             <TrialBanner />

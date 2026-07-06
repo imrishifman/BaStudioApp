@@ -13,6 +13,7 @@
 
 import { NextResponse } from 'next/server'
 import { generateSeoReport } from '@/lib/seo/report'
+import { activateEligibleReferredUsers } from '@/lib/commission/events'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -62,6 +63,16 @@ export async function GET(req: Request) {
     results.seoReport = { ok: true, id: report.id, emailed: report.emailed }
   } catch (err) {
     results.seoReport = { error: err instanceof Error ? err.message : 'failed' }
+  }
+
+  // Commission tracking: activate referred users who have been paying for 30+
+  // days (covers annual plans + any missed monthly signal) and credit any
+  // caller bonuses their activation crosses.
+  try {
+    const activated = await activateEligibleReferredUsers()
+    results.commissionActivations = { ok: true, activated }
+  } catch (err) {
+    results.commissionActivations = { error: err instanceof Error ? err.message : 'failed' }
   }
 
   // NOTE: the social auto-poster (generate / publish / report) runs on its own

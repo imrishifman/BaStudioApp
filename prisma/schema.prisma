@@ -460,13 +460,22 @@ model Influencer {
   agreementSignatureToken   String?             @unique
   agreementIpAddress        String?
   onboardingStep            InfluencerStep      @default(invited)
+  // Commission extension: an Influencer doubles as a "Studio". callerId is the
+  // caller who closed this studio (admin-set, permanent); activatedDate is set
+  // once its first referred user completes a full paying month.
+  callerId                  String?
+  activatedDate             DateTime?
   createdAt                 DateTime            @default(now())
   updatedAt                 DateTime            @updatedAt
 
+  caller        Caller?                @relation(fields: [callerId], references: [id])
   conversions   InfluencerConversion[]
   payouts       PayoutLog[]
   clicks        ReferralClick[]
   attributions  ReferralAttribution[]
+  referredUsers ReferredUser[]
+
+  @@index([callerId])
 }
 
 // Public-facing applications collected from the /partners page. Stays separate
@@ -569,6 +578,113 @@ model PayoutLog {
   errorMessage     String?
   triggeredBy      String?
   createdAt        DateTime     @default(now())
+}
+
+// ===========================================================================
+// Commission tracking (Caller -> Studio -> User). A "Studio" is an Influencer
+// (see above); a Caller closes studios; CommissionEvent is the event-based,
+// per-payment ledger the caller/studio/admin dashboards read from. Kept fully
+// separate from the legacy InfluencerConversion/PayoutLog flow.
+// ===========================================================================
+
+enum CallerStatus {
+  active
+  inactive
+}
+
+enum CommissionRecipientType {
+  studio
+  caller
+}
+
+enum CommissionEventType {
+  commission
+  bonus
+  clawback
+}
+
+enum CommissionEventStatus {
+  pending
+  paid
+}
+
+enum ReferredUserStatus {
+  active
+  canceled
+  refunded
+}
+
+// A caller recruits studios. Login is email-matched, like the partner portal.
+model Caller {
+  id        String       @id @default(cuid())
+  name      String
+  email     String       @unique
+  contact   String?
+  status    CallerStatus @default(active)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  studios Influencer[]
+}
+
+// One row per user referred by a studio. Locks studio attribution + the user's
+// first payment date (the anchor for the caller's 12-month window). A
+// re-subscribe within 90 days keeps this row so original dates are preserved.
+model ReferredUser {
+  id               String             @id @default(cuid())
+  userEmail        String             @unique
+  stripeCustomerId String?
+  studioId         String
+  studio           Influencer         @relation(fields: [studioId], references: [id])
+  plan             Plan
+  firstPaymentDate DateTime?
+  status           ReferredUserStatus @default(active)
+  activated        Boolean            @default(false)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@index([studioId])
+}
+
+// Event-based commission ledger: exactly one row per Stripe payment, per
+// recipient, per type. Totals are always sums of these rows, never recomputed
+// from aggregates. rateApplied is snapshotted so later config changes never
+// alter past events. Bonus rows use a synthetic stripePaymentId
+// (bonus-<callerId>-<threshold>) so each threshold is credited once.
+model CommissionEvent {
+  id                String                  @id @default(cuid())
+  stripePaymentId   String
+  stripeInvoiceId   String?
+  recipientType     CommissionRecipientType
+  recipientId       String
+  referredUserEmail String?
+  amountGross       Float                   @default(0)
+  stripeFee         Float                   @default(0)
+  amountNet         Float                   @default(0)
+  rateApplied       Float                   @default(0)
+  amount            Float                   @default(0)
+  period            String
+  type              CommissionEventType     @default(commission)
+  status            CommissionEventStatus   @default(pending)
+  notes             String?
+  createdAt         DateTime                @default(now())
+
+  @@unique([stripePaymentId, recipientType, recipientId, type])
+  @@index([recipientType, recipientId, period])
+  @@index([period, status])
+}
+
+// Global, tunable commission parameters. Singleton row (id = "singleton").
+// Changes apply to FUTURE events only (each event snapshots its own rate).
+model CommissionConfig {
+  id                   String   @id @default("singleton")
+  callerRate           Float    @default(0.18)
+  callerDurationMonths Int      @default(12)
+  studioRate           Float    @default(0.20)
+  studioDurationMonths Int?
+  bonusAmount          Float    @default(50)
+  bonusPerNStudios     Int      @default(10)
+  updatedAt            DateTime @updatedAt
 }
 
 model UserFeedback {
