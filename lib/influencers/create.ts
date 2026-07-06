@@ -1,6 +1,7 @@
 import 'server-only'
 import { prisma } from '@/lib/prisma'
 import { createStripePromo } from '@/lib/stripe-coupons'
+import { absoluteUrl } from '@/lib/site'
 import type { Influencer, InfluencerStatus } from '@prisma/client'
 
 // Shared influencer creation - the ONE place an Influencer row is born, used by
@@ -9,11 +10,12 @@ import type { Influencer, InfluencerStatus } from '@prisma/client'
 // the Stripe promo, referral link, and portal access are always set up the
 // same way.
 
-const BASE_URL = () => (process.env.NEXT_PUBLIC_APP_URL ?? 'https://bastudiopodcast.com').replace(/\/$/, '')
-
 // Canonical shareable referral link for a coupon code (see app/r/[code]).
+// Built from SITE_URL (the brand origin, bastudiopodcast.com), NOT the mutable
+// NEXT_PUBLIC_APP_URL, so a customer-facing link is always on the brand domain
+// regardless of which deployment URL an env var happens to point at.
 export function referralLinkFor(couponCode: string): string {
-  return `${BASE_URL()}/r/${couponCode}`
+  return absoluteUrl(`/r/${couponCode}`)
 }
 
 // Auto-generate a unique coupon code from a person's name: first word,
