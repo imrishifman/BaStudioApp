@@ -13,3 +13,9 @@ export function isAdmin(email?: string | null): boolean {
   if (!email) return false
   return ADMIN_EMAILS.includes(email.trim().toLowerCase())
 }
+
+// The admin allow-list, for server-side notifications (payout summary, health
+// alerts). Returns a copy so callers can't mutate the module state.
+export function adminEmails(): string[] {
+  return [...ADMIN_EMAILS]
+}

@@ -14,6 +14,8 @@
 import { NextResponse } from 'next/server'
 import { generateSeoReport } from '@/lib/seo/report'
 import { activateEligibleReferredUsers } from '@/lib/commission/events'
+import { reconcileRecentInvoices } from '@/lib/commission/reconcile'
+import { sendWebhookHealthAlert, sendMonthlyPayoutSummary } from '@/lib/email/commission'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -73,6 +75,30 @@ export async function GET(req: Request) {
     results.commissionActivations = { ok: true, activated }
   } catch (err) {
     results.commissionActivations = { error: err instanceof Error ? err.message : 'failed' }
+  }
+
+  // Money safety net: replay recent paid Stripe invoices through the idempotent
+  // recorder. Backfills anything the webhook missed (self-healing) and, if it
+  // had to recover any, alerts the admin that the webhook needs fixing.
+  try {
+    const recon = await reconcileRecentInvoices()
+    results.commissionReconcile = recon
+    if (recon.recovered > 0) {
+      const alerted = await sendWebhookHealthAlert(recon.recovered, recon.scanned).catch(() => false)
+      results.commissionReconcile = { ...recon, alerted }
+    }
+  } catch (err) {
+    results.commissionReconcile = { error: err instanceof Error ? err.message : 'failed' }
+  }
+
+  // On the 1st of the month (UTC), email the admin everything owed and unpaid so
+  // a payout period is never forgotten. Self-skips when nothing is due.
+  if (new Date().getUTCDate() === 1) {
+    try {
+      results.payoutSummary = { sent: await sendMonthlyPayoutSummary() }
+    } catch (err) {
+      results.payoutSummary = { error: err instanceof Error ? err.message : 'failed' }
+    }
   }
 
   // NOTE: the social auto-poster (generate / publish / report) runs on its own

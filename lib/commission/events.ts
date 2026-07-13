@@ -100,13 +100,16 @@ async function activateReferredUser(email: string, cfg: CommissionConfigData): P
 //     itself);
 //  B) the payer is a customer referred by a studio → studio 20% lifetime +
 //     that studio's caller 18% within the customer's 12-month window.
-export async function recordInvoicePayment(invoice: Stripe.Invoice): Promise<void> {
-  if (!invoice.id) return
+// Returns the number of commission events written (0 if none / not attributable).
+// The daily reconciliation sweep uses this as a health signal: a non-zero count
+// during reconciliation means the live webhook missed a payment.
+export async function recordInvoicePayment(invoice: Stripe.Invoice): Promise<number> {
+  if (!invoice.id) return 0
   const email = await invoiceEmail(invoice)
-  if (!email) return
+  if (!email) return 0
 
   const grossPaid = (invoice.amount_paid ?? 0) / 100
-  if (grossPaid <= 0) return
+  if (grossPaid <= 0) return 0
   const paidAt = new Date((invoice.created ?? Math.floor(Date.now() / 1000)) * 1000)
   const { gross, fee, net } = await amountsForCharge(invoiceChargeId(invoice), grossPaid)
   const cfg = await getCommissionConfig()
@@ -121,8 +124,9 @@ export async function recordInvoicePayment(invoice: Stripe.Invoice): Promise<voi
     const firstPaid = ownStudio.firstPaidAt ?? paidAt
     if (!ownStudio.firstPaidAt) await prisma.influencer.update({ where: { id: ownStudio.id }, data: { firstPaidAt: paidAt } })
     const cc = callerCommission(gross, cfg, firstPaid, paidAt)
+    let created = 0
     if (cc.amount > 0) {
-      await prisma.commissionEvent.createMany({
+      const res = await prisma.commissionEvent.createMany({
         data: [{
           stripePaymentId: invoice.id, stripeInvoiceId: invoice.id,
           recipientType: 'caller', recipientId: ownStudio.callerId, referredUserEmail: email,
@@ -131,13 +135,14 @@ export async function recordInvoicePayment(invoice: Stripe.Invoice): Promise<voi
         }],
         skipDuplicates: true,
       })
+      created += res.count
     }
-    return // studio's own payment handled; never also treat it as a referred customer
+    return created // studio's own payment handled; never also treat it as a referred customer
   }
 
   // Path B: referred customer.
   const studioId = await resolveStudioId(email)
-  if (!studioId) return // organic / not studio-referred
+  if (!studioId) return 0 // organic / not studio-referred
 
   const stripeCustomerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id ?? null
   const plan = invoicePlan(invoice)
@@ -188,13 +193,18 @@ export async function recordInvoicePayment(invoice: Stripe.Invoice): Promise<voi
     }
   }
 
-  if (rows.length) await prisma.commissionEvent.createMany({ data: rows, skipDuplicates: true })
+  let created = 0
+  if (rows.length) {
+    const res = await prisma.commissionEvent.createMany({ data: rows, skipDuplicates: true })
+    created += res.count
+  }
 
   // A monthly renewal is a completed paying month → activate immediately.
   // (Annual + 30-day activation is handled by the daily cron.)
   if (invoice.billing_reason === 'subscription_cycle') {
     await activateReferredUser(email, cfg)
   }
+  return created
 }
 
 // charge.refunded / charge.dispute.created → negative clawback events that
