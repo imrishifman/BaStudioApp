@@ -47,6 +47,7 @@ export interface CreateInfluencerOptions {
   status?: InfluencerStatus // default 'pending' (admin invite flow); intake passes 'active'
   couponActive?: boolean // default false (activates on agreement signing)
   stripePromoActive?: boolean // default false (activates on agreement signing)
+  callerId?: string | null // the caller who onboarded this studio (commission attribution)
 }
 
 export interface CreateInfluencerResult {
@@ -93,6 +94,7 @@ export async function createInfluencer(opts: CreateInfluencerOptions): Promise<C
       stripePromotionCodeId,
       status: opts.status ?? 'pending',
       couponActive: opts.couponActive ?? false,
+      callerId: opts.callerId ?? null,
       agreementSignatureToken: crypto.randomUUID(),
       agreementSentDate: new Date(),
     },

@@ -35,7 +35,10 @@ function unauthorizedReason(): string {
   return process.env.INTAKE_SHARED_SECRET?.trim() ? 'secret-mismatch' : 'server-secret-not-configured'
 }
 
-function shape(inf: { id: string; name: string; email: string | null; couponCode: string | null; status: string }) {
+function shape(
+  inf: { id: string; name: string; email: string | null; couponCode: string | null; status: string; callerId: string | null },
+  caller: { id: string; name: string } | null,
+) {
   return {
     id: inf.id,
     name: inf.name,
@@ -43,7 +46,26 @@ function shape(inf: { id: string; name: string; email: string | null; couponCode
     couponCode: inf.couponCode,
     referralLink: inf.couponCode ? referralLinkFor(inf.couponCode) : null,
     status: inf.status,
+    callerId: inf.callerId,
+    caller: caller ? { id: caller.id, name: caller.name } : null,
   }
+}
+
+// Resolve the enrolling caller from the intake body. The Cold Call Manager (a
+// trusted server holding the shared secret) asserts WHICH of its logged-in
+// callers enrolled the lead, by email. We find-or-create the Caller so the
+// studio is attributed automatically - no manual admin assignment needed.
+async function resolveCaller(body: { callerEmail?: unknown; callerName?: unknown }): Promise<{ id: string; name: string } | null> {
+  const callerEmail = typeof body?.callerEmail === 'string' ? body.callerEmail.trim().toLowerCase() : ''
+  if (!callerEmail || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(callerEmail)) return null
+  const callerName = typeof body?.callerName === 'string' && body.callerName.trim() ? body.callerName.trim() : callerEmail
+  const caller = await prisma.caller.upsert({
+    where: { email: callerEmail },
+    update: {}, // never rename/overwrite an existing caller from intake
+    create: { email: callerEmail, name: callerName, status: 'active' },
+    select: { id: true, name: true },
+  })
+  return caller
 }
 
 export async function POST(req: Request) {
@@ -59,9 +81,20 @@ export async function POST(req: Request) {
   }
 
   try {
-    // Idempotent by email - return the existing influencer untouched.
+    const caller = await resolveCaller(body)
+
+    // Idempotent by email. If the studio already exists but has no caller yet,
+    // back-fill the attribution now (a studio's caller is set once and never
+    // reassigned); otherwise return it untouched.
     const existing = await prisma.influencer.findFirst({ where: { email } })
-    if (existing) return NextResponse.json(shape(existing))
+    if (existing) {
+      if (!existing.callerId && caller) {
+        const updated = await prisma.influencer.update({ where: { id: existing.id }, data: { callerId: caller.id } })
+        return NextResponse.json(shape(updated, caller))
+      }
+      const owner = existing.callerId ? await prisma.caller.findUnique({ where: { id: existing.callerId }, select: { id: true, name: true } }) : null
+      return NextResponse.json(shape(existing, owner))
+    }
 
     const couponCode = await generateUniqueCouponCode(name)
     const { influencer } = await createInfluencer({
@@ -73,8 +106,9 @@ export async function POST(req: Request) {
       customerDiscount: null, // attribution-only code: no Stripe coupon, full price
       status: 'active',
       couponActive: true,
+      callerId: caller?.id ?? null, // auto-attach the studio under its caller
     })
-    return NextResponse.json(shape(influencer))
+    return NextResponse.json(shape(influencer, caller))
   } catch (err) {
     console.error('[influencer-intake] error:', err)
     return NextResponse.json({ error: 'Intake failed' }, { status: 500 })
