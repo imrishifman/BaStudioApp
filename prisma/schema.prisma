@@ -462,9 +462,12 @@ model Influencer {
   onboardingStep            InfluencerStep      @default(invited)
   // Commission extension: an Influencer doubles as a "Studio". callerId is the
   // caller who closed this studio (admin-set, permanent); activatedDate is set
-  // once its first referred user completes a full paying month.
+  // once its first referred user completes a full paying month; firstPaidAt is
+  // the studio's OWN first subscription payment, anchoring the caller's 12-month
+  // window on the studio's own revenue.
   callerId                  String?
   activatedDate             DateTime?
+  firstPaidAt               DateTime?
   createdAt                 DateTime            @default(now())
   updatedAt                 DateTime            @updatedAt
 

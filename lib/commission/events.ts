@@ -94,19 +94,51 @@ async function activateReferredUser(email: string, cfg: CommissionConfigData): P
 
 // --- public entry points ---------------------------------------------------
 
-// invoice.payment_succeeded → studio (20%) + caller (18%, within window) events.
+// invoice.payment_succeeded → commission events. Two disjoint paths:
+//  A) the payer IS a studio the caller onboarded → caller earns 18% on the
+//     studio's OWN subscription for 12 months (the studio does not earn on
+//     itself);
+//  B) the payer is a customer referred by a studio → studio 20% lifetime +
+//     that studio's caller 18% within the customer's 12-month window.
 export async function recordInvoicePayment(invoice: Stripe.Invoice): Promise<void> {
   if (!invoice.id) return
   const email = await invoiceEmail(invoice)
   if (!email) return
-  const studioId = await resolveStudioId(email)
-  if (!studioId) return // organic / not studio-referred
 
   const grossPaid = (invoice.amount_paid ?? 0) / 100
   if (grossPaid <= 0) return
   const paidAt = new Date((invoice.created ?? Math.floor(Date.now() / 1000)) * 1000)
   const { gross, fee, net } = await amountsForCharge(invoiceChargeId(invoice), grossPaid)
   const cfg = await getCommissionConfig()
+  const period = periodOf(paidAt)
+
+  // Path A: the payer is a studio onboarded by a caller (matched by email).
+  const ownStudio = await prisma.influencer.findFirst({
+    where: { email, callerId: { not: null } },
+    select: { id: true, callerId: true, firstPaidAt: true },
+  })
+  if (ownStudio?.callerId) {
+    const firstPaid = ownStudio.firstPaidAt ?? paidAt
+    if (!ownStudio.firstPaidAt) await prisma.influencer.update({ where: { id: ownStudio.id }, data: { firstPaidAt: paidAt } })
+    const cc = callerCommission(gross, cfg, firstPaid, paidAt)
+    if (cc.amount > 0) {
+      await prisma.commissionEvent.createMany({
+        data: [{
+          stripePaymentId: invoice.id, stripeInvoiceId: invoice.id,
+          recipientType: 'caller', recipientId: ownStudio.callerId, referredUserEmail: email,
+          amountGross: gross, stripeFee: fee, amountNet: net, rateApplied: cc.rate, amount: cc.amount,
+          period, type: 'commission', notes: 'Caller commission on studio own subscription',
+        }],
+        skipDuplicates: true,
+      })
+    }
+    return // studio's own payment handled; never also treat it as a referred customer
+  }
+
+  // Path B: referred customer.
+  const studioId = await resolveStudioId(email)
+  if (!studioId) return // organic / not studio-referred
+
   const stripeCustomerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id ?? null
   const plan = invoicePlan(invoice)
 
@@ -131,7 +163,6 @@ export async function recordInvoicePayment(invoice: Stripe.Invoice): Promise<voi
     },
   })
 
-  const period = periodOf(paidAt)
   const rows: Prisma.CommissionEventCreateManyInput[] = []
 
   const sc = studioCommission(gross, cfg, firstPaymentDate, paidAt)
