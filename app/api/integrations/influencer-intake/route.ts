@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
-import { timingSafeEqual } from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { createInfluencer, generateUniqueCouponCode, referralLinkFor } from '@/lib/influencers/create'
+import { intakeSecretMatches, intakeUnauthorizedReason } from '@/lib/integrations/intake-secret'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -15,25 +15,6 @@ export const dynamic = 'force-dynamic'
 // Fixed defaults by design: 20% commission, NO customer discount (the code is
 // referral-attribution only; the customer pays full price), status active.
 // Idempotent by email: an existing influencer is returned, never duplicated.
-
-function secretsMatch(provided: string | null): boolean {
-  // Trim both sides: pasting into the Vercel env UI (or a curl header) easily
-  // picks up a trailing newline/space, which must not break a byte comparison.
-  const expected = process.env.INTAKE_SHARED_SECRET?.trim()
-  const given = provided?.trim()
-  if (!expected || !given) return false
-  const a = Buffer.from(given)
-  const b = Buffer.from(expected)
-  if (a.length !== b.length) return false
-  return timingSafeEqual(a, b)
-}
-
-// 401 diagnostic that never leaks the secret: distinguishes "the server has no
-// secret configured" from "the provided secret does not match", so env-var
-// setup problems are debuggable from the response alone.
-function unauthorizedReason(): string {
-  return process.env.INTAKE_SHARED_SECRET?.trim() ? 'secret-mismatch' : 'server-secret-not-configured'
-}
 
 function shape(
   inf: { id: string; name: string; email: string | null; couponCode: string | null; status: string; callerId: string | null },
@@ -69,8 +50,8 @@ async function resolveCaller(body: { callerEmail?: unknown; callerName?: unknown
 }
 
 export async function POST(req: Request) {
-  if (!secretsMatch(req.headers.get('x-intake-secret'))) {
-    return NextResponse.json({ error: 'Unauthorized', reason: unauthorizedReason() }, { status: 401 })
+  if (!intakeSecretMatches(req.headers.get('x-intake-secret'))) {
+    return NextResponse.json({ error: 'Unauthorized', reason: intakeUnauthorizedReason() }, { status: 401 })
   }
 
   const body = await req.json().catch(() => ({}))
