@@ -49,14 +49,21 @@ const inter = Inter({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'Ba Studio · AI Podcast Production',
+    default: 'AI Podcast Prep & Show Notes · Ba Studio',
     template: '%s · Ba Studio',
   },
   description:
-    'From the first idea to the final cut, in one studio that learns how you sound.',
+    'Plan episodes, prep guest questions, and generate show notes with AI. Ba Studio takes your podcast from the first idea to the final cut.',
+  // Self-referencing canonical on every route ('./' resolves to the current
+  // path). This is what collapses query-string variants of a page into the
+  // clean URL - notably '/?signin=1', which is the SAME document as '/' and so
+  // cannot be de-indexed separately without de-indexing the homepage itself.
+  // Pages that declare their own canonical (landing pages, tools) override this.
+  alternates: { canonical: './' },
   openGraph: {
-    title: 'Ba Studio',
-    description: 'AI-powered podcast production studio',
+    title: 'Ba Studio · AI Podcast Prep & Show Notes',
+    description:
+      'Plan episodes, prep guest questions, and generate show notes with AI, from the first idea to the final cut.',
     type: 'website',
     url: SITE_URL,
     siteName: 'Ba Studio',
