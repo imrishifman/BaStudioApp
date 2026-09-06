@@ -56,6 +56,36 @@ function applyAffiliateCookies(req: NextRequest, res: NextResponse) {
 
 export default auth((req) => {
   const { pathname } = req.nextUrl
+
+  // --- Site lock (wind-down) -------------------------------------------------
+  // When SITE_LOCK_PASSWORD is set in the environment, the whole site is gated
+  // behind HTTP Basic Auth so the public sees nothing (this works on the custom
+  // domain too, which Vercel's own protection cannot do on the Hobby plan). To
+  // bring the site back, just remove SITE_LOCK_PASSWORD from the Vercel env and
+  // redeploy - no code change needed. SITE_LOCK_USER is optional (default 'ba').
+  const lockPassword = process.env.SITE_LOCK_PASSWORD
+  if (lockPassword) {
+    const lockUser = process.env.SITE_LOCK_USER || 'ba'
+    const header = req.headers.get('authorization') || ''
+    let ok = false
+    if (header.startsWith('Basic ')) {
+      try {
+        const decoded = atob(header.slice(6))
+        const sep = decoded.indexOf(':')
+        ok = decoded.slice(0, sep) === lockUser && decoded.slice(sep + 1) === lockPassword
+      } catch {
+        ok = false
+      }
+    }
+    if (!ok) {
+      return new NextResponse('Ba Studio is currently unavailable.', {
+        status: 401,
+        headers: { 'WWW-Authenticate': 'Basic realm="Ba Studio", charset="UTF-8"' },
+      })
+    }
+  }
+  // ---------------------------------------------------------------------------
+
   const isAuthed = !!req.auth
 
   const protectedPrefixes = ['/studio', '/dashboard', '/shows', '/podcast-dna', '/episodes', '/guests', '/calendar', '/team', '/account', '/pricing', '/admin', '/partner']
